@@ -14,7 +14,7 @@ function updateMappeCount() {
 
 async function route() {
   const parts = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/').filter(Boolean);
-  landing.teardown();
+  landing.teardown(); gemeinde.teardown();
   const slot = document.getElementById('topSearchSlot');
   slot.style.visibility = parts.length ? 'visible' : 'hidden';
   const [p0, p1, p2, p3] = parts;

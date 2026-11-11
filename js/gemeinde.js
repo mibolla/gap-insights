@@ -15,7 +15,8 @@ export async function render(id, sub, focusInd) {
   const d = await detail(id);
   main().innerHTML = '';
   main().appendChild(header(r, d));
-  main().appendChild(subnav(r, sub));
+  const panel = topicPanel(r, sub); const bar = compactBar(r, sub);
+  main().appendChild(bar); main().appendChild(panel); wireCompact(panel, bar);
   const page = document.createElement('div'); page.className = 'wrap page'; main().appendChild(page);
   // mini map
   const mm = document.getElementById('miniMap');
@@ -43,14 +44,60 @@ function header(r, d) {
   return el;
 }
 
-function subnav(r, sub) {
-  const el = document.createElement('nav'); el.className = 'subnav'; el.setAttribute('aria-label', 'Themen');
+// ------------------------------------------------------------------ topic panel (one row per Thema) + compact sticky bar
+let topicCleanup = null;
+export function teardown() { if (topicCleanup) { topicCleanup(); topicCleanup = null; } }
+
+const chip = (t, s, base, sub) => (s.soon
+  ? `<span class="chip soon" title="in Vorbereitung">${esc(s.label)}</span>`
+  : `<a class="chip t-${t.color}${s.id === sub ? ' on' : ''}" href="${base}/${s.id}"${s.id === sub ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`);
+
+function topicPanel(r, sub) {
   const base = `#/gemeinde/${r.id}`;
-  el.innerHTML = `<div class="wrap subnav-in"><div class="subnav-group"><a class="chip${!sub ? ' on' : ''}" href="${base}">Überblick</a></div>
-    ${S.meta.themen.map((t) => `<div class="subnav-group"><span class="glabel"><span class="dot ${t.color}"></span>${esc(t.label)}</span>
-      ${t.sub.map((s) => (s.soon ? `<span class="chip soon" title="in Vorbereitung">${esc(s.label)}</span>`
-        : `<a class="chip t-${t.color}${s.id === sub ? ' on' : ''}" href="${base}/${s.id}" ${s.id === sub ? 'aria-current="page"' : ''}>${esc(s.label)}</a>`)).join('')}</div>`).join('')}</div>`;
+  const cur = sub ? S.sub.get(sub) : null;
+  const el = document.createElement('nav'); el.className = 'topics'; el.id = 'topics'; el.setAttribute('aria-label', 'Themen');
+  el.innerHTML = `<div class="wrap topics-in">
+    <a class="ov${!sub ? ' on' : ''}" href="${base}"${!sub ? ' aria-current="page"' : ''}><span class="ov-t">Überblick</span><span class="ov-s">8 Kennzahlen auf einen Blick</span></a>
+    <div class="trows">${S.meta.themen.map((t) => `
+      <div class="trow t-${t.color}${cur && cur.thema.id === t.id ? ' active' : ''}">
+        <span class="tlabel">${esc(t.label)}</span>
+        <div class="tchips">${t.sub.map((s) => chip(t, s, base, sub)).join('')}</div>
+      </div>`).join('')}</div></div>`;
   return el;
+}
+
+function compactBar(r, sub) {
+  const base = `#/gemeinde/${r.id}`;
+  const cur = sub ? S.sub.get(sub) : null;
+  const el = document.createElement('div'); el.className = 'topics-compact'; el.setAttribute('aria-hidden', 'true');
+  el.innerHTML = `<div class="wrap tc-in">
+    ${cur ? `<span class="tc-where t-${cur.thema.color}"><span class="tc-stripe"></span>${esc(cur.thema.label)}</span>
+      <div class="tc-chips">${cur.thema.sub.map((s) => chip(cur.thema, s, base, sub)).join('')}</div>`
+      : `<span class="tc-where"><span class="tc-stripe"></span>${esc(shortName(r.id))} · Überblick</span><div class="tc-chips"></div>`}
+    <button class="btn small tc-all" type="button">Alle Themen ▾</button></div>`;
+  el.querySelector('.tc-all').addEventListener('click', () => {
+    document.getElementById('topics')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  });
+  return el;
+}
+
+function wireCompact(panel, bar) {
+  teardown();
+  let shown = null; let ticking = false;
+  const update = () => {
+    ticking = false;
+    const top = document.getElementById('topbar')?.getBoundingClientRect().bottom || 57;
+    const show = panel.getBoundingClientRect().bottom < top;          // panel scrolled away under the top bar
+    if (show === shown) return;
+    shown = show;
+    bar.classList.toggle('show', show); bar.setAttribute('aria-hidden', String(!show));
+    bar.querySelectorAll('a,button').forEach((a) => { a.tabIndex = show ? 0 : -1; });
+  };
+  const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+  update();
+  topicCleanup = () => { window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll); };
 }
 
 // ------------------------------------------------------------------ portrait (overview)
