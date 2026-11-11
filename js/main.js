@@ -1,11 +1,11 @@
 // Boot, router and top bar.
-import { S, loadAll, mappe } from './store.js';
-import * as landing from './landing.js';
-import * as gemeinde from './gemeinde.js';
-import * as frage from './frage.js';
-import * as pages from './pages.js';
-import { omnibox } from './search.js';
-import { main } from './ui.js';
+import { S, loadAll, mappe } from './store.js?v=20261112003758';
+import * as landing from './landing.js?v=20261112003758';
+import * as gemeinde from './gemeinde.js?v=20261112003758';
+import * as frage from './frage.js?v=20261112003758';
+import * as pages from './pages.js?v=20261112003758';
+import { omnibox } from './search.js?v=20261112003758';
+import { main } from './ui.js?v=20261112003758';
 
 function updateMappeCount() {
   const n = mappe().length; const b = document.getElementById('mappeCount');

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/app.css?v=20261112003758">
 </head>
 <body>
 <a class="skip" href="#main">Zum Inhalt springen</a>
@@ -24,7 +24,7 @@
       <a href="#/favoriten" id="mappeLink">Favoriten <span class="badge" id="mappeCount" hidden>0</span></a>
       <a href="#/daten"><span class="long">Daten &amp; Methodik</span><span class="short">Daten</span></a>
     </nav>
-    <a class="org" href="https://www.hslu.ch/de-ch/gesundheit/" target="_blank" rel="noopener" title="Hochschule Luzern – Gesundheit"><img src="img/hslu.png" alt="HSLU Hochschule Luzern" width="170" height="26"></a>
+    <a class="org" href="https://www.hslu.ch/de-ch/gesundheit/" target="_blank" rel="noopener" title="Hochschule Luzern – Gesundheit"><img src="img/hslu.png?v=20261112003758" alt="HSLU Hochschule Luzern" width="170" height="26"></a>
   </div>
 </header>
 <main id="main" tabindex="-1">
@@ -35,7 +35,7 @@
 </main>
 <footer class="footer" id="footer">
   <div class="footer-in">
-    <a class="org-small" href="https://www.hslu.ch/de-ch/gesundheit/" target="_blank" rel="noopener" title="Hochschule Luzern – Gesundheit"><img src="img/hslu.png" alt="HSLU Hochschule Luzern" width="118" height="18"></a>
+    <a class="org-small" href="https://www.hslu.ch/de-ch/gesundheit/" target="_blank" rel="noopener" title="Hochschule Luzern – Gesundheit"><img src="img/hslu.png?v=20261112003758" alt="HSLU Hochschule Luzern" width="118" height="18"></a>
     <p><b>GAP-Insights</b> · Gesundheit und Alter, Gemeinde für Gemeinde · Hochschule Luzern</p>
     <p class="footer-src">Daten: BFS, BAG, swisstopo · Open Government Data · Stand der Daten <span id="footYear">2024</span> · <a href="#/daten">Methodik und Quellen</a></p>
   </div>
@@ -43,6 +43,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-<script type="module" src="js/main.js"></script>
+<script>window.GAP_BUILD = '20261112003758';</script>
+<script type="module" src="js/main.js?v=20261112003758"></script>
 </body>
 </html>

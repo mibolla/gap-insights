@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js';
-import { toast, esc } from './ui.js';
-import { exportItems, exportMenu, FORMATS } from './export.js';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112003758';
+import { toast, esc } from './ui.js?v=20261112003758';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112003758';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');

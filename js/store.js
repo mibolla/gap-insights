@@ -1,8 +1,9 @@
 // Data access, formatting, comparison groups and key sentences.
+const V = window.GAP_BUILD ? `?v=${window.GAP_BUILD}` : '';   // cache busting per build (set in index.html by step 8)
 export const S = { meta: null, regions: [], byId: new Map(), values: null, idx: new Map(), geo: null, detailCache: new Map() };
 
 export async function loadAll() {
-  const get = (p) => fetch(`data/${p}`).then((r) => { if (!r.ok) throw new Error(p); return r.json(); });
+  const get = (p) => fetch(`data/${p}${V}`).then((r) => { if (!r.ok) throw new Error(p); return r.json(); });
   const [meta, regions, values, geo] = await Promise.all([get('meta.json'), get('regions.json'), get('values.json'), get('geo.json')]);
   S.meta = meta; S.regions = regions; S.values = values; S.geo = geo;
   regions.forEach((r) => S.byId.set(r.id, r));
@@ -15,7 +16,7 @@ export async function loadAll() {
 
 export async function detail(id) {
   if (!S.detailCache.has(id)) {
-    S.detailCache.set(id, fetch(`data/detail/${id.replace(':', '_')}.json`).then((r) => r.json()));
+    S.detailCache.set(id, fetch(`data/detail/${id.replace(':', '_')}.json${V}`).then((r) => r.json()));
   }
   return S.detailCache.get(id);
 }
