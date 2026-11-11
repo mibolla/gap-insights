@@ -1,10 +1,10 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112004657';
-import { createMap } from './map.js?v=20261112004657';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112004657';
-import { omnibox } from './search.js?v=20261112004657';
-import { esc, main } from './ui.js?v=20261112004657';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112005316';
+import { createMap } from './map.js?v=20261112005316';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112005316';
+import { omnibox } from './search.js?v=20261112005316';
+import { esc, main } from './ui.js?v=20261112005316';
 
 const TILES = ['bev', 'a80', 'g80', 'al65', 'aph_pl80', 'spx_kl65', 'hh1', 'wsaldo'];
 
@@ -229,7 +229,7 @@ async function special(box, r, d, subId) {
     }
   } else if (subId === 'kennzahlen') {
     const lvl = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirke' : 'Kantone';
-    const c = chartCard('Heim und Spitex im Vergleich', `Jeder Punkt ist eine Region (${lvl}${r.e === 'KT' || r.e === 'CH' ? '' : ' im Kanton ' + r.kt}). Rechts oben: viel Pflege im Heim und viel Spitex; links unten: wenig von beidem. Grösse = Einwohner.`, 'somed');
+    const c = chartCard('Heim und Spitex im Vergleich', `Jeder Punkt ist eine Region (${lvl}${r.e === 'KT' || r.e === 'CH' ? '' : ' im Kanton ' + r.kt}). Rechts oben: viel Pflege im Heim und viel Spitex; links unten: wenig von beidem. Grösse = Einwohner. Beide Achsen sind logarithmisch, damit auch kleine Werte gut lesbar sind.`, 'somed');
     box.appendChild(c.card); peerScatter(c.div, r.id, 'iv_ptage65', 'iv_std65');
   } else if (subId === 'statamb' && r.e === 'GDE') {
     const p = document.createElement('p'); p.className = 'note';

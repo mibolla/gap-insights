@@ -1,14 +1,14 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112004657';
-import { toast, esc } from './ui.js?v=20261112004657';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112004657';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112005316';
+import { toast, esc } from './ui.js?v=20261112005316';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112005316';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
 const ebene = { CH: 'Schweiz', KT: 'Kanton', BEZ: 'Bezirk', GDE: 'Gemeinde' };
 
-const C = { me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5' };
+const C = { chRed: '#d62828', me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5' };
 const FONT = { family: 'Noto Sans, Helvetica Neue, Arial, sans-serif', size: 13, color: C.ink };
 const CFG = { displayModeBar: false, responsive: true, locale: 'de-CH' };
 
@@ -242,7 +242,9 @@ export function peerScatter(div, id, xInd, yInd) {
   const r = region(id); const lvl = r.e === 'GDE' ? 'GDE' : r.e === 'BEZ' ? 'BEZ' : 'KT';  // CH: all Kantone, none highlighted
   const pool = S.regions.filter((x) => x.e === lvl && (lvl === 'KT' || x.kt === r.kt));
   const pts = pool.map((x) => ({ x, a: val(xInd, x.id), b: val(yInd, x.id) })).filter((p) => p.a != null && p.b != null);
-  const me = pts.filter((p) => p.x.id === id); const rest = pts.filter((p) => p.x.id !== id);
+  // log axes: only positive values can be drawn (all values stay in the exported table)
+  const pos = pts.filter((p) => p.a > 0 && p.b > 0);
+  const me = pos.filter((p) => p.x.id === id); const rest = pos.filter((p) => p.x.id !== id);
   const ix = S.ind.get(xInd); const iy = S.ind.get(yInd);
   // Kantone: abbreviation inside large bubbles, above small bubbles; dark text, white only on the orange bubble
   const BIG = 22;
@@ -260,15 +262,44 @@ export function peerScatter(div, id, xInd, yInd) {
   const sz = (p) => Math.max(6, Math.min(30, Math.sqrt(p.x.pop) / 12));
   const vk = [val(xInd, lvl === 'KT' ? 'CH' : `KT:${r.kt}`), val(yInd, lvl === 'KT' ? 'CH' : `KT:${r.kt}`)];
   div._table = { columns: ['Region', 'Kanton', 'Einwohner', `${ix.short} (${ix.unit})`, `${iy.short} (${iy.unit})`],
-    rows: pts.sort((a, b) => b.x.pop - a.x.pop).map((p) => [p.x.e === 'BEZ' ? `Bezirk ${p.x.n}` : p.x.n, p.x.kt, p.x.pop, rnd(p.a, 2), rnd(p.b, 2)]) };
-  plot(div, [tr(rest, '#9fb6c8', sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), tr(me, C.me, (p) => sz(p) + 4, shortName(id))],
+    rows: [...pts.sort((a, b) => b.x.pop - a.x.pop).map((p) => [p.x.e === 'BEZ' ? `Bezirk ${p.x.n}` : p.x.n, p.x.kt, p.x.pop, rnd(p.a, 2), rnd(p.b, 2)]),
+      ['Schweiz', 'CH', region('CH').pop, rnd(val(xInd, 'CH'), 2), rnd(val(yInd, 'CH'), 2)]] };
+  // Switzerland as a red reference bubble (fixed size), third legend entry
+  const chx = val(xInd, 'CH'); const chy = val(yInd, 'CH');
+  const chTrace = chx > 0 && chy > 0 ? [{ type: 'scatter', mode: lvl === 'KT' ? 'markers+text' : 'markers', x: [chx], y: [chy], name: 'Schweiz',
+    marker: { color: C.chRed, size: lvl === 'KT' ? 26 : 20, line: { color: '#fff', width: 1.5 }, opacity: 0.95 },
+    text: lvl === 'KT' ? ['CH'] : undefined, textposition: 'middle center', textfont: { family: FONT.family, size: 11, color: '#ffffff' }, cliponaxis: false,
+    hovertemplate: `<b>Schweiz</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` }] : [];
+  plot(div, [tr(rest, '#9fb6c8', sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), tr(me, C.me, (p) => sz(p) + 4, shortName(id)), ...chTrace],
     baseLayout({ height: 420, showlegend: true, legend: { orientation: 'h', y: -0.18 }, margin: { l: 56, r: 12, t: 28, b: 60 },
-      xaxis: { title: { text: ix.short, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false },
-      yaxis: { title: { text: iy.short, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false },
-      shapes: vk[0] != null ? [
+      // both axes logarithmic with readable ticks 1-2-5; shapes use data values, annotations log10 positions
+      xaxis: { type: 'log', title: { text: `${ix.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks(pos.map((p) => p.a).concat(vk[0] > 0 ? [vk[0]] : [], chx > 0 ? [chx] : [])) },
+      yaxis: { type: 'log', title: { text: `${iy.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks(pos.map((p) => p.b).concat(vk[1] > 0 ? [vk[1]] : [], chy > 0 ? [chy] : [])) },
+      shapes: vk[0] > 0 && vk[1] > 0 ? [
         { type: 'line', x0: vk[0], x1: vk[0], yref: 'paper', y0: 0, y1: 1, line: { color: C.kt, dash: 'dot', width: 1 } },
         { type: 'line', y0: vk[1], y1: vk[1], xref: 'paper', x0: 0, x1: 1, line: { color: C.kt, dash: 'dot', width: 1 } }] : [],
-      annotations: vk[0] != null ? [{ x: vk[0], yref: 'paper', y: 1, text: lvl === 'KT' ? 'Schweiz' : `Kanton ${r.kt}`, showarrow: false, font: { size: 11, color: C.kt }, yanchor: 'bottom' }] : [] }));
+      annotations: vk[0] > 0 ? [{ x: Math.log10(vk[0]), yref: 'paper', y: 1, text: lvl === 'KT' ? 'Schweiz' : `Kanton ${r.kt}`, showarrow: false, font: { size: 11, color: C.kt }, yanchor: 'bottom' }] : [] }));
+  const dropped = pts.length - pos.length;
+  if (dropped) div.insertAdjacentHTML('afterend', `<p class="note no-print">${dropped} ${lvl === 'GDE' ? 'Gemeinden' : 'Regionen'} ohne Heim oder ohne Spitex-Stunden fehlen in der Grafik (Wert 0 lässt sich auf einer logarithmischen Achse nicht zeigen); sie sind im Export enthalten.</p>`);
+}
+
+/** log axis with ticks 1, 2, 5, 10, 20, 50 … covering the values, plus a small margin */
+function logTicks(values) {
+  const v = values.filter((x) => x > 0);
+  if (!v.length) return {};
+  const lo = Math.min(...v) / 1.25; const hi = Math.max(...v) * 1.25;
+  const ticks = [];
+  for (let e = Math.floor(Math.log10(lo)) - 1; e <= Math.ceil(Math.log10(hi)); e++) {
+    for (const m of [1, 2, 5]) { const t = m * 10 ** e; if (t >= lo && t <= hi) ticks.push(t); }
+  }
+  if (ticks.length < 4) {   // narrow range: add 1.5, 3, 4, 6, 8 steps so the axis is still readable
+    for (let e = Math.floor(Math.log10(lo)) - 1; e <= Math.ceil(Math.log10(hi)); e++) {
+      for (const m of [1.5, 3, 4, 6, 8]) { const t = m * 10 ** e; if (t >= lo && t <= hi) ticks.push(t); }
+    }
+    ticks.sort((a, b) => a - b);
+  }
+  const fmtT = (t) => new Intl.NumberFormat('de-CH', { maximumFractionDigits: 2 }).format(t);
+  return { range: [Math.log10(lo), Math.log10(hi)], tickvals: ticks, ticktext: ticks.map(fmtT) };
 }
 
 export function simpleBars(div, cats, values, color = C.kt, suffix = '') {
