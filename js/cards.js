@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112003758';
-import { toast, esc } from './ui.js?v=20261112003758';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112003758';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112004657';
+import { toast, esc } from './ui.js?v=20261112004657';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112004657';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -244,9 +244,19 @@ export function peerScatter(div, id, xInd, yInd) {
   const pts = pool.map((x) => ({ x, a: val(xInd, x.id), b: val(yInd, x.id) })).filter((p) => p.a != null && p.b != null);
   const me = pts.filter((p) => p.x.id === id); const rest = pts.filter((p) => p.x.id !== id);
   const ix = S.ind.get(xInd); const iy = S.ind.get(yInd);
-  const tr = (arr, c, size, name) => ({ type: 'scatter', mode: 'markers', x: arr.map((p) => p.a), y: arr.map((p) => p.b), name,
-    text: arr.map((p) => p.x.n), marker: { color: c, size: arr.map((p) => size(p)), line: { color: '#fff', width: 1 }, opacity: 0.85 },
-    hovertemplate: `<b>%{text}</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` });
+  // Kantone: abbreviation inside large bubbles, above small bubbles; dark text, white only on the orange bubble
+  const BIG = 22;
+  const tr = (arr, c, size, name) => {
+    const t = { type: 'scatter', mode: 'markers', x: arr.map((p) => p.a), y: arr.map((p) => p.b), name,
+      customdata: arr.map((p) => p.x.n), marker: { color: c, size: arr.map((p) => size(p)), line: { color: '#fff', width: 1 }, opacity: 0.85 },
+      hovertemplate: `<b>%{customdata}</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` };
+    if (lvl === 'KT') {
+      t.mode = 'markers+text'; t.text = arr.map((p) => p.x.kt); t.cliponaxis = false;
+      t.textposition = arr.map((p) => (size(p) >= BIG ? 'middle center' : 'top center'));
+      t.textfont = { family: FONT.family, size: 11, color: arr.map((p) => (size(p) >= BIG && c === C.me ? '#ffffff' : C.ink)) };
+    }
+    return t;
+  };
   const sz = (p) => Math.max(6, Math.min(30, Math.sqrt(p.x.pop) / 12));
   const vk = [val(xInd, lvl === 'KT' ? 'CH' : `KT:${r.kt}`), val(yInd, lvl === 'KT' ? 'CH' : `KT:${r.kt}`)];
   div._table = { columns: ['Region', 'Kanton', 'Einwohner', `${ix.short} (${ix.unit})`, `${iy.short} (${iy.unit})`],
