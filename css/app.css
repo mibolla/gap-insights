@@ -101,6 +101,14 @@ html, body { overflow-x: hidden; }
 .xmenu button { text-align: left; border: 0; background: transparent; padding: 8px 10px; border-radius: 7px; cursor: pointer; color: var(--ink); font-size: .92rem; }
 .xmenu button:hover, .xmenu button:focus-visible { background: var(--blue-soft); outline: none; }
 
+/* ---------- HSLU logo */
+.org { display: flex; align-items: center; flex: none; padding-left: 18px; border-left: 1px solid var(--line); margin-left: 4px; }
+.org img { display: block; height: 26px; width: auto; }
+.org-small { display: inline-flex; margin-bottom: 6px; align-self: flex-start; }
+.org-small img { display: block; height: 18px; width: auto; opacity: .85; }
+@media (max-width: 760px) { .org { padding-left: 10px; } .org img { height: 18px; } }
+@media (max-width: 560px) { .org { display: none; } }   /* phones: logo stays in the footer */
+
 /* ---------- footer */
 .footer { border-top: 1px solid var(--line); background: var(--surface); margin-top: 20px; }
 .footer-in { max-width: var(--max); margin: 0 auto; padding: 22px max(20px, env(safe-area-inset-right)) max(26px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 4px; font-size: .86rem; color: var(--muted); }
