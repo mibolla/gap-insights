@@ -128,15 +128,20 @@ export function groupChart(div, indId, id, mode) {
   if (rows.length < 2) { div.innerHTML = `<p class="empty">Für „${groupLabel[mode]}“ liegen zu wenige Werte vor.</p>`; return; }
   const vk = val(indId, `KT:${r.kt}`); const vc = val(indId, 'CH');
   const shapes = []; const ann = [];
-  [[vk, `Kanton ${r.kt}`, C.kt], [vc, 'Schweiz', C.ch]].forEach(([v, lab, c]) => {
+  // labels of the two reference lines: if the lines are close, put "Schweiz" one row higher so the texts never overlap
+  const span = Math.max(...rows.map((d) => Math.abs(d.v)), Math.abs(vk ?? 0), Math.abs(vc ?? 0)) || 1;
+  const close = vk != null && vc != null && Math.abs(vk - vc) / span < 0.18;
+  [[vk, `Kanton ${r.kt}`, C.kt, 0], [vc, 'Schweiz', C.ch, close ? 15 : 0]].forEach(([v, lab, c, lift]) => {
     if (v == null) return;
     shapes.push({ type: 'line', x0: v, x1: v, yref: 'paper', y0: 0, y1: 1, line: { color: c, width: 1.5, dash: 'dot' } });
-    ann.push({ x: v, yref: 'paper', y: 1.02, text: lab, showarrow: false, font: { size: 11, color: c }, yanchor: 'bottom' });
+    ann.push({ x: v, yref: 'paper', y: 1, yshift: 2 + lift, text: lab, showarrow: false, font: { size: 11, color: c }, yanchor: 'bottom',
+      bgcolor: 'rgba(255,255,255,0.85)', borderpad: 1 });
+    if (lift) shapes.push({ type: 'line', x0: v, x1: v, yref: 'paper', y0: 1, y1: 1, line: { color: c, width: 1, dash: 'dot' } });
   });
   plot(div, [{ type: 'bar', orientation: 'h', y: rows.map((d) => (d.x === id ? `<b>${shortName(d.x)}</b>` : shortName(d.x))), x: rows.map((d) => d.v),
     marker: { color: rows.map((d) => (d.x === id ? C.me : C.grey)) }, text: rows.map((d) => fmt(d.v, i)), textposition: rows.some((d) => d.v < 0) ? 'auto' : 'outside', cliponaxis: false,
     hovertemplate: '%{y}: %{x}<extra></extra>' }],
-  baseLayout({ height: 26 * rows.length + 60, margin: { l: 8, r: 60, t: 26, b: 4 }, shapes, annotations: ann,
+  baseLayout({ height: 26 * rows.length + (close ? 74 : 60), margin: { l: 8, r: 60, t: close ? 40 : 26, b: 4 }, shapes, annotations: ann,
     yaxis: { autorange: 'reversed', automargin: true, tickfont: { size: 12 } }, xaxis: { visible: false, rangemode: 'tozero' }, bargap: 0.25 }));
 }
 
