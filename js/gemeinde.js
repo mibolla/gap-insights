@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112113520';
-import { createMap } from './map.js?v=20261112113520';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112113520';
-import { omnibox } from './search.js?v=20261112113520';
-import { esc, main } from './ui.js?v=20261112113520';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112113520';
-import { openReportDialog } from './report.js?v=20261112113520';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112114128';
+import { createMap } from './map.js?v=20261112114128';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112114128';
+import { omnibox } from './search.js?v=20261112114128';
+import { esc, main } from './ui.js?v=20261112114128';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112114128';
+import { openReportDialog } from './report.js?v=20261112114128';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -177,14 +177,26 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
-    ownBox(r, mode, draw);
+    ownBox(r, mode, () => { draw(); drawSpecial(); });
   };
-  page.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+  const spSub = subId === 'alter' && zeit === 'rueckblick' ? 'entwicklung' : subId;
+  let spRun = 0;
+  const drawSpecial = async () => {   // the topic chart follows «Vergleichen mit» as well
+    const run = ++spRun; const box = document.getElementById('special');
+    const tmp = document.createElement('div'); tmp.className = 'cards'; tmp.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + box.clientWidth + 'px';
+    document.body.appendChild(tmp);     // drawn off-screen at the right width, then swapped in without flicker
+    try { await special(tmp, r, d, spSub, mode); } finally { tmp.remove(); }
+    if (run !== spRun) return;          // a newer selection is already drawing
+    box.replaceChildren(...tmp.children);
+    box.querySelectorAll('.js-plotly-plot').forEach((g) => Plotly.Plots.resize(g));
+  };
+  const redrawAll = () => { draw(); drawSpecial(); };
+  page.querySelectorAll('.compare .seg button').forEach((b) => b.addEventListener('click', () => {
     mode = b.dataset.m; setPrefs({ mode });
-    page.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-    draw();
+    page.querySelectorAll('.compare .seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    redrawAll();
   }));
-  await special(document.getElementById('special'), r, d, subId === 'alter' && zeit === 'rueckblick' ? 'entwicklung' : subId);
+  await drawSpecial();
   draw();
 }
 
@@ -199,14 +211,54 @@ function ownBox(r, mode, redraw) {
     onPick: (it) => { const gid = it.go.split('/')[2]; setPrefs({ own: [...new Set([...own, gid])] }); redraw(); } });
 }
 
-async function special(box, r, d, subId) {
+// ------------------------------------------------------------------ comparison series for the topic charts
+const GROUP_NAME = { nb: 'Nachbargemeinden', size: 'Ähnliche Grösse', kanton: 'Übrige Gemeinden im Kanton', own: 'Eigene Auswahl' };
+const sumArr = (arrs) => arrs[0].map((_, k) => arrs.reduce((a, x) => a + (x[k] || 0), 0));
+const sumObj = (objs) => Object.fromEntries(Object.keys(objs[0]).map((k) => [k, objs.reduce((a, o) => a + (o[k] || 0), 0)]));
+/** one detail record for a group of Gemeinden: counts are summed, rates weighted by population */
+function aggregate(ds) {
+  const out = {};
+  const ts = ds.filter((x) => x.ts);
+  if (ts.length) out.ts = { y: ts[0].ts.y, ...Object.fromEntries(['bev', 'b65', 'b80'].map((k) => [k, sumArr(ts.map((x) => x.ts[k]))])) };
+  const py = ds.filter((x) => x.pyr);
+  if (py.length) {
+    out.pyr = { groups: py[0].pyr.groups };
+    Object.keys(py[0].pyr).filter((k) => k !== 'groups').forEach((y) => { out.pyr[y] = { m: sumArr(py.map((x) => x.pyr[y].m)), f: sumArr(py.map((x) => x.pyr[y].f)) }; });
+  }
+  const hh = ds.filter((x) => x.hh); if (hh.length) out.hh = sumArr(hh.map((x) => x.hh));
+  const bw = ds.filter((x) => x.bew && x.ts);
+  if (bw.length) {
+    const w = bw.map((x) => x.ts.bev[x.ts.bev.length - 1]); const W = w.reduce((a, b) => a + b, 0);
+    out.bew = Object.fromEntries(Object.keys(bw[0].bew).map((k) => [k, bw.reduce((a, x, i) => a + (x.bew[k] || 0) * w[i], 0) / W]));
+  }
+  const ap = ds.filter((x) => x.aph);
+  if (ap.length) out.aph = { heime: ap.reduce((a, x) => a + x.aph.heime, 0), plaetze: ap.reduce((a, x) => a + x.aph.plaetze, 0),
+    stufen: sumArr(ap.filter((x) => x.aph.stufen).map((x) => x.aph.stufen)), ertrag: sumObj(ap.map((x) => x.aph.ertrag)) };
+  const sp = ds.filter((x) => x.spx && x.spx.einnahmen);
+  if (sp.length) out.spx = { einnahmen: sumObj(sp.map((x) => x.spx.einnahmen)) };
+  return out;
+}
+/** [the region itself, comparison(s)…, Kanton, Schweiz] according to «Vergleichen mit» */
+async function compareSeries(r, d, mode) {
+  const kt = r.e === 'CH' ? [] : parents(r.id).filter((x) => x !== r.bez);                 // Kanton + Schweiz
+  const dk = await Promise.all(kt.map((x) => detail(x)));
+  const refs = kt.map((x, k) => ({ id: x, d: dk[k] }));
+  if (r.e === 'GDE' && mode === 'kt') return [{ id: r.id, d }, { id: r.bez, d: await detail(r.bez) }, ...refs];
+  const members = r.e === 'GDE' || (r.e === 'BEZ' && mode === 'kanton') ? groupMembers(mode, r.id) : [];
+  if (!members.length) return [{ id: r.id, d }, ...refs];
+  const ds = await Promise.all(members.map((x) => detail(x)));
+  return [{ id: r.id, d }, { id: 'GRP', grp: true, name: `${r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : GROUP_NAME[mode]} (${members.length})`, d: aggregate(ds) }, ...refs];
+}
+
+async function special(box, r, d, subId, mode = 'kt') {
   const M = S.meta; const [y0, y1] = M.alter_jahre;
-  const refs = parents(r.id).filter((x) => x !== r.bez);           // Kanton + Schweiz
-  const dRefs = await Promise.all(refs.map((x) => detail(x)));
-  const series = [{ id: r.id, d }, ...refs.map((x, k) => ({ id: x, d: dRefs[k] }))];
+  const series = await compareSeries(r, d, mode);
+  const grp = series.find((s) => s.grp);
   if (subId === 'alter') {
-    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, blau gepunktet: Schweiz ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop');
-    box.appendChild(c.card); pyramid(c.div, d, series[series.length - 1].d, [y0, y1]);
+    const ref = grp && grp.d.pyr ? grp : series[series.length - 1];
+    const refName = ref.grp ? ref.name.replace(/ \(\d+\)$/, '') : 'Schweiz';
+    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop');
+    box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
   } else if (subId === 'entwicklung') {
     const c = chartCard(`Entwicklung ${y0}–${y1}`, '', 'statpop');
     const n = d.ts.y.length - 1;
@@ -225,7 +277,7 @@ async function special(box, r, d, subId) {
   } else if (subId === 'haushalte' && d.hh) {
     const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
     box.appendChild(c.card);
-    shareBars(c.div, ['1 Person', '2 Personen', '3 Personen', '4 Personen', '5 Personen', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ id: s.id, values: s.d.hh })));
+    shareBars(c.div, ['1 Person', '2 Personen', '3 Personen', '4 Personen', '5 Personen', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ ...s, values: s.d.hh })));
   } else if (subId === 'bewegungen' && d.bew) {
     const c = chartCard(`Bevölkerungsbewegungen, Durchschnitt ${M.periode[0]}–${M.periode[1]}`, 'Pro Jahr, in Prozent der Bevölkerung.', 'bevnat');
     box.appendChild(c.card); bewChart(c.div, series.filter((s) => s.d.bew));
@@ -234,20 +286,20 @@ async function special(box, r, d, subId) {
     if (subId === 'leistungen' && series.some((s) => s.d.aph && s.d.aph.stufen)) {
       const c = chartCard('Pflegetage nach Pflegestufe', 'Wie viel Pflege brauchen die Bewohnerinnen und Bewohner? Stufe 1 = bis 20 Minuten pro Tag, Stufe 12 = mehr als 220 Minuten.', 'somed');
       box.appendChild(c.card);
-      shareBars(c.div, Array.from({ length: 12 }, (_, k) => `${k + 1}`), series.filter((s) => s.d.aph && s.d.aph.stufen).map((s) => ({ id: s.id, values: s.d.aph.stufen })));
+      shareBars(c.div, Array.from({ length: 12 }, (_, k) => `${k + 1}`), series.filter((s) => s.d.aph && s.d.aph.stufen && s.d.aph.stufen.length).map((s) => ({ ...s, values: s.d.aph.stufen })));
     }
   } else if (subId === 'finanzierung') {
-    const aph = series.filter((s) => s.d.aph);
+    const aph = series.filter((s) => s.d.aph && s.d.aph.ertrag);
     if (aph.length) {
       const c = chartCard('Woher das Geld der Pflegeheime kommt', 'Anteile am Gesamtertrag. Pflegetaxen: Krankenversicherer, Bewohnende und Restfinanzierung; Pensionstaxen: Hotellerie und Betreuung.', 'somed', false);
       box.appendChild(c.card);
-      stackedMix(c.div, aph.map((s) => ({ id: s.id, mix: s.d.aph.ertrag })), ['Pflegetaxen', 'Pensionstaxen', 'Subventionen', 'Übrige'], ['#1b67b2', '#7eaed9', '#e8701a', '#c7d0d6']);
+      stackedMix(c.div, aph.map((s) => ({ ...s, mix: s.d.aph.ertrag })), ['Pflegetaxen', 'Pensionstaxen', 'Subventionen', 'Übrige'], ['#1b67b2', '#7eaed9', '#e8701a', '#c7d0d6']);
     }
-    const spx = series.filter((s) => s.d.spx);
+    const spx = series.filter((s) => s.d.spx && s.d.spx.einnahmen);
     if (spx.length) {
       const c = chartCard('Wer die Spitex-Pflege bezahlt', 'Einnahmen aus der Langzeitpflege nach Zahler.', 'spitex', false);
       box.appendChild(c.card);
-      stackedMix(c.div, spx.map((s) => ({ id: s.id, mix: s.d.spx.einnahmen })), ['Krankenversicherer', 'Klientinnen und Klienten', 'Kanton und Gemeinden'], ['#1b67b2', '#7eaed9', '#e8701a']);
+      stackedMix(c.div, spx.map((s) => ({ ...s, mix: s.d.spx.einnahmen })), ['Krankenversicherer', 'Klientinnen und Klienten', 'Kanton und Gemeinden'], ['#1b67b2', '#7eaed9', '#e8701a']);
     }
   } else if (subId === 'kennzahlen') {
     const lvl = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirke' : 'Kantone';

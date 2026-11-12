@@ -1,14 +1,14 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112113520';
-import { toast, esc } from './ui.js?v=20261112113520';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112113520';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112114128';
+import { toast, esc } from './ui.js?v=20261112114128';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112114128';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
 const ebene = { CH: 'Schweiz', KT: 'Kanton', BEZ: 'Bezirk', GDE: 'Gemeinde' };
 
-const C = { chRed: '#d62828', me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5' };
+const C = { grp: '#2a9d8f', chRed: '#d62828', me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5' };
 const FONT = { family: 'Noto Sans, Helvetica Neue, Arial, sans-serif', size: 13, color: C.ink };
 const CFG = { displayModeBar: false, responsive: true, locale: 'de-CH' };
 
@@ -158,7 +158,11 @@ export function chartCard(title, sub, srcKey, wide = true) {
   return { card, div, setSub: (h) => { let p = card.querySelector('.key-sentence'); if (!p) { p = document.createElement('p'); p.className = 'key-sentence'; card.querySelector('.card-head').after(p); } p.innerHTML = h; } };
 }
 
-export function pyramid(div, d, dk, years) {
+/** series helpers: a series is {id, d} or a comparison group {id: 'GRP', name, grp: true, d} */
+const nameOf = (s) => s.name || shortName(s.id);
+const colOf = (s, k) => (k === 0 ? C.me : s.grp ? C.grp : s.id === 'CH' ? C.ch : (region(s.id) || {}).e === 'BEZ' ? C.bez : C.kt);
+
+export function pyramid(div, d, dk, years, refName = 'Schweiz') {
   const [y0, y1] = years; const g = d.pyr.groups;
   const tot = (p) => p.m.reduce((a, b) => a + b, 0) + p.f.reduce((a, b) => a + b, 0);
   const pct = (arr, p) => arr.map((x) => (x / tot(p)) * 100);
@@ -168,15 +172,15 @@ export function pyramid(div, d, dk, years) {
     { type: 'bar', orientation: 'h', y: g, x: pct(now.f, now), name: `Frauen ${y1}`, marker: { color: '#f2a46a' }, hovertemplate: 'Frauen %{y}: %{x:.1f} %<extra></extra>' },
     { type: 'scatter', mode: 'lines', y: g, x: pct(then.m, then).map((x) => -x), name: `${y0}`, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' },
     { type: 'scatter', mode: 'lines', y: g, x: pct(then.f, then), showlegend: false, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.m, ref).map((x) => -x), name: 'Schweiz ' + y1, line: { color: C.kt, width: 1.2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.f, ref), showlegend: false, line: { color: C.kt, width: 1.2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
+    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.m, ref).map((x) => -x), name: `${refName} ${y1}`, line: { color: refName === 'Schweiz' ? C.kt : C.grp, width: refName === 'Schweiz' ? 1.2 : 2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
+    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.f, ref), showlegend: false, line: { color: refName === 'Schweiz' ? C.kt : C.grp, width: refName === 'Schweiz' ? 1.2 : 2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
   ];
   const m = Math.max(...data.slice(0, 2).flatMap((t) => t.x.map(Math.abs)), ...pct(ref.m, ref), ...pct(ref.f, ref)) * 1.1;
   const ticks = [-6, -4, -2, 0, 2, 4, 6].filter((t) => Math.abs(t) <= m);
   const r1 = (a) => a.map((x) => rnd(x, 2));
   const tm = pct(now.m, now); const tf = pct(now.f, now); const pm = pct(then.m, then); const pf = pct(then.f, then);
   div._table = { columns: ['Altersgruppe', `Männer ${y1} (Personen)`, `Frauen ${y1} (Personen)`, `Männer ${y1} (%)`, `Frauen ${y1} (%)`,
-    `Männer ${y0} (%)`, `Frauen ${y0} (%)`, `Schweiz Männer ${y1} (%)`, `Schweiz Frauen ${y1} (%)`],
+    `Männer ${y0} (%)`, `Frauen ${y0} (%)`, `${refName} Männer ${y1} (%)`, `${refName} Frauen ${y1} (%)`],
   rows: g.map((x, k) => [x, now.m[k], now.f[k], r1(tm)[k], r1(tf)[k], r1(pm)[k], r1(pf)[k], r1(pct(ref.m, ref))[k], r1(pct(ref.f, ref))[k]]) };
   plot(div, data, baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true,
     legend: { orientation: 'h', y: -0.08, font: { size: 12 } }, margin: { l: 8, r: 8, t: 8, b: 40 },
@@ -186,15 +190,14 @@ export function pyramid(div, d, dk, years) {
 
 export function indexLines(div, series, which, years) {
   // series: [{id, d}] ; which: 'bev'|'b65'|'b80'
-  const col = (id, k) => (k === 0 ? C.me : id === 'CH' ? C.ch : C.kt);
-  const data = series.map(({ id, d }, k) => {
-    const base = d.ts[which][0];
-    return { type: 'scatter', mode: 'lines+markers', x: d.ts.y, y: d.ts[which].map((v) => (base ? (v / base) * 100 : null)), name: shortName(id),
-      line: { color: col(id, k), width: k === 0 ? 3 : 2, dash: k === 0 ? 'solid' : id === 'CH' ? 'dot' : 'dash' }, marker: { size: k === 0 ? 6 : 4 },
-      customdata: d.ts[which], hovertemplate: `${shortName(id)} %{x}: %{customdata:,.0f} Personen (Index %{y:.0f})<extra></extra>` };
+  const data = series.map((s, k) => {
+    const { id, d } = s; const base = d.ts[which][0];
+    return { type: 'scatter', mode: 'lines+markers', x: d.ts.y, y: d.ts[which].map((v) => (base ? (v / base) * 100 : null)), name: nameOf(s),
+      line: { color: colOf(s, k), width: k === 0 || s.grp ? 3 : 2, dash: k === 0 || s.grp ? 'solid' : id === 'CH' ? 'dot' : 'dash' }, marker: { size: k === 0 ? 6 : 4 },
+      customdata: d.ts[which], hovertemplate: `${nameOf(s)} %{x}: %{customdata:,.0f} Personen (Index %{y:.0f})<extra></extra>` };
   });
   const lab = { bev: 'Bevölkerung', b65: 'Personen ab 65', b80: 'Personen ab 80' }[which];
-  div._table = { columns: ['Jahr', ...series.flatMap(({ id }) => [`${shortName(id)}: ${lab}`, `${shortName(id)}: Index ${years[0]} = 100`])],
+  div._table = { columns: ['Jahr', ...series.flatMap((s) => [`${nameOf(s)}: ${lab}`, `${nameOf(s)}: Index ${years[0]} = 100`])],
     rows: series[0].d.ts.y.map((y, k) => [y, ...series.flatMap(({ d }) => [d.ts[which][k], rnd(d.ts[which][0] ? (d.ts[which][k] / d.ts[which][0]) * 100 : null, 1)])]) };
   div._title = `Entwicklung ${lab} ${years[0]}–${years[1]}`;
   plot(div, data, baseLayout({ height: 340, showlegend: true, legend: { orientation: 'h', y: -0.15 }, margin: { l: 44, r: 12, t: 10, b: 50 },
@@ -204,12 +207,12 @@ export function indexLines(div, series, which, years) {
 
 export function shareBars(div, cats, series, unitLabel = '%') {
   // series: [{id, values(abs)}] → shares in %
-  const data = series.map(({ id, values }, k) => {
-    const tot = values.reduce((a, b) => a + (b || 0), 0);
-    return { type: 'bar', x: cats, y: values.map((v) => (tot ? ((v || 0) / tot) * 100 : null)), name: shortName(id),
-      marker: { color: k === 0 ? C.me : id === 'CH' ? C.ch : C.kt }, hovertemplate: `${shortName(id)} · %{x}: %{y:.1f} ${unitLabel}<extra></extra>` };
+  const data = series.map((s, k) => {
+    const { values } = s; const tot = values.reduce((a, b) => a + (b || 0), 0);
+    return { type: 'bar', x: cats, y: values.map((v) => (tot ? ((v || 0) / tot) * 100 : null)), name: nameOf(s),
+      marker: { color: colOf(s, k) }, hovertemplate: `${nameOf(s)} · %{x}: %{y:.1f} ${unitLabel}<extra></extra>` };
   });
-  div._table = { columns: ['Kategorie', ...series.flatMap(({ id }) => [`${shortName(id)} (Anzahl)`, `${shortName(id)} (%)`])],
+  div._table = { columns: ['Kategorie', ...series.flatMap((s) => [`${nameOf(s)} (Anzahl)`, `${nameOf(s)} (%)`])],
     rows: cats.map((c, k) => [c, ...series.flatMap(({ values }, j) => [values[k] == null ? null : rnd(values[k], 0), rnd(data[j].y[k], 2)])]) };
   plot(div, data, baseLayout({ height: 320, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: -0.2 }, margin: { l: 40, r: 10, t: 10, b: 60 },
     yaxis: { ticksuffix: ' %', gridcolor: '#eef1f3' } }));
@@ -217,12 +220,12 @@ export function shareBars(div, cats, series, unitLabel = '%') {
 
 export function stackedMix(div, series, cats, colors) {
   // series: [{id, mix:{cat: abs}}] → horizontal 100 % bars
-  const ys = series.map(({ id }, k) => (k === 0 ? `<b>${shortName(id)}</b>` : shortName(id)));
+  const ys = series.map((s, k) => (k === 0 ? `<b>${nameOf(s)}</b>` : nameOf(s)));
   const data = cats.map((c, j) => ({ type: 'bar', orientation: 'h', name: c, y: ys,
     x: series.map(({ mix }) => { const t = Object.values(mix).reduce((a, b) => a + Math.max(0, b), 0); return t ? (Math.max(0, mix[c]) / t) * 100 : null; }),
     marker: { color: colors[j] }, hovertemplate: `${c}: %{x:.1f} %<extra></extra>` }));
   div._table = { columns: ['Region', ...cats.map((c) => `${c} (%)`), ...cats.map((c) => `${c} (CHF)`)],
-    rows: series.map(({ id, mix }, k) => [shortName(id), ...cats.map((c, j) => rnd(data[j].x[k], 2)), ...cats.map((c) => rnd(mix[c], 0))]) };
+    rows: series.map((s, k) => [nameOf(s), ...cats.map((c, j) => rnd(data[j].x[k], 2)), ...cats.map((c) => rnd(s.mix[c], 0))]) };
   plot(div, data, baseLayout({ height: 60 + 46 * series.length, barmode: 'stack', showlegend: true, legend: { orientation: 'h', y: -0.25 },
     margin: { l: 8, r: 10, t: 6, b: 50 }, yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', range: [0, 100], gridcolor: '#eef1f3' } }));
 }
@@ -230,9 +233,9 @@ export function stackedMix(div, series, cats, colors) {
 export function bewChart(div, series) {
   const keys = ['Geburten', 'Todesfälle', 'Zuzug inter-kanton', 'Wegzug inter-kanton', 'Einwanderung', 'Auswanderung', 'Erwerb CH-Bürgerrecht'];
   const lab = { 'Zuzug inter-kanton': 'Zuzug aus anderen Kantonen', 'Wegzug inter-kanton': 'Wegzug in andere Kantone', Einwanderung: 'Einwanderung (Ausland)', Auswanderung: 'Auswanderung (Ausland)', 'Erwerb CH-Bürgerrecht': 'Einbürgerungen' };
-  const data = series.map(({ id, d }, k) => ({ type: 'bar', orientation: 'h', y: keys.map((x) => lab[x] || x), x: keys.map((x) => d.bew[x]), name: shortName(id),
-    marker: { color: k === 0 ? C.me : id === 'CH' ? C.ch : C.kt }, hovertemplate: `${shortName(id)} · %{y}: %{x:.2f} % pro Jahr<extra></extra>` }));
-  div._table = { columns: ['Bewegung', ...series.map(({ id }) => `${shortName(id)} (% der Bevölkerung pro Jahr)`)],
+  const data = series.map((s, k) => ({ type: 'bar', orientation: 'h', y: keys.map((x) => lab[x] || x), x: keys.map((x) => s.d.bew[x]), name: nameOf(s),
+    marker: { color: colOf(s, k) }, hovertemplate: `${nameOf(s)} · %{y}: %{x:.2f} % pro Jahr<extra></extra>` }));
+  div._table = { columns: ['Bewegung', ...series.map((s) => `${nameOf(s)} (% der Bevölkerung pro Jahr)`)],
     rows: keys.map((x) => [lab[x] || x, ...series.map(({ d }) => rnd(d.bew[x], 3))]) };
   plot(div, data, baseLayout({ height: 380, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: -0.12 }, margin: { l: 8, r: 10, t: 6, b: 50 },
     yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', gridcolor: '#eef1f3', title: { text: 'in % der Bevölkerung pro Jahr', font: { size: 11 } } } }));
