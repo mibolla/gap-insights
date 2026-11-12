@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112105155';
-import { loadProg, roundProg } from './prog.js?v=20261112105155';
-import { esc, toast } from './ui.js?v=20261112105155';
-import * as story from './report_story.js?v=20261112105155';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261112105155';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112105758';
+import { loadProg, roundProg } from './prog.js?v=20261112105758';
+import { esc, toast } from './ui.js?v=20261112105758';
+import * as story from './report_story.js?v=20261112105758';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261112105758';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -42,6 +42,7 @@ export function openReportDialog(id) {
     <fieldset><legend>Kapitel</legend><div class="rd-chaps">${opt.map((c) =>
       `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: r.n, j: st.j }))}${c.only ? ' <span class="muted small">(nur Ausführlich)</span>' : ''}</label>`).join('')}</div>
       <p class="muted small">«Auf einen Blick», «Fragen für die Planung» und «Daten und Methode» sind immer enthalten.</p></fieldset>
+    <p class="small muted rd-ex">Beispiel ansehen: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">Sursee kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">Sursee ausführlich</a></p>
     <div class="rdlg-foot"><button type="button" class="btn ghost" data-act="close">Abbrechen</button>
       <button type="button" class="btn" data-act="preview">Vorschau im neuen Tab</button>
       <button type="button" class="btn primary" data-act="download">HTML herunterladen</button></div></form>`;
@@ -90,7 +91,7 @@ export function openReportDialog(id) {
 export const fileName = (r, o) => `GAP-Insights_Bericht_${r.n.replace(/[^\p{L}\p{N}]+/gu, '-')}_${o.j}_${o.level}.html`;
 
 // ------------------------------------------------------------------ assembly
-export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null } = {}) {
+export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null, base = null } = {}) {
   const r = region(id); const R = S.meta.report; const full = level === 'ausfuehrlich';
   const [d, dB, dK, dCH, P, css, logo] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
     fetch(`css/report.css${V}`).then((x) => x.text()), logoDataUrl()]);
@@ -118,7 +119,7 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
     ${res.body}
     ${c.src && c.id !== 'methode' ? `<p class="src">Quelle: ${esc(c.src.filter((s) => used.includes(s)).map((s) => { const x = S.meta.sources[s]; return `${x.publisher}, ${x.name} (${x.year})`; }).join(' · '))}</p>` : ''}
   </section>`).join('');
-  const link = `${appBase()}#/gemeinde/${id}`;
+  const link = `${base || appBase()}#/gemeinde/${id}`;
   const wrapT = (h) => h.replace(/<table /g, '<div class="tw"><table ').replace(/<\/table>/g, '</table></div>');
   return `<!doctype html>
 <html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
