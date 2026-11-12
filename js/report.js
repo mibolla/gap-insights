@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112123207';
-import { loadProg, roundProg } from './prog.js?v=20261112123207';
-import { esc, toast } from './ui.js?v=20261112123207';
-import * as story from './report_story.js?v=20261112123207';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261112123207';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112124917';
+import { loadProg, roundProg } from './prog.js?v=20261112124917';
+import { esc, toast } from './ui.js?v=20261112124917';
+import * as story from './report_story.js?v=20261112124917';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261112124917';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -148,10 +148,30 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
   <div><dt>In der App</dt><dd><a href="${esc(link)}">${esc(r.n)} in GAP-Insights öffnen</a></dd></div></dl>
 </header>
 <div class="layout">
-  <nav class="toc no-print" aria-label="Inhalt"><p>Inhalt</p><ol>${out.map(({ c }) => `<li><a href="#${c.id}">${esc(fill(c.title, ctx))}</a></li>`).join('')}</ol></nav>
+  <nav class="toc no-print" aria-label="Inhalt"><p>Inhalt</p><ol>${out.map(({ c }, k) => `<li><a href="#${c.id}"><span class="tt"><span class="tn">${k + 1}</span>${esc(fill(c.title, ctx))}</span><span class="tq">${esc(fill(c.frage, ctx))}</span></a></li>`).join('')}</ol></nav>
   <main>${wrapT(sections)}</main>
 </div>
 <footer class="foot"><a class="org-small" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="118" height="18"></a><p>GAP-Insights · Hochschule Luzern – Gesundheit · Bericht für ${esc(r.n)} (${esc(r.kt)}), erstellt am ${esc(today)}. Daten: BFS, BAG, swisstopo. Prognosen: BFS-Szenarien 2025, regionalisiert durch die HSLU.</p>
 <p><a href="${esc(link)}">${esc(link)}</a></p></footer>
+<script>
+/* highlight the chapter in view in the table of contents */
+(function () {
+  var links = [].slice.call(document.querySelectorAll('.toc a[href^="#"]'));
+  var secs = links.map(function (a) { return document.getElementById(a.getAttribute('href').slice(1)); });
+  var bar = document.querySelector('.bar'); var cur = -1; var ticking = false;
+  function update() {
+    ticking = false;
+    var line = (bar ? bar.getBoundingClientRect().bottom : 0) + 40, k = -1;
+    secs.forEach(function (s, i) { if (s && s.getBoundingClientRect().top <= line) k = i; });
+    if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) k = secs.length - 1;
+    if (k === cur) return; cur = k;
+    links.forEach(function (a, i) { a.classList.toggle('on', i === k); if (i === k) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+  }
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
+  update();
+})();
+</script>
 </body></html>`;
 }
