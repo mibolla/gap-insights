@@ -1,14 +1,18 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112005316';
-import { createMap } from './map.js?v=20261112005316';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112005316';
-import { omnibox } from './search.js?v=20261112005316';
-import { esc, main } from './ui.js?v=20261112005316';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112093250';
+import { createMap } from './map.js?v=20261112093250';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112093250';
+import { omnibox } from './search.js?v=20261112093250';
+import { esc, main } from './ui.js?v=20261112093250';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112093250';
+
+const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
 const TILES = ['bev', 'a80', 'g80', 'al65', 'aph_pl80', 'spx_kl65', 'hh1', 'wsaldo'];
 
-export async function render(id, sub, focusInd) {
+export async function render(id, sub, p3) {
+  const zeit = ZEITEN.includes(p3) ? p3 : null; const focusInd = zeit ? null : p3;
   const r = region(id);
   if (!r) { main().innerHTML = `<div class="wrap page"><p class="empty">Diese Region gibt es nicht. <a href="#/">Zur Startseite</a></p></div>`; return; }
   setPrefs({ last: id });
@@ -21,8 +25,10 @@ export async function render(id, sub, focusInd) {
   // mini map
   const mm = document.getElementById('miniMap');
   if (mm && r.e !== 'CH') { const m = createMap(mm, { interactive: false, mini: true }); m.select(id); }
+  const rerender = async () => { const y = window.scrollY; await render(id, sub, p3); window.scrollTo(0, y); };
   if (!sub) await portrait(page, r, d);
-  else await topic(page, r, d, sub);
+  else if (sub === '__ausblick') await ausblickPage(page, r, d, rerender);
+  else await topic(page, r, d, sub, zeit, rerender);
   if (focusInd) requestAnimationFrame(() => document.getElementById(`ind-${focusInd}`)?.scrollIntoView({ block: 'start' }));
   else window.scrollTo(0, 0);
 }
@@ -50,7 +56,7 @@ export function teardown() { if (topicCleanup) { topicCleanup(); topicCleanup = 
 
 const chip = (t, s, base, sub) => (s.soon
   ? `<span class="chip soon" title="in Vorbereitung">${esc(s.label)}</span>`
-  : `<a class="chip t-${t.color}${s.id === sub ? ' on' : ''}" href="${base}/${s.id}"${s.id === sub ? ' aria-current="page"' : ''}>${esc(s.label)}</a>`);
+  : `<a class="chip t-${t.color}${s.id === sub ? ' on' : ''}" href="${base}/${s.id}"${s.id === sub ? ' aria-current="page"' : ''}>${esc(s.label)}${(S.meta.zeit[s.id] || []).includes('ausblick') ? ' <span class="fut" title="mit Ausblick bis 2055">→ 2055</span>' : ''}</a>`);
 
 function topicPanel(r, sub) {
   const base = `#/gemeinde/${r.id}`;
@@ -107,6 +113,7 @@ async function portrait(page, r, d) {
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">Überblick</span><h2>${esc(shortName(r.id))} auf einen Blick</h2></div>
       <p class="small muted">Punkt: Lage ${r.e === 'GDE' ? 'unter allen Gemeinden' : r.e === 'BEZ' ? 'unter allen Bezirken' : 'unter allen Kantonen'} ${r.e === 'KT' || r.e === 'CH' ? '' : 'des Kantons'} (tiefster bis höchster Wert)</p></div>
     <div class="tiles">${tiles}</div>
+    ${await ausblickTiles(r)}
     <div class="cards"><article class="card"><h3>Was möchten Sie wissen?</h3><ul class="qlist">${qs}</ul></article>
       <article class="card"><h3>Mit anderen vergleichen</h3><p class="muted">Jedes Thema lässt sich mit dem Bezirk, dem Kanton und der Schweiz vergleichen – oder mit Nachbargemeinden, Gemeinden ähnlicher Grösse und einer eigenen Auswahl.</p>
         <p><a class="btn small" href="#/gemeinde/${r.id}/alter">Mit der Altersstruktur beginnen →</a></p></article></div>`;
@@ -142,19 +149,29 @@ function tile(k, r) {
 }
 
 // ------------------------------------------------------------------ topic page
-async function topic(page, r, d, subId) {
+async function topic(page, r, d, subId, zeitReq, rerender) {
   const sub = S.sub.get(subId);
   if (!sub || sub.soon) { page.innerHTML = '<p class="empty">Dieses Thema ist in Vorbereitung.</p>'; return; }
+  const zs = S.meta.zeit[subId] || ['heute'];
+  const zeit = zs.includes(zeitReq) ? zeitReq : zs.includes(prefs().zeit) && !zeitReq ? prefs().zeit : 'heute';
+  if (zeitReq) setPrefs({ zeit });
+  const zbar = zs.length > 1 ? `<nav class="zeit no-print" aria-label="Zeitansicht">${zs.map((z) =>
+    `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
+  if (zeit === 'ausblick') {
+    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${zbar}<div id="ausblick"></div>`;
+    await ausblickSection(document.getElementById('ausblick'), r, d, subId, rerender);
+    return;
+  }
   let mode = prefs().mode || 'kt';
   const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' ? ['kt', 'kanton'] : ['kt'];
   if (!modes.includes(mode)) mode = 'kt';
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div>
     ${modes.length > 1 ? `<div class="compare no-print"><span class="label">Vergleichen mit</span><div class="seg" role="group" aria-label="Vergleich">
       ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabel[m]}</button>`).join('')}</div></div>` : ''}</div>
-    <div id="ownBox" class="no-print"></div><div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
+    ${zbar}<div id="ownBox" class="no-print"></div><div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
-    S.meta.indicators.filter((i) => i.sub === subId).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
+    S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
     ownBox(r, mode, draw);
   };
   page.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
@@ -162,7 +179,7 @@ async function topic(page, r, d, subId) {
     page.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
     draw();
   }));
-  await special(document.getElementById('special'), r, d, subId);
+  await special(document.getElementById('special'), r, d, subId === 'alter' && zeit === 'rueckblick' ? 'entwicklung' : subId);
   draw();
 }
 

@@ -1,8 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112005316';
-import { createMap, legendHTML, reduced } from './map.js?v=20261112005316';
-import { omnibox } from './search.js?v=20261112005316';
-import { esc, main } from './ui.js?v=20261112005316';
+import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112093250';
+import { createMap, legendHTML, reduced } from './map.js?v=20261112093250';
+import { omnibox } from './search.js?v=20261112093250';
+import { esc, main } from './ui.js?v=20261112093250';
+import { loadProg, pval } from './prog.js?v=20261112093250';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -25,7 +26,7 @@ export function render() {
   const lastR = last && region(last);
   const themes = M.themen.map((t) => `<div class="t-block"><div class="t-name"><span class="dot ${t.color}"></span>${esc(t.label)}</div>
       <div class="chips">${t.sub.map((s) => (s.soon ? `<span class="chip soon" title="in Vorbereitung">${esc(s.label)}</span>` : `<a class="chip" href="#/thema/${s.id}">${esc(s.label)}</a>`)).join('')}</div></div>`).join('');
-  const qs = M.questions.slice(0, 8).map((q) => `<li><a href="#/frage/${q.id}">${esc(q.text)}</a></li>`).join('');
+  const qs = M.questions.map((q) => `<li><a href="#/frage/${q.id}">${esc(q.text)}</a></li>`).join('');
   const srcs = Object.values(M.sources).map((s) => `<div class="src-row"><span class="pub">${esc(s.publisher)}</span>
       <span>${esc(s.name)} · <span class="num">${esc(s.year)}</span><br><span class="use">${esc(s.use)}</span></span>
       <a href="${s.url}" target="_blank" rel="noopener" aria-label="${esc(s.name)} (öffnet neues Fenster)">↗</a></div>`).join('');
@@ -39,6 +40,10 @@ export function render() {
       src: `BAG / SOMED ${M.jahr}`, map: (m) => { const l = colourBy(m, 'aph_pl80', 'kt'); m.dots((M.facts[4].set || []).map((id) => ({ id, r: 2.4 }))); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
     { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m) => colourBy(m, 'spx_kl65', 'kt'), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
+    { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
+      text: `Menschen ab 80 werden 2040 in der Schweiz leben – gemäss BFS-Referenzszenario (mittel), heute sind es ${fmtInt(Math.round(M.prog_ch.mittel.b80['2024'] / 1000) * 1000)}. Die Karte zeigt die erwartete Zunahme bis 2040 in jeder Gemeinde. Jede Prognose nennt ihr Modell und ihre Variante.`,
+      src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m) => { colourProg(m, 'p_b80', 2040); return '<div class="legend"><span>Zunahme Menschen ab 80, 2024–2040 (BFS mittel)</span></div>'; },
+      thema: 'alter', q: 'zukunft80', cap: 'Zunahme der Menschen ab 80 bis 2040, BFS mittel (in %)' },
   ];
 
   main().innerHTML = `
@@ -70,12 +75,12 @@ export function render() {
   </section>
 
   <section class="story wrap" id="story" aria-labelledby="storyTitle">
-    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">Vier Blicke auf das Älterwerden in der Schweiz</h2></div>
+    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">Fünf Blicke auf das Älterwerden in der Schweiz</h2></div>
       <a class="btn small" href="#choice">Story überspringen →</a></div>
     <div class="story-grid">
       <div class="story-cards">${chapters.map((c, k) => `
         <article class="story-card${k === 0 ? ' active' : ''}" data-k="${k}">
-          <span class="n">${c.n} von 4</span><h3>${c.title}</h3>
+          <span class="n">${c.n} von ${chapters.length}</span><h3>${c.title}</h3>
           <span class="big num">${c.big}</span><p>${c.text}</p>
           <span class="src">Quelle: ${c.src}</span>
           <div class="exits"><a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
@@ -175,4 +180,15 @@ async function mapCard(container, id, pt, pendingQ) {
   card.querySelector('.close').onclick = () => card.remove();
   container.appendChild(card);
   card.querySelector('a').focus({ preventScroll: true });
+}
+
+
+/** colour the map by the forecast change 2024 -> year (BFS mittel) */
+async function colourProg(map, indId, year) {
+  const P = await loadProg();
+  const ids = S.regions.filter((r) => r.e === 'GDE').map((r) => r.id);
+  const vals = ids.map((id) => { const a = pval(P, indId, id, 'mittel', 2024); const b = pval(P, indId, id, 'mittel', year); return a ? (b / a - 1) * 100 : null; });
+  const br = quantiles(vals);
+  map.clear(); map.setLevel('gde');
+  map.choropleth(new Map(ids.map((id, k) => [id, classOf(vals[k], br)])));
 }

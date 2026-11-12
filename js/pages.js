@@ -1,9 +1,9 @@
 // Themen overview, one Thema (list of questions + Swiss values), Favoriten, Daten & Methodik.
-import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261112005316';
-import { indicatorCard, indicatorItem } from './cards.js?v=20261112005316';
-import { exportItems } from './export.js?v=20261112005316';
-import { omnibox } from './search.js?v=20261112005316';
-import { esc, main, toast } from './ui.js?v=20261112005316';
+import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261112093250';
+import { indicatorCard, indicatorItem } from './cards.js?v=20261112093250';
+import { exportItems } from './export.js?v=20261112093250';
+import { omnibox } from './search.js?v=20261112093250';
+import { esc, main, toast } from './ui.js?v=20261112093250';
 
 export function themen() {
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Frage zuerst</span><h2>Themen und Fragen</h2></div></div>
@@ -35,7 +35,8 @@ export function thema(subId) {
   omnibox(document.getElementById('themaSearch'), { id: 'omniThema', compact: true, placeholder: 'Gemeinde suchen …',
     filter: (it) => it.go.startsWith('#/gemeinde/'), onPick: (it) => { location.hash = `${it.go}/${subId}`; } });
   const box = document.getElementById('themaCards');
-  S.meta.indicators.filter((i) => i.sub === subId).forEach((i) => box.appendChild(indicatorCard(i.id, 'CH')));
+  S.meta.indicators.filter((i) => i.sub === subId && i.zeit !== 'ausblick').forEach((i) => box.appendChild(indicatorCard(i.id, 'CH')));
+  if ((S.meta.zeit[subId] || []).includes('ausblick')) box.insertAdjacentHTML('afterbegin', `<article class="card wide"><h3>Ausblick bis 2055</h3><p>Für dieses Thema gibt es Prognosen. <a class="btn small" href="#/gemeinde/CH/${subId}/ausblick">Ausblick Schweiz öffnen →</a></p></article>`);
   window.scrollTo(0, 0);
 }
 
@@ -75,7 +76,7 @@ export function mappePage() {
   window.scrollTo(0, 0);
 }
 
-export function daten() {
+export function daten(anchor) {
   const M = S.meta;
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Transparenz</span><h2>Daten und Methodik</h2></div></div>
     <article class="card"><h3>Datenquellen</h3><div class="src-grid">${Object.values(M.sources).map((s) => `<div class="src-row"><span class="pub">${esc(s.publisher)}</span>
@@ -88,6 +89,23 @@ export function daten() {
       <p><b>Vergleiche.</b> Die Sätze vergleichen mit dem Kanton und der Schweiz: «etwa gleich» bei weniger als 3 % Unterschied (bei Anteilen 0.3 Prozentpunkte), «deutlich» ab 15 % (bei Anteilen 3 Prozentpunkte). Sie bewerten nicht, ob ein Wert gut oder schlecht ist.</p>
       <p><b>Jahre.</b> Spitex, Pflegeheime, Haushalte und Altersstruktur: ${M.jahr}. Bevölkerungsbewegungen: Durchschnitt ${M.periode[0]}–${M.periode[1]}. Datenstand der App: ${M.built}.</p>
       <p><b>Für Fachleute.</b> Die frei kombinierbaren Blasendiagramme aller Kennzahlen finden Sie im CoP-Dashboard (MAIN_CoP_Dashboard.html); das vollständige Datenmodell mit allen Attributen steht in <span class="num">data/unified/REF/REF_attribute.csv</span>.</p>
+    </article>
+    <article class="card prose" id="prognosen"><h3>Prognosen (Ausblick)</h3>
+      <p>Prognosen hängen nicht nur von Daten ab, sondern von einem <b>Modell</b> und seinen <b>Annahmen</b>. Jede Prognose in GAP-Insights nennt deshalb Modell, Version, Variante und – wo nötig – wie sie auf Gemeinden übertragen wurde. Für jede Prognose gibt es zwei getrennte Verweise: auf die <b>Daten</b> und auf die <b>Methode</b>.</p>
+      ${(() => {
+        const seen = new Set(); return M.models.filter((m) => !seen.has(m.modell_id) && seen.add(m.modell_id)).map((m) => {
+          const vs = M.models.filter((x) => x.modell_id === m.modell_id);
+          const src = M.sources[m.modell_id === 'aph_dummy' ? 'aph_dummy' : 'bfs_szen'];
+          return `<div class="model-box${m.status === 'platzhalter' ? ' ph' : ''}"><h4>${esc(m.name)} ${m.status === 'platzhalter' ? '<span class="pl-warn">Platzhalter</span>' : ''}</h4>
+            <p class="small muted">${esc(m.herausgeber)} · Publikation ${m.publikation} · Basisjahr ${m.basisjahr} · Horizont ${m.horizont} · Quelle auf Ebene ${esc(m.ebene_quelle)}</p>
+            <ul>${vs.map((x) => `<li><b>${esc(x.variante)}</b>${x.code ? ` (${esc(x.code)})` : ''}: ${esc(x.annahmen)}</li>`).join('')}</ul>
+            <p><b>Regionalisierung:</b> ${esc(m.regionalisierung)}</p><p><b>Grenzen:</b> ${esc(m.grenzen)}</p>
+            <p class="pl-links">${src.url ? `<a href="${src.url}" target="_blank" rel="noopener">Daten ↗</a>` : '<span class="muted">Daten: Platzhalter, keine externe Quelle</span>'}
+              ${src.url_method && !src.url_method.startsWith('#') ? `<a href="${src.url_method}" target="_blank" rel="noopener">${esc(src.method_label)} ↗</a>` : ''}</p></div>`;
+        }).join('');
+      })()}
+      <p><b>Übertragung der BFS-Szenarien auf Gemeinden (HSLU).</b> Das BFS rechnet die Szenarien für die Kantone. Für jede Gemeinde wird der beobachtete Bestand 2024 in jeder Altersgruppe (5 Jahre) und jedem Geschlecht mit der Entwicklung des Kantons in derselben Gruppe fortgeschrieben. Bezirke und Kantone sind die Summe ihrer Gemeinden; alle Varianten beginnen beim beobachteten Bestand 2024. Gemeindespezifische Zu- und Wegzüge sind nicht berücksichtigt – für kleine Gemeinden sind die Werte grobe Schätzungen. Prognosen werden gerundet angezeigt.</p>
     </article></div>`;
-  window.scrollTo(0, 0);
+  if (anchor) requestAnimationFrame(() => document.getElementById(anchor)?.scrollIntoView({ block: 'start' }));
+  else window.scrollTo(0, 0);
 }

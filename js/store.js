@@ -1,5 +1,6 @@
 // Data access, formatting, comparison groups and key sentences.
 const V = window.GAP_BUILD ? `?v=${window.GAP_BUILD}` : '';   // cache busting per build (set in index.html by step 8)
+export const dataUrl = (p) => `data/${p}${V}`;
 export const S = { meta: null, regions: [], byId: new Map(), values: null, idx: new Map(), geo: null, detailCache: new Map() };
 
 export async function loadAll() {

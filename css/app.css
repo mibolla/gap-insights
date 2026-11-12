@@ -109,6 +109,48 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 @media (max-width: 760px) { .org { padding-left: 10px; } .org img { height: 18px; } }
 @media (max-width: 560px) { .org { display: none; } }   /* phones: logo stays in the footer */
 
+/* ---------- time views (Rückblick · Heute · Ausblick) */
+.zeit { display: flex; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 5px; align-self: flex-start; }
+.zt { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 9px; text-decoration: none; color: var(--ink); font-weight: 500; font-size: .92rem; }
+.zt .zi { font-size: .7rem; color: var(--faint); }
+.zt:hover { background: var(--ground); }
+.zt.on { background: var(--ink); color: #fff; }
+.zt.on .zi { color: var(--orange); }
+.chip .fut { font-size: .72rem; color: var(--blue); font-weight: 600; margin-left: 2px; }
+.chip.on .fut { color: rgba(255,255,255,.85); }
+
+/* ---------- forecast declaration (Prognose-Etikett) */
+.plabel { background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 12px; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.plabel.ph { border-left-color: #c62828; background: #fff7f6; }
+.pl-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.pl-kind { font-family: var(--font-display); font-size: .74rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--blue); }
+.plabel.ph .pl-kind { color: #c62828; }
+.pl-head b { font-family: var(--font-display); font-size: 1.02rem; }
+.pl-meta { font-size: .84rem; color: var(--muted); }
+.pl-warn { display: inline-block; font-size: .78rem; font-weight: 600; color: #fff; background: #c62828; border-radius: 6px; padding: 2px 8px; }
+.pl-ctrl { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+.pl-ctrl > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-lab { font-size: .8rem; color: var(--muted); font-weight: 600; }
+.pl-more { font-size: .88rem; color: var(--muted); }
+.pl-more summary { cursor: pointer; color: var(--ink); font-weight: 500; }
+.pl-more p { margin-top: 6px; }
+.pl-links { display: flex; gap: 16px; flex-wrap: wrap; }
+.pl-links a { font-weight: 600; }
+.ph-flag { font-size: .82rem; font-weight: 600; color: #c62828; }
+.ph-mini { font-size: .66rem; font-weight: 700; color: #fff; background: #c62828; border-radius: 4px; padding: 1px 5px; vertical-align: middle; }
+.model-box { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; }
+.model-box.ph { border-color: #e9b4b0; background: #fff7f6; }
+.model-box h4 { font-size: 1rem; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.model-box ul { margin: 0; padding-left: 1.1em; font-size: .9rem; }
+
+/* ---------- Ausblick tiles and overview */
+.aus-tiles { display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, var(--blue-soft), transparent); border-radius: 14px; padding: 14px; }
+.aus-tiles-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.aus-tiles-head h3 { font-size: 1.15rem; }
+.aus-sec { display: flex; flex-direction: column; gap: 14px; padding-top: 10px; border-top: 1px solid var(--line); }
+.aus-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.aus-head h3 { font-size: 1.35rem; }
+
 /* ---------- footer */
 .footer { border-top: 1px solid var(--line); background: var(--surface); margin-top: 20px; }
 .footer-in { max-width: var(--max); margin: 0 auto; padding: 22px max(20px, env(safe-area-inset-right)) max(26px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); display: flex; flex-direction: column; gap: 4px; font-size: .86rem; color: var(--muted); }

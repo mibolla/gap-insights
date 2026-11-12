@@ -1,16 +1,18 @@
 // Workflow B "Frage zuerst": answer for Switzerland (map + Kantone), then "Und bei uns?".
-import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs } from './store.js?v=20261112005316';
-import { createMap, legendHTML } from './map.js?v=20261112005316';
-import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261112005316';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112005316';
-import { omnibox } from './search.js?v=20261112005316';
-import { esc, main } from './ui.js?v=20261112005316';
+import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs } from './store.js?v=20261112093250';
+import { createMap, legendHTML } from './map.js?v=20261112093250';
+import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261112093250';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112093250';
+import { omnibox } from './search.js?v=20261112093250';
+import { esc, main } from './ui.js?v=20261112093250';
+import { loadProg, pval, progState, progLabel, progCard, roundProg, model } from './prog.js?v=20261112093250';
 
 const DL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>';
 
 export function render(qid, id) {
   const q = S.q.get(qid);
   if (!q) { main().innerHTML = '<div class="wrap page"><p class="empty">Diese Frage gibt es nicht. <a href="#/themen">Alle Fragen</a></p></div>'; return; }
+  if (q.zeit === 'ausblick') return renderProg(q, id);
   const i = S.ind.get(q.ind); const sub = S.sub.get(q.sub); const r = id ? region(id) : null;
   if (r) setPrefs({ last: r.id });
   const lvl = i.levels.includes('GDE') ? 'GDE' : 'BEZ';
@@ -79,5 +81,68 @@ export function render(qid, id) {
     table: { columns: ['Kanton', 'Kürzel', `${i.short} (${unit})`], rows: [...kts.map((d) => [d.x.n, d.x.kt, rnd(d.v, i.dec + 1)]), ['Schweiz', 'CH', rnd(val(i.id, 'CH'), i.dec + 1)]] } }]));
   const more = document.getElementById('moreCards');
   q.more.forEach((k) => more.appendChild(indicatorCard(k, r ? r.id : 'CH', { mode: prefs().mode || 'kt' })));
+  window.scrollTo(0, 0);
+}
+
+
+// ------------------------------------------------------------------ future questions (Ausblick)
+async function renderProg(q, id) {
+  const P = await loadProg();
+  const i = S.ind.get(q.ind); const sub = S.sub.get(q.sub); const r = id ? region(id) : null;
+  if (r) setPrefs({ last: r.id });
+  const { v, j } = progState(); const m = model(i.modell, v); const ph = m.status === 'platzhalter';
+  const share = i.unit === '%';
+  const metric = (x) => { const a = pval(P, i.id, x, v, 2024); const b = pval(P, i.id, x, v, j); return share ? b : a ? (b / a - 1) * 100 : null; };
+  const mlab = share ? `${i.short.replace(' (Prognose)', '')} ${j}` : `Veränderung 2024–${j} in %`;
+  const ids = S.regions.filter((x) => x.e === 'GDE').map((x) => x.id);
+  const vals = ids.map(metric); const br = quantiles(vals);
+  const kts = S.regions.filter((x) => x.e === 'KT').map((x) => ({ x, v: metric(x.id) })).filter((d) => d.v != null).sort((a, b) => b.v - a.v);
+  const ch0 = pval(P, i.id, 'CH', v, 2024); const chj = pval(P, i.id, 'CH', v, j);
+  const fmtv = (x) => (x == null ? '–' : share ? `${fmt(x, { dec: 1 })} %` : `${x >= 0 ? '+' : '−'}${fmt(Math.abs(x), { dec: 0 })} %`);
+  const others = S.meta.questions.filter((x) => x.id !== q.id);
+  const rerender = () => render(q.id, id);
+  main().innerHTML = `
+  <section class="qhead"><div class="wrap qhead-in">
+    <nav class="crumbs"><a href="#/themen">Themen</a><span class="sep">›</span><span class="dot ${sub.thema.color}"></span>${esc(sub.thema.label)}<span class="sep">›</span><a href="#/thema/${sub.id}">${esc(sub.label)}</a><span class="sep">›</span>Ausblick</nav>
+    <h1>${esc(q.text.replace('2040', String(j)))}</h1>
+    <p class="answer-big">${ph ? 'Platzhaltermodell' : `BFS-Szenario ${v}`}, Schweiz ${j}: <b>rund ${fmt(roundProg(chj, i.unit), { dec: share ? 1 : 0 })}${share ? ' %' : ''}</b>
+      <span class="muted" style="font-size:.8em">(${share ? `2024: ${fmt(ch0, { dec: 1 })} %` : `2024: ${fmt(ch0, { dec: 0 })}, ${fmtv(chj / ch0 * 100 - 100)}`})</span>.
+      Am stärksten ${share ? 'hoch' : 'wachsend'} im Kanton ${esc(kts[0].x.n)} (${fmtv(kts[0].v)}), am schwächsten im Kanton ${esc(kts[kts.length - 1].x.n)} (${fmtv(kts[kts.length - 1].v)}).</p>
+    <div id="plab"></div>
+  </div></section>
+  <div class="wrap page">
+    <div class="q-grid">
+      <article class="card"><div class="card-head"><h3>${esc(mlab)} – alle Gemeinden</h3></div>
+        <p class="small muted">Klicken Sie auf eine Gemeinde, um die Prognose dafür zu sehen.</p>
+        <div id="qMap"></div><div class="small">${legendHTML(br, (x) => fmtv(x), '')}</div>
+        ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
+        <p class="src-line">Prognose: ${esc(m.name)} · ${esc(m.variante)} · Zieljahr ${j}</p></article>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <section class="us"><h3>${r ? `Und bei ${esc(shortName(r.id))}?` : 'Und bei uns?'}</h3><div id="usSearch"></div>
+          ${r ? `<p class="small"><a class="btn small primary" href="#/ausblick/${r.id}">Alle Prognosen für ${esc(shortName(r.id))} →</a> <a class="btn small" href="#/gemeinde/${r.id}/${q.sub}/ausblick">Im Thema öffnen</a></p>` : '<p class="small muted">Gemeinde, Bezirk oder Kanton suchen – oder auf der Karte anklicken.</p>'}</section>
+        <div id="usCard"></div>
+        <article class="card"><h3>Kantone im Vergleich</h3><div id="ktChart" class="chart"></div></article>
+      </div>
+    </div>
+    <h2 style="font-size:1.4rem">Mehr zu dieser Frage${r ? ` für ${esc(shortName(r.id))}` : ''}</h2>
+    <div class="cards" id="moreCards"></div>
+    <article class="card"><h3>Weitere Fragen</h3><ul class="qlist">${others.map((x) => `<li><a href="#/frage/${x.id}${r ? '/' + r.id : ''}">${esc(x.text)}</a></li>`).join('')}</ul></article>
+  </div>`;
+  document.getElementById('plab').appendChild(progLabel(i.modell, rerender));
+  const mp = createMap(document.getElementById('qMap'), { onClick: (cid) => { location.hash = `#/frage/${q.id}/${cid}`; },
+    tip: (cid) => { const x = region(cid); return `<b>${esc(x.n)}</b> (${x.kt}) · ${fmtv(metric(cid))}`; } });
+  mp.setLevel('gde');
+  mp.choropleth(new Map(ids.map((x, k) => [x, classOf(vals[k], br)])));
+  if (r && r.e !== 'CH') mp.select(r.id);
+  omnibox(document.getElementById('usSearch'), { id: 'omniUs', compact: true, placeholder: r ? 'Andere Gemeinde wählen …' : 'Gemeinde suchen …',
+    filter: (it) => it.go.startsWith('#/gemeinde/'), onPick: (it) => { location.hash = `#/frage/${q.id}/${it.go.split('/')[2]}`; } });
+  if (r) document.getElementById('usCard').appendChild(await progCard(i.id, r.id));
+  const myKt = r && r.e !== 'CH' ? r.kt : null;
+  plot(document.getElementById('ktChart'), [{ type: 'bar', orientation: 'h', y: kts.map((d) => d.x.kt), x: kts.map((d) => d.v),
+    marker: { color: kts.map((d) => (d.x.kt === myKt ? COLORS.me : COLORS.grey)) }, text: kts.map((d) => fmtv(d.v)), textposition: 'outside', cliponaxis: false,
+    customdata: kts.map((d) => d.x.n), hovertemplate: '%{customdata}: %{text}<extra></extra>' }],
+  baseLayout({ height: 26 * kts.length + 30, margin: { l: 8, r: 60, t: 8, b: 4 }, yaxis: { autorange: 'reversed', automargin: true, tickfont: { size: 11 } }, xaxis: { visible: false } }));
+  const more = document.getElementById('moreCards');
+  for (const k of q.more) more.appendChild(await progCard(k, r ? r.id : 'CH'));
   window.scrollTo(0, 0);
 }

@@ -1,11 +1,11 @@
 // Boot, router and top bar.
-import { S, loadAll, mappe } from './store.js?v=20261112005316';
-import * as landing from './landing.js?v=20261112005316';
-import * as gemeinde from './gemeinde.js?v=20261112005316';
-import * as frage from './frage.js?v=20261112005316';
-import * as pages from './pages.js?v=20261112005316';
-import { omnibox } from './search.js?v=20261112005316';
-import { main } from './ui.js?v=20261112005316';
+import { S, loadAll, mappe } from './store.js?v=20261112093250';
+import * as landing from './landing.js?v=20261112093250';
+import * as gemeinde from './gemeinde.js?v=20261112093250';
+import * as frage from './frage.js?v=20261112093250';
+import * as pages from './pages.js?v=20261112093250';
+import { omnibox } from './search.js?v=20261112093250';
+import { main } from './ui.js?v=20261112093250';
 
 function updateMappeCount() {
   const n = mappe().length; const b = document.getElementById('mappeCount');
@@ -21,11 +21,12 @@ async function route() {
   try {
     if (!p0) landing.render();
     else if (p0 === 'gemeinde') await gemeinde.render(p1, p2, p3);
+    else if (p0 === 'ausblick') await gemeinde.render(p1 || 'CH', '__ausblick');
     else if (p0 === 'frage') frage.render(p1, p2);
     else if (p0 === 'thema') pages.thema(p1);
     else if (p0 === 'themen') pages.themen();
     else if (p0 === 'favoriten' || p0 === 'mappe') pages.mappePage();   // old links #/mappe keep working
-    else if (p0 === 'daten') pages.daten();
+    else if (p0 === 'daten') pages.daten(p1);
     else if (['story', 'choice', 'sources', 'heroTitle'].includes(p0)) { /* in-page anchor on the landing page */ return; }
     else landing.render();
     document.title = titleFor(p0, p1);
