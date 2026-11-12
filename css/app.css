@@ -395,3 +395,25 @@ details.how p { margin-top: 6px; }
   .cards { grid-template-columns: minmax(0, 1fr); }
   .mappe-item textarea { border: 0; padding: 0; }
 }
+
+/* ---------- Gemeindebericht: button and options dialog */
+.rh-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.rdlg { border: 0; border-radius: 14px; padding: 0; width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-shadow: 0 20px 60px rgba(23, 35, 44, .3); color: var(--ink); background: var(--surface); }
+.rdlg::backdrop { background: rgba(23, 35, 44, .45); }
+.rdlg-in { display: flex; flex-direction: column; gap: 16px; padding: 24px; }
+.rdlg-head h2 { font-size: 1.4rem; margin: 4px 0; }
+.rdlg fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rdlg legend { font-weight: 700; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.rd-level { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rd-level .lvl { display: flex; gap: 10px; align-items: flex-start; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; }
+.rd-level .lvl:has(input:checked) { border-color: var(--blue); background: var(--blue-soft); }
+.rd-level .lvl span { display: flex; flex-direction: column; gap: 2px; }
+.rd-level input { margin-top: 4px; accent-color: var(--blue); }
+.rd-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rd-row .pl-lab { width: 5.5em; font-size: .85rem; color: var(--muted); }
+.rd-chaps { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: .92rem; }
+.rd-chaps label { display: flex; gap: 8px; align-items: baseline; }
+.rd-chaps label.dis { color: var(--faint); }
+.rd-chaps input { accent-color: var(--blue); }
+.rdlg-foot { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 560px) { .rd-level, .rd-chaps { grid-template-columns: 1fr; } }

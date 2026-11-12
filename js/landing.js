@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112095117';
-import { createMap, legendHTML, reduced } from './map.js?v=20261112095117';
-import { omnibox } from './search.js?v=20261112095117';
-import { esc, main } from './ui.js?v=20261112095117';
-import { loadProg, pval } from './prog.js?v=20261112095117';
+import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112104557';
+import { createMap, legendHTML, reduced } from './map.js?v=20261112104557';
+import { omnibox } from './search.js?v=20261112104557';
+import { esc, main } from './ui.js?v=20261112104557';
+import { loadProg, pval } from './prog.js?v=20261112104557';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }

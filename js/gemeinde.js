@@ -1,17 +1,19 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112095117';
-import { createMap } from './map.js?v=20261112095117';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112095117';
-import { omnibox } from './search.js?v=20261112095117';
-import { esc, main } from './ui.js?v=20261112095117';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112095117';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112104557';
+import { createMap } from './map.js?v=20261112104557';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112104557';
+import { omnibox } from './search.js?v=20261112104557';
+import { esc, main } from './ui.js?v=20261112104557';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112104557';
+import { openReportDialog } from './report.js?v=20261112104557';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
 const TILES = ['bev', 'a80', 'g80', 'al65', 'aph_pl80', 'spx_kl65', 'hh1', 'wsaldo'];
 
 export async function render(id, sub, p3) {
+  const wantReport = sub === 'bericht'; if (wantReport) sub = undefined;
   const zeit = ZEITEN.includes(p3) ? p3 : null; const focusInd = zeit ? null : p3;
   const r = region(id);
   if (!r) { main().innerHTML = `<div class="wrap page"><p class="empty">Diese Region gibt es nicht. <a href="#/">Zur Startseite</a></p></div>`; return; }
@@ -19,6 +21,7 @@ export async function render(id, sub, p3) {
   const d = await detail(id);
   main().innerHTML = '';
   main().appendChild(header(r, d));
+  main().querySelector('[data-report]')?.addEventListener('click', () => openReportDialog(id));
   const panel = topicPanel(r, sub); const bar = compactBar(r, sub);
   main().appendChild(bar); main().appendChild(panel); wireCompact(panel, bar);
   const page = document.createElement('div'); page.className = 'wrap page'; main().appendChild(page);
@@ -31,6 +34,7 @@ export async function render(id, sub, p3) {
   else await topic(page, r, d, sub, zeit, rerender);
   if (focusInd) requestAnimationFrame(() => document.getElementById(`ind-${focusInd}`)?.scrollIntoView({ block: 'start' }));
   else window.scrollTo(0, 0);
+  if (wantReport && r.e === 'GDE') openReportDialog(id);
 }
 
 function header(r, d) {
@@ -46,6 +50,7 @@ function header(r, d) {
         <span><b>${fmtInt(ts.b80[n])}</b> ab 80${g80 != null ? ` (${plusMinus(g80)} % seit ${ts.y[0]})` : ''}</span>
         ${d.aph ? `<span><b>${fmtInt(d.aph.heime)}</b> Pflegeheim${d.aph.heime === 1 ? '' : 'e'} · ${fmtInt(d.aph.plaetze)} Plätze</span>` : r.e === 'GDE' ? '<span>kein Pflegeheim</span>' : ''}
         ${d.spitex && d.spitex.length ? `<span><b>${d.spitex.length}</b> Spitex-Organisation${d.spitex.length === 1 ? '' : 'en'} mit Sitz hier</span>` : ''}</div>
+      ${r.e === 'GDE' ? `<div class="rh-actions no-print"><button type="button" class="btn small primary" data-report><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/></svg>Bericht erstellen</button><span class="muted small">Alle Themen für ${esc(r.n)} als HTML-Bericht</span></div>` : ''}
     </div><div class="mini-map" id="miniMap" aria-hidden="true"></div></div>`;
   return el;
 }
