@@ -1,7 +1,7 @@
 // Gemeindebericht: small, dependency-free SVG charts. Every function returns an SVG string.
 // Colours come from CSS classes defined in css/report.css (c-me, c-bez, c-kt, c-ch, …), so both themes work.
-import { S } from './store.js?v=20261112112052';
-import { esc } from './ui.js?v=20261112112052';
+import { S } from './store.js?v=20261112112608';
+import { esc } from './ui.js?v=20261112112608';
 
 const nf = (d) => new Intl.NumberFormat('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
 export const num = (v, d = 0) => (v == null || Number.isNaN(v) ? '–' : nf(d).format(v));

@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink } from './store.js?v=20261112112052';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261112112052';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112112052';
-import { esc } from './ui.js?v=20261112112052';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261112112608';
+import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261112112608';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112112608';
+import { esc } from './ui.js?v=20261112112608';
 
 let PV = null;
 export async function loadProg() {
@@ -229,12 +229,26 @@ export async function ausblickPage(page, r, d, rerender) {
 /** portrait: tile row 'Ausblick' */
 export async function ausblickTiles(r) {
   const P = await loadProg(); const { v, j } = progState();
+  const ref = r.e === 'KT' ? 'CH' : r.e === 'CH' ? null : `KT:${r.kt}`;
+  const pool = S.regions.filter((x) => x.e === r.e && (r.e === 'KT' || x.kt === r.kt)).map((x) => x.id);
   const t = (indId) => {
     const i = S.ind.get(indId); const a = pval(P, indId, r.id, v, 2024); const b = pval(P, indId, r.id, v, j);
     const share = i.unit === '%'; const ph = model(i.modell, v).status === 'platzhalter';
+    // the orange point: shares -> value in the target year; counts -> change 2024 -> target year (comparable across sizes)
+    const m = (x) => { const xa = pval(P, indId, x, v, 2024); const xb = pval(P, indId, x, v, j); return share ? xb : pct(xb, xa); };
+    const f = (x) => (share ? `${fmt(roundProg(x, '%'), { dec: 1 })} %` : sign(x));
+    const me = m(r.id); const vr = ref ? m(ref) : null;
+    const w = me != null && vr != null ? compareWord(me, vr, share ? 'p_a80' : 'g80') : null;
+    const vals = pool.map(m).filter((x) => x != null && Number.isFinite(x));
+    const lo = Math.min(...vals); const hi = Math.max(...vals);
+    const pos = hi > lo ? ((me - lo) / (hi - lo)) * 100 : 50;
+    const cmp = w ? ` – ${esc(w)} ${ref === 'CH' ? 'in der Schweiz' : 'im Kanton'} (${f(vr)})` : '';
+    const range = r.e !== 'CH' && vals.length > 2 && me != null
+      ? `<div class="range" aria-hidden="true"><span class="bar"></span><span class="me prog" style="left:${Math.max(0, Math.min(100, pos)).toFixed(1)}%"></span></div>
+        <div class="range-lab num"><span>${f(lo)}</span><span>${f(hi)}</span></div>` : '';
     return `<a class="tile ${i.sub === 'inanspruchnahme' ? 'blue' : 'slate'}" href="#/gemeinde/${r.id}/${i.sub}/ausblick"><span class="tl">${esc(i.short)} ${j}${ph ? ' <span class="ph-mini">Platzhalter</span>' : ''}</span>
       <span class="tv">${b == null ? '–' : share ? `${fmt(roundProg(b, '%'), { dec: 1 })}<small>%</small>` : fmtInt(roundProg(b))}</span>
-      <p class="ts">${b == null ? '' : share ? `2024: ${fmt(a, { dec: 1 })} %` : `2024: ${fmtInt(a)} · ${sign(pct(b, a))}`}</p></a>`;
+      <p class="ts">${b == null ? '' : share ? `2024: ${fmt(a, { dec: 1 })} %${cmp}` : `2024: ${fmtInt(a)} · ${sign(pct(b, a))}${cmp}`}</p>${range}</a>`;
   };
   return `<div class="aus-tiles"><div class="aus-tiles-head"><h3>Ausblick ${j} <span class="muted small">(BFS ${v})</span></h3><a class="btn small" href="#/ausblick/${r.id}">Alle Prognosen →</a></div>
     <div class="tiles">${['p_bev', 'p_b80', 'p_a80', 'p_aph'].map(t).join('')}</div></div>`;
