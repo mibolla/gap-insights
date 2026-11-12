@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
-import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112111354';
-import { toast, esc } from './ui.js?v=20261112111354';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112111354';
+import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261112112052';
+import { toast, esc } from './ui.js?v=20261112112052';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112112052';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -63,7 +63,7 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das gemessen?</summary><p>${esc(i.def)}</p>
       <p><a href="${S.meta.sources[i.src].url}" target="_blank" rel="noopener">${esc(S.meta.sources[i.src].publisher)} – ${esc(S.meta.sources[i.src].name)} ↗</a> · <a href="#/daten">Methodik</a></p></details>
-    <p class="src-line">${esc(sourceLine(i.src))}</p>`;
+    <p class="src-line">${sourceHTML(i.src)}</p>`;
   const div = card.querySelector('.chart');
   const useGroup = mode !== 'kt' && r.e !== 'CH' && r.e !== 'KT';
   if (indId === 'bev' && !useGroup) div.remove();   // absolute size: no benchmark bars
@@ -150,7 +150,7 @@ export function chartCard(title, sub, srcKey, wide = true) {
   const card = document.createElement('article');
   card.className = `card${wide ? ' wide' : ''}`;
   card.innerHTML = `<div class="card-head"><h3>${esc(title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-act="export" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV">${ICON.dl}</button></div></div>
-    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${esc(sourceLine(srcKey))}</p>`;
+    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${sourceHTML(srcKey)}</p>`;
   const div = card.querySelector('.chart');
   const btn = card.querySelector('[data-act="export"]');
   btn.onclick = () => exportMenu(btn, (f) => exportItems(f, [{ title: div._title || title, sheet: title, sentence: card.querySelector('.key-sentence')?.innerHTML || '',

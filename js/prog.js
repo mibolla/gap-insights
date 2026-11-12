@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl } from './store.js?v=20261112111354';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261112111354';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112111354';
-import { esc } from './ui.js?v=20261112111354';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink } from './store.js?v=20261112112052';
+import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261112112052';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261112112052';
+import { esc } from './ui.js?v=20261112112052';
 
 let PV = null;
 export async function loadProg() {
@@ -63,6 +63,12 @@ export function progLabel(mid, onChange) {
   return el;
 }
 
+/** forecast source line as HTML: declaration plus links to data and method */
+export function progSourceHTML(mid) {
+  const src = S.meta.sources[mid === 'aph_dummy' ? 'aph_dummy' : 'bfs_szen'];
+  const links = [src.url ? srcLink(src.url, 'Daten') : '', src.url_method ? srcLink(src.url_method, src.url_method.startsWith('#') ? (src.method_label || 'Methode') : 'Methode') : '', src.url_reg ? srcLink(src.url_reg, src.reg_label) : ''].filter(Boolean);
+  return `<span>${esc(progSourceLine(mid))}</span>${links.length ? ` <span>·</span> ${links.join(' <span>·</span> ')}` : ''}`;
+}
 export function progSourceLine(mid) {
   const st = progState(); const m = model(mid, st.v);
   return `Prognose: ${m.name} · ${m.variante} · Zieljahr ${st.j}${m.status === 'platzhalter' ? ' · PLATZHALTER' : ''}`;
@@ -96,7 +102,7 @@ export async function progCard(indId, id) {
     <p class="key-sentence">${sent}</p><div class="chart"></div>
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das berechnet?</summary><p>${esc(i.def)}</p><p>${esc(m.regionalisierung)}</p></details>
-    <p class="src-line">${esc(progSourceLine(i.modell))}</p>`;
+    <p class="src-line">${progSourceHTML(i.modell)}</p>`;
   // bars: change 2024 -> j (counts) or value in j (shares) for region, Bezirk, Kanton, Schweiz
   const ids = [id, ...parents(id)];
   const rows = ids.map((x) => {
@@ -169,7 +175,7 @@ export function pyrCompare(div, id, d) {
 export function progChartCard(title, sub, mid, draw) {
   const card = document.createElement('article'); card.className = 'card wide';
   card.innerHTML = `<div class="card-head"><h3>${esc(title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-act="export" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg></button></div></div>
-    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${esc(progSourceLine(mid))}</p>`;
+    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${progSourceHTML(mid)}</p>`;
   const div = card.querySelector('.chart');
   requestAnimationFrame(() => draw(div));
   const btn = card.querySelector('[data-act="export"]');

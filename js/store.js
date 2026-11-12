@@ -136,6 +136,18 @@ export function toggleMappe(item) {
 export const inMappe = (ind, id) => mappe().some((x) => x.ind === ind && x.id === id);
 
 // ---------- sources
+const escH = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+/** link to a source (opens the publisher's page in a new tab; app-internal links stay in the app) */
+export function srcLink(url, label) {
+  if (!url) return escH(label);
+  const ext = !url.startsWith('#');
+  return `<a href="${escH(url)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${escH(label)}${ext ? ' ↗' : ' →'}</a>`;
+}
+/** source line as HTML with the dataset name linked to the publisher's page */
+export function sourceHTML(srcKey) {
+  const s = S.meta.sources[srcKey];
+  return `<span>Quelle: ${escH(s.publisher)},</span> ${srcLink(s.url, s.name)} <span>· ${escH(s.year)}</span>`;
+}
 export function sourceLine(srcKey) {
   const s = S.meta.sources[srcKey];
   return `Quelle: ${s.publisher}, ${s.name} · ${s.year}`;

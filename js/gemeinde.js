@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112111354';
-import { createMap } from './map.js?v=20261112111354';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112111354';
-import { omnibox } from './search.js?v=20261112111354';
-import { esc, main } from './ui.js?v=20261112111354';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112111354';
-import { openReportDialog } from './report.js?v=20261112111354';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112112052';
+import { createMap } from './map.js?v=20261112112052';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112112052';
+import { omnibox } from './search.js?v=20261112112052';
+import { esc, main } from './ui.js?v=20261112112052';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112112052';
+import { openReportDialog } from './report.js?v=20261112112052';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -270,7 +270,7 @@ function lists(r, d, subId) {
         : `<p class="empty">Kein Alters- und Pflegeheim in ${esc(r.n)}. <a href="#/gemeinde/${r.bez}/${subId}">Angebote im ${esc(regionLabel(r.bez, false))} →</a></p>`}
       ${spx.length ? `<div class="table-scroll" style="margin-top:12px"><table class="list-table"><caption class="small muted" style="text-align:left">Spitex-Organisationen mit Sitz hier (sie arbeiten oft auch in Nachbargemeinden)</caption><thead><tr><th>Organisation</th><th class="r">Klientinnen und Klienten</th><th class="r">Vollzeitstellen</th></tr></thead>
         <tbody>${spx.map((s) => `<tr><td>${esc(s.n)}</td><td class="r">${fmtInt(s.kl)}</td><td class="r">${s.vz == null ? '–' : fmt(s.vz, 'aph_vzplatz')}</td></tr>`).join('')}</tbody></table></div>` : ''}
-      <p class="src-line">Quelle: BAG, Kennzahlen der Schweizer Pflegeheime und der Spitex ${S.meta.jahr}</p>`;
+      <p class="src-line"><span>Quelle: BAG,</span> ${srcLink(S.meta.sources.somed.url, S.meta.sources.somed.name)} <span>·</span> ${srcLink(S.meta.sources.spitex.url, S.meta.sources.spitex.name)} <span>· ${S.meta.jahr}</span></p>`;
   }
   return card;
 }

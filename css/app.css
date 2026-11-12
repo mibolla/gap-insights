@@ -361,7 +361,8 @@ details.how { font-size: .88rem; color: var(--muted); }
 details.how summary { cursor: pointer; color: var(--ink); font-weight: 500; }
 details.how p { margin-top: 6px; }
 .src-line { font-size: .78rem; color: var(--faint); border-top: 1px solid var(--line); padding-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
-.src-line a { color: var(--faint); }
+.src-line a { color: var(--faint); text-decoration: underline; text-underline-offset: 2px; }
+.src-line a:hover { color: var(--blue); }
 
 .table-scroll { overflow-x: auto; max-width: 100%; }
 .list-table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
