@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112114128';
-import { createMap } from './map.js?v=20261112114128';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112114128';
-import { omnibox } from './search.js?v=20261112114128';
-import { esc, main } from './ui.js?v=20261112114128';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112114128';
-import { openReportDialog } from './report.js?v=20261112114128';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112122928';
+import { createMap } from './map.js?v=20261112122928';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112122928';
+import { omnibox } from './search.js?v=20261112122928';
+import { esc, main } from './ui.js?v=20261112122928';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112122928';
+import { openReportDialog } from './report.js?v=20261112122928';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -170,9 +170,15 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   let mode = prefs().mode || 'kt';
   const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' ? ['kt', 'kanton'] : ['kt'];
   if (!modes.includes(mode)) mode = 'kt';
-  page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div>
-    ${modes.length > 1 ? `<div class="compare no-print"><span class="label">Vergleichen mit</span><div class="seg" role="group" aria-label="Vergleich">
-      ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabel[m]}</button>`).join('')}</div></div>` : ''}</div>
+  // «Vergleichen mit» is a lever of its own: a full-width row in the topic panel, above the results
+  let cmp = null;
+  if (modes.length > 1) {
+    cmp = document.createElement('div'); cmp.className = 'compare cmp-row no-print';
+    cmp.innerHTML = `<span class="label">Vergleichen mit</span><div class="seg" role="group" aria-label="Vergleichen mit">
+      ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabel[m]}</button>`).join('')}</div>`;
+    document.querySelector('#topics .topics-in')?.appendChild(cmp);
+  }
+  page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
     ${zbar}<div id="ownBox" class="no-print"></div><div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
@@ -191,9 +197,9 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     box.querySelectorAll('.js-plotly-plot').forEach((g) => Plotly.Plots.resize(g));
   };
   const redrawAll = () => { draw(); drawSpecial(); };
-  page.querySelectorAll('.compare .seg button').forEach((b) => b.addEventListener('click', () => {
+  cmp?.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
     mode = b.dataset.m; setPrefs({ mode });
-    page.querySelectorAll('.compare .seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+    cmp.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
     redrawAll();
   }));
   await drawSpecial();

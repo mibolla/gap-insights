@@ -328,6 +328,12 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .compare .seg button { font-size: .92rem; font-weight: 500; padding: 8px 14px; }
 .compare .seg button:hover { background: var(--blue-soft); color: var(--blue); }
 .compare .seg button[aria-pressed="true"] { background: var(--blue); color: #fff; font-weight: 600; box-shadow: 0 1px 3px rgba(27, 103, 178, .35); }
+/* as a row of the topic panel: same width as the panel, label aligned with the «Überblick» column */
+.compare.cmp-row { grid-column: 1 / -1; margin-top: 12px; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 10px 14px; padding: 8px 8px 8px 14px; }
+.cmp-row .seg { display: flex; width: 100%; background: var(--surface); }
+.cmp-row .label { white-space: nowrap; min-width: 136px; }
+.cmp-row .seg button { flex: 1 1 auto; text-align: center; }
+@media (max-width: 760px) { .compare.cmp-row { grid-template-columns: minmax(0, 1fr); padding: 10px; } }
 .seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 3px; }
 .seg button { border: 0; background: transparent; padding: 6px 11px; border-radius: 7px; cursor: pointer; color: var(--ink); font-size: .86rem; }
 .seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
