@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112105758';
-import { createMap, legendHTML, reduced } from './map.js?v=20261112105758';
-import { omnibox } from './search.js?v=20261112105758';
-import { esc, main } from './ui.js?v=20261112105758';
-import { loadProg, pval } from './prog.js?v=20261112105758';
+import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112111354';
+import { createMap, legendHTML, reduced } from './map.js?v=20261112111354';
+import { omnibox } from './search.js?v=20261112111354';
+import { esc, main } from './ui.js?v=20261112111354';
+import { loadProg, pval } from './prog.js?v=20261112111354';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -98,7 +98,7 @@ export function render() {
       <div class="choice-card"><span class="eyebrow">Gemeinde zuerst</span><h3>Meine Gemeinde</h3>
         <p class="muted">Alle Kennzahlen für eine Gemeinde, einen Bezirk oder einen Kanton – mit Vergleich.</p>
         <div id="choiceSearch"></div><a class="btn small" href="#heroTitle">Auf der Karte wählen ↑</a></div>
-      <div class="choice-card"><span class="eyebrow">Frage zuerst</span><h3>Ein Thema</h3>${themes}</div>
+      <div class="choice-card"><span class="eyebrow">Thema zuerst</span><h3>Ein Thema</h3>${themes}</div>
       <div class="choice-card"><span class="eyebrow">Frage zuerst</span><h3>Eine Frage</h3><ul class="qlist">${qs}</ul></div>
     </div>
   </section>

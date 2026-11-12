@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112105758';
-import { createMap } from './map.js?v=20261112105758';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112105758';
-import { omnibox } from './search.js?v=20261112105758';
-import { esc, main } from './ui.js?v=20261112105758';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112105758';
-import { openReportDialog } from './report.js?v=20261112105758';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112111354';
+import { createMap } from './map.js?v=20261112111354';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112111354';
+import { omnibox } from './search.js?v=20261112111354';
+import { esc, main } from './ui.js?v=20261112111354';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112111354';
+import { openReportDialog } from './report.js?v=20261112111354';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
