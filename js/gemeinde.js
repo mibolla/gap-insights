@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112122928';
-import { createMap } from './map.js?v=20261112122928';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112122928';
-import { omnibox } from './search.js?v=20261112122928';
-import { esc, main } from './ui.js?v=20261112122928';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112122928';
-import { openReportDialog } from './report.js?v=20261112122928';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261112123207';
+import { createMap } from './map.js?v=20261112123207';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112123207';
+import { omnibox } from './search.js?v=20261112123207';
+import { esc, main } from './ui.js?v=20261112123207';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112123207';
+import { openReportDialog } from './report.js?v=20261112123207';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -178,8 +178,11 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
       ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabel[m]}</button>`).join('')}</div>`;
     document.querySelector('#topics .topics-in')?.appendChild(cmp);
   }
+  // the box for «Eigene Auswahl» follows directly below the comparison row
+  const ownEl = document.createElement('div'); ownEl.id = 'ownBox'; ownEl.className = 'own-row no-print';
+  (cmp ? cmp.after(ownEl) : null);
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
-    ${zbar}<div id="ownBox" class="no-print"></div><div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
+    ${zbar}<div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
@@ -208,7 +211,9 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
 
 function ownBox(r, mode, redraw) {
   const box = document.getElementById('ownBox');
-  if (mode !== 'own') { box.innerHTML = ''; return; }
+  if (!box) return;
+  if (mode !== 'own') { box.innerHTML = ''; box.hidden = true; return; }
+  box.hidden = false;
   const own = prefs().own || [];
   box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">Zum Beispiel die Gemeinden Ihrer Versorgungsregion. Die Auswahl bleibt in diesem Browser gespeichert.</p>
     <div class="chips">${own.map((x) => `<button class="chip" type="button" data-rm="${x}">${esc(shortName(x))} ×</button>`).join('') || '<span class="muted small">Noch keine Gemeinden gewählt.</span>'}</div><div id="ownSearch"></div></div>`;

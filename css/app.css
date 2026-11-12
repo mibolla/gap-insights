@@ -333,6 +333,9 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .cmp-row .seg { display: flex; width: 100%; background: var(--surface); }
 .cmp-row .label { white-space: nowrap; min-width: 136px; }
 .cmp-row .seg button { flex: 1 1 auto; text-align: center; }
+.own-row { grid-column: 1 / -1; margin-top: 10px; }
+.own-row .card { border: 1.5px solid var(--blue); box-shadow: none; background: var(--surface); }
+.own-row h3 { font-size: 1.05rem; }
 @media (max-width: 760px) { .compare.cmp-row { grid-template-columns: minmax(0, 1fr); padding: 10px; } }
 .seg { display: inline-flex; flex-wrap: wrap; max-width: 100%; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; padding: 3px; }
 .seg button { border: 0; background: transparent; padding: 6px 11px; border-radius: 7px; cursor: pointer; color: var(--ink); font-size: .86rem; }
