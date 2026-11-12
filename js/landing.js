@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112093250';
-import { createMap, legendHTML, reduced } from './map.js?v=20261112093250';
-import { omnibox } from './search.js?v=20261112093250';
-import { esc, main } from './ui.js?v=20261112093250';
-import { loadProg, pval } from './prog.js?v=20261112093250';
+import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112095117';
+import { createMap, legendHTML, reduced } from './map.js?v=20261112095117';
+import { omnibox } from './search.js?v=20261112095117';
+import { esc, main } from './ui.js?v=20261112095117';
+import { loadProg, pval } from './prog.js?v=20261112095117';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -135,8 +135,19 @@ export function render() {
     fi = (k + facts.length) % facts.length; const f = facts[fi];
     tEl.classList.add('fade');
     setTimeout(() => {
-      tEl.textContent = f.text; sEl.textContent = `Quelle: ${f.src} · ${fi + 1}/${facts.length}`; tEl.classList.remove('fade');
-      if (f.mode === 'set') { map.clear(); map.setLevel('gde'); map.highlight(f.set); lEl.innerHTML = `<div class="legend"><span class="dot blue"></span> ${fmtInt(f.set.length)} Gemeinden hervorgehoben</div>`; }
+      const tag = { heute: 'Heute', rueckblick: 'Rückblick', ausblick: 'Prognose' }[f.zeit] || '';
+      tEl.innerHTML = `${tag ? `<span class="ftag ${f.zeit}">${tag}</span> ` : ''}${f.go ? `<a href="${f.go}">${esc(f.text)}</a>` : esc(f.text)}`;
+      sEl.textContent = `Quelle: ${f.src} · ${fi + 1}/${facts.length}`; tEl.classList.remove('fade');
+      if (f.mode === 'set') {
+        map.clear(); map.setLevel('gde'); map.highlight(f.set, { prog: !!f.prog });
+        lEl.innerHTML = `<div class="legend"><span class="dot ${f.prog ? 'prog' : 'blue'}"></span> ${fmtInt(f.set.length)} Gemeinden hervorgehoben${f.prog ? ' (Prognose, BFS mittel)' : ''}</div>`;
+      }
+      else if (f.mode === 'ktval') {   // forecast per Kanton (e.g. growth of 80+ until 2040)
+        map.clear(); map.setLevel('kt');
+        const ids = Object.keys(f.vals); const vals = ids.map((k) => f.vals[k]); const br = quantiles(vals);
+        map.choropleth(new Map(ids.map((k, n) => [k, classOf(vals[n], br)])));
+        lEl.innerHTML = legendHTML(br, (x) => `+${fmt(x, { dec: 0 })} %`, 'Zunahme 80+ bis 2040 (Prognose, BFS mittel)');
+      }
       else if (f.mode === 'scale') lEl.innerHTML = colourBy(map, f.ind);
       else lEl.innerHTML = colourBy(map, f.ind, 'kt');
     }, reduced() ? 0 : 350);

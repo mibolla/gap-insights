@@ -1,5 +1,5 @@
 // Swiss map: Gemeinden as SVG paths (LV95 projected to a 1000 px wide box), zoom and pan with d3.zoom.
-import { S, region, fmtInt } from './store.js?v=20261112093250';
+import { S, region, fmtInt } from './store.js?v=20261112095117';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -86,7 +86,7 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
       gdeG.style.pointerEvents = l === 'gde' ? 'auto' : 'none';
     },
     clear() {
-      paths.forEach((p) => { p.style.fill = ''; p.classList.remove('hl', 'sel', 'peer', 'dim'); });
+      paths.forEach((p) => { p.style.fill = ''; p.classList.remove('hl', 'hlp', 'sel', 'peer', 'dim'); });
       Object.values(areas).forEach((a) => a.paths.forEach((p) => { p.style.fill = ''; p.classList.remove('sel'); }));
       dotsG.innerHTML = '';
     },
@@ -95,7 +95,7 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
       const target = level === 'gde' ? paths : areas[level].paths;
       target.forEach((p, id) => { const c = classes.get(id); p.style.fill = c == null || c < 0 ? '' : RAMP[c]; });
     },
-    highlight(ids) { const set = new Set(ids); paths.forEach((p, id) => p.classList.toggle('hl', set.has(id))); },
+    highlight(ids, { prog = false } = {}) { const set = new Set(ids); paths.forEach((p, id) => { p.classList.toggle('hl', set.has(id) && !prog); p.classList.toggle('hlp', set.has(id) && prog); }); },
     peers(ids) { const set = new Set(ids); paths.forEach((p, id) => p.classList.toggle('peer', set.has(id))); },
     dots(points) {   // [{id, r}] at Gemeinde representative points
       dotsG.innerHTML = '';

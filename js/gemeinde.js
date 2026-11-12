@@ -1,11 +1,11 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112093250';
-import { createMap } from './map.js?v=20261112093250';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112093250';
-import { omnibox } from './search.js?v=20261112093250';
-import { esc, main } from './ui.js?v=20261112093250';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112093250';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel } from './store.js?v=20261112095117';
+import { createMap } from './map.js?v=20261112095117';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261112095117';
+import { omnibox } from './search.js?v=20261112095117';
+import { esc, main } from './ui.js?v=20261112095117';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261112095117';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
