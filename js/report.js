@@ -1,14 +1,25 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112104557';
-import { loadProg, roundProg } from './prog.js?v=20261112104557';
-import { esc, toast } from './ui.js?v=20261112104557';
-import * as story from './report_story.js?v=20261112104557';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261112104557';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261112105155';
+import { loadProg, roundProg } from './prog.js?v=20261112105155';
+import { esc, toast } from './ui.js?v=20261112105155';
+import * as story from './report_story.js?v=20261112105155';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261112105155';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
 const V = window.GAP_BUILD ? `?v=${window.GAP_BUILD}` : '';
 const fill = (s, ctx) => String(s || '').replaceAll('{name}', ctx.name).replaceAll('{a0}', S.meta.alter_jahre[0]).replaceAll('{j}', ctx.j);
+const HSLU = 'https://www.hslu.ch/de-ch/gesundheit/';
+let LOGO = null;
+/** HSLU logo as data URI, so the downloaded report stays a single file */
+function logoDataUrl() {
+  if (!LOGO) {
+    LOGO = fetch(`img/hslu.png${V}`).then((x) => x.blob()).then((b) => new Promise((res) => {
+      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b);
+    }));
+  }
+  return LOGO;
+}
 const appBase = () => `${location.origin}${location.pathname}`;
 
 // ------------------------------------------------------------------ dialog
@@ -81,8 +92,8 @@ export const fileName = (r, o) => `GAP-Insights_Bericht_${r.n.replace(/[^\p{L}\p
 // ------------------------------------------------------------------ assembly
 export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null } = {}) {
   const r = region(id); const R = S.meta.report; const full = level === 'ausfuehrlich';
-  const [d, dB, dK, dCH, P, css] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
-    fetch(`css/report.css${V}`).then((x) => x.text())]);
+  const [d, dB, dK, dCH, P, css, logo] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
+    fetch(`css/report.css${V}`).then((x) => x.text()), logoDataUrl()]);
   const ctx = { id, r, name: r.n, d, dB, dK, dCH, P, v, j: +j, full, level, kt: `KT:${r.kt}`, ktName: region(`KT:${r.kt}`).n, small: r.pop < R.small };
   const want = R.chapters.filter((c) => (!c.only || c.only === level) && (!c.opt || !chapters || chapters.includes(c.id)));
   const out = []; const used = [];
@@ -116,7 +127,10 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>${css}</style></head>
 <body>
-<div class="bar no-print"><span>GAP-Insights · Gemeindebericht ${esc(r.n)}</span><button type="button" onclick="window.print()">Drucken / als PDF speichern</button></div>
+<div class="bar"><a class="brand" href="${esc(link)}" aria-label="GAP-Insights: ${esc(r.n)} in der App öffnen"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">GAP-Insights</span></a>
+  <span class="bar-what">Gemeindebericht ${esc(r.n)}</span>
+  <button type="button" class="no-print" onclick="window.print()">Drucken / als PDF</button>
+  <a class="org" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="170" height="26"></a></div>
 <header class="cover"><div class="cover-in">
   <div class="cover-text">
     <p class="eyebrow">Gemeindebericht · ${esc(lv.label)}</p>
@@ -136,7 +150,7 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
   <nav class="toc no-print" aria-label="Inhalt"><p>Inhalt</p><ol>${out.map(({ c }) => `<li><a href="#${c.id}">${esc(fill(c.title, ctx))}</a></li>`).join('')}</ol></nav>
   <main>${wrapT(sections)}</main>
 </div>
-<footer class="foot"><p>GAP-Insights · Hochschule Luzern – Gesundheit · Bericht für ${esc(r.n)} (${esc(r.kt)}), erstellt am ${esc(today)}. Daten: BFS, BAG, swisstopo. Prognosen: BFS-Szenarien 2025, regionalisiert durch die HSLU.</p>
+<footer class="foot"><a class="org-small" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="118" height="18"></a><p>GAP-Insights · Hochschule Luzern – Gesundheit · Bericht für ${esc(r.n)} (${esc(r.kt)}), erstellt am ${esc(today)}. Daten: BFS, BAG, swisstopo. Prognosen: BFS-Szenarien 2025, regionalisiert durch die HSLU.</p>
 <p><a href="${esc(link)}">${esc(link)}</a></p></footer>
 </body></html>`;
 }

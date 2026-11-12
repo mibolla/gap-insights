@@ -7,6 +7,7 @@
   --band: #fbe1cc; --blue-soft: #e3eef8; --red: #c62828; --red-soft: #fdecea;
   --s0: #1f5d9c; --s1: #4a88c4; --s2: #7eaed9; --s3: #b4d0ea; --s4: #6b7780; --s5: #b9c2c8;
   --map: #e3e8eb; --map-edge: #ffffff;
+  --slate: #3a4046; --green: #1d8f4e; --logo-filter: none;
   --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
   --font-body: "Noto Sans", "Helvetica Neue", Arial, sans-serif;
   color-scheme: light;
@@ -15,13 +16,13 @@
   :root:not([data-theme="light"]) {
     --ground: #12181d; --surface: #1b232a; --ink: #e6ecef; --muted: #a3b0b9; --faint: #7d8a93; --line: #2c3740; --line-strong: #3b4954;
     --ch: #c9d2d8; --ch-soft: #55636e; --bez: #5f8db8; --kt: #6aa6e0; --band: #4a3020; --blue-soft: #1d3247; --red: #ff6b6b; --red-soft: #3a1f22;
-    --me-soft: #8a4a1d; --s3: #3d6890; --s5: #55636e; --map: #2a343c; --map-edge: #1b232a; color-scheme: dark;
+    --me-soft: #8a4a1d; --s3: #3d6890; --s5: #55636e; --map: #2a343c; --map-edge: #1b232a; --slate: #6b7780; --green: #3fb071; --logo-filter: invert(1) hue-rotate(180deg); color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --ground: #12181d; --surface: #1b232a; --ink: #e6ecef; --muted: #a3b0b9; --faint: #7d8a93; --line: #2c3740; --line-strong: #3b4954;
   --ch: #c9d2d8; --ch-soft: #55636e; --bez: #5f8db8; --kt: #6aa6e0; --band: #4a3020; --blue-soft: #1d3247; --red: #ff6b6b; --red-soft: #3a1f22;
-  --me-soft: #8a4a1d; --s3: #3d6890; --s5: #55636e; --map: #2a343c; --map-edge: #1b232a; color-scheme: dark;
+  --me-soft: #8a4a1d; --s3: #3d6890; --s5: #55636e; --map: #2a343c; --map-edge: #1b232a; --slate: #6b7780; --green: #3fb071; --logo-filter: invert(1) hue-rotate(180deg); color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -37,6 +38,15 @@ a { color: var(--kt); }
 .bar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px));
   background: var(--surface); border-bottom: 1px solid var(--line); font-size: .85rem; color: var(--muted); }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); flex: none; }
+.brand-mark { width: 26px; height: 26px; border-radius: 7px; background: linear-gradient(135deg, var(--slate) 0 33%, var(--kt) 33% 66%, var(--green) 66%); }
+.brand-name { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; letter-spacing: -.01em; }
+.bar-what { flex: 1; min-width: 0; padding-left: 14px; border-left: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.org { display: flex; align-items: center; flex: none; padding-left: 16px; border-left: 1px solid var(--line); }
+.org img { display: block; height: 26px; width: auto; }
+.org-small { display: inline-flex; margin-bottom: 6px; align-self: flex-start; }
+.org-small img { display: block; height: 18px; width: auto; opacity: .85; }
+.org img, .org-small img { filter: var(--logo-filter); }
 .bar button { font: inherit; font-weight: 600; padding: 6px 12px; border-radius: 8px; border: 1.5px solid var(--kt); background: var(--kt); color: #fff; cursor: pointer; }
 .bar button:focus-visible, a:focus-visible { outline: 3px solid var(--me); outline-offset: 2px; }
 
@@ -173,6 +183,8 @@ circle.dot.c-me { stroke: var(--surface); stroke-width: 2; }
 
 @media (max-width: 860px) {
   .cover-in, .layout { grid-template-columns: 1fr; }
+  .bar-what { display: none; }
+  .org img { height: 18px; }
   .toc { position: static; }
   .two { grid-template-columns: 1fr; }
   .kf { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -185,6 +197,8 @@ circle.dot.c-me { stroke: var(--surface); stroke-width: 2; }
   :root { --ground: #fff; }
   body { font-size: 10.5pt; background: #fff; }
   .no-print { display: none !important; }
+  .bar { position: static; border: 0; border-bottom: 1px solid var(--line); padding: 0 0 4mm; margin-bottom: 6mm; }
+  .brand-mark { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .layout { display: block; padding: 0; max-width: none; }
   .cover { border: 0; padding: 0 0 12mm; }
   .ch { border: 0; padding: 0; break-before: page; gap: 10px; }
