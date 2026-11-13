@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113192416';
-import { createMap } from './map.js?v=20261113192416';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS } from './cards.js?v=20261113192416';
-import { omnibox } from './search.js?v=20261113192416';
-import { esc, main } from './ui.js?v=20261113192416';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113192416';
-import { openReportDialog } from './report.js?v=20261113192416';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113193636';
+import { createMap } from './map.js?v=20261113193636';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113193636';
+import { omnibox } from './search.js?v=20261113193636';
+import { esc, main } from './ui.js?v=20261113193636';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113193636';
+import { openReportDialog } from './report.js?v=20261113193636';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -188,7 +188,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
     ownBox(r, mode, () => { draw(); drawSpecial(); });
   };
-  const spSub = zeit === 'rueckblick' ? ({ alter: 'entwicklung', inanspruchnahme: 'heimentwicklung' }[subId] || subId) : subId;
+  const spSub = zeit === 'rueckblick' ? ({ alter: 'entwicklung', inanspruchnahme: 'heimentwicklung' }[subId] || `hist_${subId}`) : subId;
   let spRun = 0;
   const drawSpecial = async () => {   // the topic chart follows «Vergleichen mit» as well
     const run = ++spRun; const box = document.getElementById('special');
@@ -314,6 +314,27 @@ async function special(box, r, d, subId, mode = 'kt') {
     };
     seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
     box.appendChild(c.card); drawK('pl80');
+  } else if (subId.startsWith('hist_')) {
+    // Rückblick Leistungen / Personal / Kosten: one line chart per Heim indicator
+    const sub = subId.slice(5); const name = esc(shortName(r.id));
+    const ids = (M.hist || []).filter((x) => S.ind.get(x).sub === sub);
+    const notes = [];
+    if (grp) notes.push(`Für die Vergleichsgruppe «${esc(grp.name)}» gibt es keine Zeitreihe; gezeigt werden ${name}, Kanton und Schweiz.`);
+    if (!d.aph_hist) notes.push(`${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
+    const spx = M.indicators.filter((i) => i.sub === sub && i.src === 'spitex').map((i) => i.short);
+    if (spx.length) notes.push(`Spitex (${spx.map(esc).join(', ')}): Werte nur für ${M.jahr}, siehe «Heute ${M.jahr}».`);
+    if (notes.length) { const p = document.createElement('p'); p.className = 'note wide'; p.style.gridColumn = '1 / -1'; p.innerHTML = notes.join(' '); box.appendChild(p); }
+    ids.forEach((id) => {
+      const i = S.ind.get(id);
+      const c = chartCard(`${i.label} ${y0}–${y1}`, '', 'somed_ts', false);
+      box.appendChild(c.card);
+      const v = d.aph_hist && d.aph_hist[id];
+      const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
+      let txt = k0 >= 0 ? `${name}: ${y0 + k0} ${fmtUnit(v[k0], i)}, ${y0 + k1} <b>${fmtUnit(v[k1], i)}</b>.` : `Keine Werte für ${name}.`;
+      if (M.hist_col && M.hist_col[id]) txt += ` Bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch).`;
+      c.setSub(txt);
+      histLines(c.div, series, id, [y0, y1]);
+    });
   } else if (subId === 'haushalte' && d.hh) {
     const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
     box.appendChild(c.card);
