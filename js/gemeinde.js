@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113194815';
-import { createMap } from './map.js?v=20261113194815';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113194815';
-import { omnibox } from './search.js?v=20261113194815';
-import { esc, main } from './ui.js?v=20261113194815';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113194815';
-import { openReportDialog } from './report.js?v=20261113194815';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113195938';
+import { createMap } from './map.js?v=20261113195938';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113195938';
+import { omnibox } from './search.js?v=20261113195938';
+import { esc, main } from './ui.js?v=20261113195938';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113195938';
+import { openReportDialog } from './report.js?v=20261113195938';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -56,6 +56,8 @@ function header(r, d) {
 }
 
 // ------------------------------------------------------------------ topic panel (one row per Thema) + compact sticky bar
+/** house icon of the «Überblick» home button (panel tile and sticky bar) */
+const HOME_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5.5 9v11a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1V9"/></svg>';
 let topicCleanup = null;
 export function teardown() { if (topicCleanup) { topicCleanup(); topicCleanup = null; } }
 
@@ -68,7 +70,9 @@ function topicPanel(r, sub) {
   const cur = sub ? S.sub.get(sub) : null;
   const el = document.createElement('nav'); el.className = 'topics'; el.id = 'topics'; el.setAttribute('aria-label', 'Themen');
   el.innerHTML = `<div class="wrap topics-in">
-    <a class="ov${!sub ? ' on' : ''}" href="${base}"${!sub ? ' aria-current="page"' : ''}><span class="ov-t">Überblick</span><span class="ov-s">8 Kennzahlen auf einen Blick</span></a>
+    <a class="ov${!sub ? ' on' : ''}" href="${base}"${!sub ? ' aria-current="page"' : ''} title="Überblick: Startseite von ${esc(shortName(r.id))}">
+      <span class="ov-i">${HOME_ICON}</span>
+      <span class="ov-x"><span class="ov-t">Überblick</span><span class="ov-s">${!sub ? `Startseite von ${esc(shortName(r.id))}` : `Zurück zum Start von ${esc(shortName(r.id))}`}</span></span></a>
     <div class="trows">${S.meta.themen.map((t) => `
       <div class="trow t-${t.color}${cur && cur.thema.id === t.id ? ' active' : ''}">
         <span class="tlabel">${esc(t.label)}</span>
@@ -82,6 +86,7 @@ function compactBar(r, sub) {
   const cur = sub ? S.sub.get(sub) : null;
   const el = document.createElement('div'); el.className = 'topics-compact'; el.setAttribute('aria-hidden', 'true');
   el.innerHTML = `<div class="wrap tc-in">
+    <a class="tc-home${!sub ? ' on' : ''}" href="${base}" aria-label="Überblick – Startseite von ${esc(shortName(r.id))}" title="Überblick – Startseite von ${esc(shortName(r.id))}"${!sub ? ' aria-current="page"' : ''}>${HOME_ICON}</a>
     ${cur ? `<span class="tc-where t-${cur.thema.color}"><span class="tc-stripe"></span>${esc(cur.thema.label)}</span>
       <div class="tc-chips">${cur.thema.sub.map((s) => chip(cur.thema, s, base, sub)).join('')}</div>`
       : `<span class="tc-where"><span class="tc-stripe"></span>${esc(shortName(r.id))} · Überblick</span><div class="tc-chips"></div>`}

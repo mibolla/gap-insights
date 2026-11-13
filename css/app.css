@@ -279,12 +279,29 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 /* topic panel: one row per Thema, Überblick tile on the left */
 .topics { background: var(--surface); border-bottom: 1px solid var(--line); }
 .topics-in { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 0 14px; padding-block: 12px; }
-.ov { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--line-strong); text-decoration: none; color: var(--ink); background: var(--surface); }
-.ov:hover { border-color: var(--ink); }
+/* «Überblick» = home button of a Gemeinde: always one tap back to its start page */
+.ov { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 10px; padding: 14px 16px; border-radius: 14px;
+  border: 1.5px solid var(--line-strong); text-decoration: none; color: var(--ink); background: var(--surface);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.ov:hover { border-color: var(--ink); box-shadow: 0 4px 14px rgba(23,35,44,.12); transform: translateY(-1px); }
+.ov:active { transform: scale(.97); }
+.ov:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.ov-i { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; flex: none;
+  background: var(--ink); color: #fff; box-shadow: 0 2px 6px rgba(23,35,44,.25); }
+.ov-x { display: flex; flex-direction: column; gap: 3px; }
 .ov .ov-t { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
 .ov .ov-s { font-size: .8rem; color: var(--muted); line-height: 1.35; }
 .ov.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.ov.on .ov-i { background: #fff; color: var(--ink); box-shadow: none; }
 .ov.on .ov-s { color: rgba(255,255,255,.75); }
+/* the same home button in the sticky bar */
+.tc-home { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--ink); color: #fff;
+  text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+.tc-home svg { width: 19px; height: 19px; }
+.tc-home:hover { box-shadow: 0 3px 10px rgba(23,35,44,.25); transform: translateY(-1px); }
+.tc-home:active { transform: scale(.94); }
+.tc-home:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.tc-home.on { background: var(--surface); color: var(--ink); border: 1.5px solid var(--ink); }
 .trows { display: flex; flex-direction: column; }
 .trow { --t: var(--slate); --t-soft: #eceef0; display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 10px; align-items: center; padding: 7px 12px 7px 0; border-radius: 10px; position: relative; }
 .trow + .trow { border-top: 1px solid var(--line); }
@@ -298,7 +315,8 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .trow.active + .trow { border-top-color: transparent; }
 @media (max-width: 760px) {
   .topics-in { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .ov { flex-direction: row; align-items: baseline; padding: 10px 14px; }
+  .ov { flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; padding: 10px 14px; }
+  .ov-i { width: 36px; height: 36px; border-radius: 10px; }
   .trow { grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 8px 10px; }
   .trow .tlabel::before { margin-left: 0; }
 }
