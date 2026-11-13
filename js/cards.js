@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113185159';
-import { toast, esc } from './ui.js?v=20261113185159';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113185159';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113191454';
+import { toast, esc } from './ui.js?v=20261113191454';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113191454';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -16,7 +16,12 @@ export function baseLayout(extra = {}) {
   return { font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 8, r: 16, t: 8, b: 28 },
     hoverlabel: { font: { family: FONT.family } }, showlegend: false, ...extra };
 }
-export const plot = (div, data, layout, cfg = {}) => Plotly.react(div, data, layout, { ...CFG, ...cfg });
+export const plot = (div, data, layout, cfg = {}) => {
+  // a fixed-height chart keeps its container at that height: otherwise Plotly's responsive resize (window
+  // resize) shrinks the container to its CSS min-height and the plot overflows onto the source line below
+  if (layout.height) div.style.height = `${layout.height}px`;
+  return Plotly.react(div, data, layout, { ...CFG, ...cfg });
+};
 
 const ICON = {
   star: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 3 2.7 5.6 6.2.9-4.5 4.3 1 6.2L12 17l-5.5 3 1-6.2L3 9.5l6.2-.9z"/></svg>',
@@ -203,6 +208,35 @@ export function indexLines(div, series, which, years) {
   plot(div, data, baseLayout({ height: 340, showlegend: true, legend: { orientation: 'h', y: -0.15 }, margin: { l: 44, r: 12, t: 10, b: 50 },
     xaxis: { dtick: 2, gridcolor: '#eef1f3' }, yaxis: { title: { text: `Index ${years[0]} = 100`, font: { size: 11 } }, gridcolor: '#eef1f3' },
     shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.line, width: 1 } }] }));
+}
+
+/** Alters- und Pflegeheime over time. which: 'pl80' places per 1000 80+, 'kl80' residents per 1000 80+,
+ *  'pl' places as index (first year = 100). Series without any Heim in the period are left out. */
+export const APH_TS_OPTS = { pl80: 'Plätze pro 1000 Menschen ab 80', kl80: 'Heimbewohnende pro 1000 Menschen ab 80', pl: 'Pflegeheimplätze (Index)' };
+export function aphRate(s, which, k) {
+  const a = s.d.aph_ts; const b = s.d.ts && s.d.ts.b80[k];
+  if (which === 'pl') return a.pl[0] ? (a.pl[k] / a.pl[0]) * 100 : null;
+  return b ? (a[which === 'kl80' ? 'kl' : 'pl'][k] / b) * 1000 : null;
+}
+export function aphLines(div, series, which, years) {
+  const use = series.filter((s) => s.d.aph_ts && s.d.ts && s.d.aph_ts.pl.some((x) => x > 0));
+  const abs = which === 'kl80' ? 'kl' : 'pl';
+  const data = use.map((s) => {
+    const k0 = series.indexOf(s); const a = s.d.aph_ts;
+    return { type: 'scatter', mode: 'lines+markers', x: a.y, y: a.y.map((_, k) => rnd(aphRate(s, which, k), 1)), name: nameOf(s),
+      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
+      customdata: a[abs], hovertemplate: which === 'pl'
+        ? `${nameOf(s)} %{x}: %{customdata:,.0f} Plätze (Index %{y:.0f})<extra></extra>`
+        : `${nameOf(s)} %{x}: %{y:.0f} pro 1000 ab 80 (%{customdata:,.0f} ${abs === 'kl' ? 'Heimbewohnende' : 'Plätze'})<extra></extra>` };
+  });
+  const lab = APH_TS_OPTS[which];
+  div._table = { columns: ['Jahr', ...use.flatMap((s) => [`${nameOf(s)}: ${abs === 'kl' ? 'Heimbewohnende' : 'Plätze'}`, `${nameOf(s)}: ${which === 'pl' ? `Index ${years[0]} = 100` : 'pro 1000 ab 80'}`])],
+    rows: (use[0] ? use[0].d.aph_ts.y : []).map((y, k) => [y, ...use.flatMap((s) => [s.d.aph_ts[abs][k], rnd(aphRate(s, which, k), 1)])]) };
+  div._title = `${lab} ${years[0]}–${years[1]}`;
+  plot(div, data, baseLayout({ height: 340, showlegend: true, legend: { orientation: 'h', y: -0.15 }, margin: { l: 44, r: 12, t: 10, b: 50 },
+    xaxis: { dtick: 2, gridcolor: '#eef1f3' },
+    yaxis: { title: { text: which === 'pl' ? `Index ${years[0]} = 100` : 'pro 1000 Menschen ab 80', font: { size: 11 } }, gridcolor: '#eef1f3', rangemode: which === 'pl' ? 'normal' : 'tozero' },
+    shapes: which === 'pl' ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.line, width: 1 } }] : [] }));
 }
 
 export function shareBars(div, cats, series, unitLabel = '%') {

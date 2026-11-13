@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113185159';
-import { createMap } from './map.js?v=20261113185159';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter } from './cards.js?v=20261113185159';
-import { omnibox } from './search.js?v=20261113185159';
-import { esc, main } from './ui.js?v=20261113185159';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113185159';
-import { openReportDialog } from './report.js?v=20261113185159';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113191454';
+import { createMap } from './map.js?v=20261113191454';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS } from './cards.js?v=20261113191454';
+import { omnibox } from './search.js?v=20261113191454';
+import { esc, main } from './ui.js?v=20261113191454';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113191454';
+import { openReportDialog } from './report.js?v=20261113191454';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -188,7 +188,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
     ownBox(r, mode, () => { draw(); drawSpecial(); });
   };
-  const spSub = subId === 'alter' && zeit === 'rueckblick' ? 'entwicklung' : subId;
+  const spSub = zeit === 'rueckblick' ? ({ alter: 'entwicklung', inanspruchnahme: 'heimentwicklung' }[subId] || subId) : subId;
   let spRun = 0;
   const drawSpecial = async () => {   // the topic chart follows «Vergleichen mit» as well
     const run = ++spRun; const box = document.getElementById('special');
@@ -242,6 +242,8 @@ function aggregate(ds) {
     const w = bw.map((x) => x.ts.bev[x.ts.bev.length - 1]); const W = w.reduce((a, b) => a + b, 0);
     out.bew = Object.fromEntries(Object.keys(bw[0].bew).map((k) => [k, bw.reduce((a, x, i) => a + (x.bew[k] || 0) * w[i], 0) / W]));
   }
+  const at = ds.filter((x) => x.aph_ts);     // Gemeinden without a Heim add 0 places but their population (ts)
+  if (at.length) out.aph_ts = { y: at[0].aph_ts.y, ...Object.fromEntries(['pl', 'kl', 'n'].map((k) => [k, sumArr(at.map((x) => x.aph_ts[k]))])) };
   const ap = ds.filter((x) => x.aph);
   if (ap.length) out.aph = { heime: ap.reduce((a, x) => a + x.aph.heime, 0), plaetze: ap.reduce((a, x) => a + x.aph.plaetze, 0),
     stufen: sumArr(ap.filter((x) => x.aph.stufen).map((x) => x.aph.stufen)), ertrag: sumObj(ap.map((x) => x.aph.ertrag)) };
@@ -285,6 +287,33 @@ async function special(box, r, d, subId, mode = 'kt') {
     };
     seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
     box.appendChild(c.card); drawK('b80');
+  } else if (subId === 'heimentwicklung') {
+    const c = chartCard(`Alters- und Pflegeheime ${y0}–${y1}`, '', 'somed_ts');
+    const n = y1 - y0; const name = esc(shortName(r.id));
+    const own = d.aph_ts && d.aph_ts.pl.some((x) => x > 0);
+    const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
+    seg.innerHTML = Object.entries(APH_TS_OPTS).map(([k, l], j) => `<button type="button" data-k="${k}" aria-pressed="${j === 0}">${l}</button>`).join('');
+    c.card.querySelector('.card-head').after(seg);
+    const f0 = (x) => fmt(x, { dec: 0 });
+    const drawK = (k) => {
+      const me = { d };
+      let txt;
+      if (!own) txt = `${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen die Versorgung in der Umgebung.`;
+      else if (k === 'pl') {
+        const a = d.aph_ts.pl[0]; const b = d.aph_ts.pl[n];
+        txt = a ? `In ${name} ist die Zahl der Pflegeheimplätze von ${fmtInt(a)} (${y0}) auf <b>${fmtInt(b)}</b> (${y1}) ${b >= a ? 'gestiegen' : 'gesunken'} – <b>${plusMinus((b / a - 1) * 100)} %</b>.`
+          : `${y0} gab es in ${name} noch keine Pflegeheimplätze, ${y1} sind es <b>${fmtInt(b)}</b>.`;
+      } else {
+        const a = aphRate(me, k, 0); const b = aphRate(me, k, n);
+        const what = k === 'pl80' ? 'Pflegeheimplätze' : 'Heimbewohnende';
+        txt = `In ${name} kamen ${y0} ${a == null ? '–' : f0(a)} ${what} auf 1000 Menschen ab 80, ${y1} <b>${b == null ? '–' : f0(b)}</b>${a && b != null ? ` (${plusMinus((b / a - 1) * 100)} %)` : ''}.`;
+      }
+      c.setSub(`${txt} Heime stehen am Standort und versorgen auch Nachbargemeinden.`);
+      aphLines(c.div, series, k, [y0, y1]);
+      seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
+    };
+    seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
+    box.appendChild(c.card); drawK('pl80');
   } else if (subId === 'haushalte' && d.hh) {
     const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
     box.appendChild(c.card);
