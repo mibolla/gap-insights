@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113201849';
-import { createMap } from './map.js?v=20261113201849';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113201849';
-import { omnibox } from './search.js?v=20261113201849';
-import { esc, main } from './ui.js?v=20261113201849';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113201849';
-import { openReportDialog } from './report.js?v=20261113201849';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113202622';
+import { createMap } from './map.js?v=20261113202622';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113202622';
+import { omnibox } from './search.js?v=20261113202622';
+import { esc, main } from './ui.js?v=20261113202622';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113202622';
+import { openReportDialog } from './report.js?v=20261113202622';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -275,7 +275,10 @@ async function compareSeries(r, d, mode) {
   const members = r.e === 'GDE' || (r.e === 'BEZ' && mode === 'kanton') ? groupMembers(mode, r.id) : [];
   if (!members.length) return [{ id: r.id, d }, ...refs];
   const ds = await Promise.all(members.map((x) => detail(x)));
-  return [{ id: r.id, d }, { id: 'GRP', grp: true, name: `${r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : GROUP_NAME[mode]} (${members.length})`, d: aggregate(ds) }, ...refs];
+  // «Eigene Auswahl» with a single Gemeinde is shown under its name, with several as the group
+  const gname = mode === 'own' && members.length === 1 ? shortName(members[0])
+    : `${r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : GROUP_NAME[mode]} (${members.length})`;
+  return [{ id: r.id, d }, { id: 'GRP', grp: true, name: gname, d: aggregate(ds) }, ...refs];
 }
 
 async function special(box, r, d, subId, mode = 'kt') {
