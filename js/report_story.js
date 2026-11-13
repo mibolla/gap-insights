@@ -1,9 +1,9 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261113193636';
-import { roundProg, model, pval } from './prog.js?v=20261113193636';
-import { esc } from './ui.js?v=20261113193636';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261113193636';
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261113194815';
+import { roundProg, model, pval } from './prog.js?v=20261113194815';
+import { esc } from './ui.js?v=20261113194815';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261113194815';
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);
@@ -15,6 +15,10 @@ const U = (ind, id) => fmtUnit(val(ind, id), ind);
 const idx = (arr) => arr.map((x) => (arr[0] ? (x / arr[0]) * 100 : null));
 const sum = (a, i0, i1) => a.slice(i0, i1 + 1).reduce((s, x) => s + (x || 0), 0);
 const both = (p) => p.m.map((x, k) => x + p.f[k]);
+/** Heime 2012–<J>: places per 1000 80+ per year (null without a Heim in the whole period) */
+const pl80 = (dd) => (dd && dd.aph_ts && dd.ts && dd.aph_ts.pl.some((x) => x > 0) ? dd.aph_ts.pl.map((p, k) => (dd.ts.b80[k] ? (p / dd.ts.b80[k]) * 1000 : null)) : null);
+/** the Gemeinde if it had a Heim in the first year, else its Bezirk (for statements «seit 2012») */
+const heimRef = (ctx) => (pl80(ctx.d) && ctx.d.aph_ts.pl[0] > 0 ? { id: ctx.id, dd: ctx.d, txt: `in ${esc(ctx.name)}` } : { id: ctx.r.bez, dd: ctx.dB, txt: `im Bezirk ${esc(ctx.r.bn)}` });
 
 /** 'älter' / 'jünger' / … from a compareWord result */
 const dir = (w, up, down, same) => (!w ? same : w.includes('höher') ? `${w.startsWith('deutlich') ? 'deutlich ' : ''}${up}` : w.includes('tiefer') ? `${w.startsWith('deutlich') ? 'deutlich ' : ''}${down}` : same);
@@ -57,12 +61,17 @@ export function blick(ctx) {
       ? { t: 'heute', s: `In ${esc(name)} gibt es <b>${fmtInt(d.aph.heime)} Pflegeheim${d.aph.heime === 1 ? '' : 'e'}</b> mit ${fmtInt(d.aph.plaetze)} Plätzen${d.spitex && d.spitex.length ? ` und ${d.spitex.length} Spitex-Organisation${d.spitex.length === 1 ? '' : 'en'} mit Sitz hier` : ''}.`, c: `Plätze pro 1000 80+: ${U('aph_pl80', id)} · Kanton ${U('aph_pl80', ctx.kt)}` }
       : { t: 'heute', s: `${esc(name)} hat <b>kein eigenes Pflegeheim</b>; die Versorgung läuft über Heime der Region.`, c: `Bezirk ${esc(ctx.r.bn)}: ${U('aph_pl80', ctx.r.bez)} Plätze pro 1000 80+` },
     { t: 'rueckblick', s: `Seit ${a0} ist die Zahl der über 80-Jährigen ${chg(val('g80', id))}.`, c: `Kanton ${sign(val('g80', ctx.kt))} · Schweiz ${sign(val('g80', 'CH'))}` },
+    (() => {
+      const h = heimRef(ctx); const y = pl80(h.dd); if (!y) return null; const n = y.length - 1;
+      return { t: 'rueckblick', s: `Pflegeheimplätze pro 1000 Menschen ab 80 ${h.txt}: <b>${num(y[0])}</b> im Jahr ${a0}, <b>${num(y[n])}</b> im Jahr ${S.meta.jahr} (${sign(pct(y[n], y[0]))}).`,
+        c: `Kanton ${sign(val('aph_g_pl80', ctx.kt))} · Schweiz ${sign(val('aph_g_pl80', 'CH'))}` };
+    })(),
     { t: 'ausblick', s: `Gemäss BFS-Szenario ${v} leben ${j} rund <b>${rp(k.b80j)}</b> Menschen ab 80 in ${esc(name)} (${sign(k.g80j)}).`, c: `Spannweite tief–hoch: ${rp(k.lo)} bis ${rp(k.hi)}` },
   ];
   const TAG = { heute: `Heute ${S.meta.jahr}`, rueckblick: `Rückblick seit ${a0}`, ausblick: `Prognose ${j}` };
   return {
     lead: `${esc(name)} wird älter: ${k.g80j != null && k.g80j > 0 ? `bis ${j} wächst die Zahl der Menschen ab 80 um rund ${sign(k.g80j)}` : `die Zahl der Menschen ab 80 bleibt bis ${j} etwa gleich`}.`,
-    body: `<ol class="facts">${facts.map((f) => `<li class="${f.t}"><span class="ftag">${TAG[f.t]}</span><p>${f.s}</p><span class="fc">${f.c}</span></li>`).join('')}</ol>`,
+    body: `<ol class="facts">${facts.filter(Boolean).map((f) => `<li class="${f.t}"><span class="ftag">${TAG[f.t]}</span><p>${f.s}</p><span class="fc">${f.c}</span></li>`).join('')}</ol>`,
   };
 }
 
@@ -135,7 +144,14 @@ export function versorgung(ctx) {
     : `${esc(name)} hat <b>kein eigenes Pflegeheim</b>. Im Bezirk ${esc(ctx.r.bn)} stehen ${U('aph_pl80', bez).replace('von 1000', 'Plätze pro 1000')} Menschen ab 80 (Kanton ${U('aph_pl80', ctx.kt).replace('von 1000', 'pro 1000')}).`;
   const rowsA = regionRows(ctx, (r) => val('aph_pl80', r)).map((x) => ({ ...x, text: x.v == null ? null : num(x.v) }));
   const rowsS = regionRows(ctx, (r) => val('spx_kl65', r)).map((x) => ({ ...x, text: x.v == null ? null : num(x.v) }));
-  let body = fig(hbars(rowsA, { label: 'Pflegeheimplätze pro 1000 Menschen ab 80' })) + fig(hbars(rowsS, { label: 'Spitex-Klient/innen pro 1000 Menschen ab 65' }));
+  let body = fig(hbars(rowsA, { label: `Pflegeheimplätze pro 1000 Menschen ab 80, ${S.meta.jahr}` })) + fig(hbars(rowsS, { label: 'Spitex-Klient/innen pro 1000 Menschen ab 65' }));
+  // Rückblick: places per 1000 80+ since the first year
+  const own = pl80(d); const ch = ctx.dCH.aph_ts; const nT = ch.y.length - 1;
+  const serH = [own && { name, y: own, cls: 'c-me', bold: true }, { name: `Bezirk ${ctx.r.bn}`, y: pl80(ctx.dB), cls: 'c-bez', bold: !own },
+    { name: `Kanton ${ctx.r.kt}`, y: pl80(ctx.dK), cls: 'c-kt' }, { name: 'Schweiz', y: pl80(ctx.dCH), cls: 'c-ch' }].filter((x) => x && x.y);
+  const gPl = pct(ch.pl[nT], ch.pl[0]); const gB = pct(ctx.dCH.ts.b80[nT], ctx.dCH.ts.b80[0]);
+  body += fig(lines(ch.y, serH, { label: `Pflegeheimplätze pro 1000 Menschen ab 80, ${ch.y[0]}–${ch.y[nT]}`, fmtY: (x) => num(x) }),
+    `Schweiz: Plätze ${sign(gPl)}, Menschen ab 80 ${sign(gB)} – ${gB > gPl ? 'die Zahl der Plätze wächst langsamer als die Zahl der Hochbetagten' : 'die Zahl der Plätze wächst mit der Zahl der Hochbetagten'}. ${own ? '' : `${esc(name)} hatte in diesen Jahren kein eigenes Heim. `}Heime am Standort, heutige Gemeindegrenzen.`);
   const sk = val('spx_kl65', id);
   body += `<p>${sk != null ? `Spitex-Organisationen mit Sitz in ${esc(name)} betreuen ${num(sk)} von 1000 Menschen ab 65 (Kanton ${num(val('spx_kl65', ctx.kt))}).` : `In ${esc(name)} hat keine Spitex-Organisation ihren Sitz; die Gemeinde wird von Organisationen aus der Umgebung versorgt.`} Heime und Spitex-Organisationen versorgen auch Menschen aus Nachbargemeinden – Werte einer einzelnen Gemeinde sind deshalb immer zusammen mit Bezirk und Kanton zu lesen.</p>`;
   if (full) {
@@ -144,6 +160,13 @@ export function versorgung(ctx) {
     if (d.spitex && d.spitex.length) body += `<table class="tab"><caption>Spitex-Organisationen mit Sitz in ${esc(name)} (${S.meta.jahr})</caption><thead><tr><th>Organisation</th><th class="n">Klient/innen</th><th class="n">Stellen (Vollzeit)</th></tr></thead><tbody>${d.spitex.map((s) =>
       `<tr><td>${esc(s.n)}</td><td class="n">${fmtInt(s.kl)}</td><td class="n">${num(s.vz, 1)}</td></tr>`).join('')}</tbody></table>`;
     body += stats(ctx, ['aph_bel', 'aph_stufe', 'spx_std65', 'aph_kbt']);
+    // Heime: indicators of Leistungen / Personal / Kosten, first and last year
+    const h = heimRef(ctx); const H = (S.meta.hist || []).map((x) => S.ind.get(x)); const y0 = ch.y[0]; const y1 = ch.y[nT];
+    const cell = (dd, i, k) => { const a = dd && dd.aph_hist && dd.aph_hist[i.id]; return `<td class="n">${a ? fmt(a[k], i) : '–'}</td>`; };
+    if (H.length) body += `<table class="tab"><caption>Pflegeheime ${y0} und ${y1}: Leistungen, Personal und Kosten</caption><thead><tr><th>Kennzahl</th><th class="n" colspan="2">${h.id === id ? esc(name) : `Bezirk ${esc(ctx.r.bn)}`}</th><th class="n" colspan="2">Kanton</th><th class="n" colspan="2">Schweiz</th></tr>
+      <tr><th></th>${[0, 1, 2].map(() => `<th class="n">${y0}</th><th class="n">${y1}</th>`).join('')}</tr></thead><tbody>${H.map((i) =>
+      `<tr><td>${esc(i.short)} <span class="u">${esc(i.unit)}</span></td>${cell(h.dd, i, 0)}${cell(h.dd, i, nT)}${cell(ctx.dK, i, 0)}${cell(ctx.dK, i, nT)}${cell(ctx.dCH, i, 0)}${cell(ctx.dCH, i, nT)}</tr>`).join('')}</tbody></table>
+      <p class="small">Pflegestufe bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch). Kosten in Franken des jeweiligen Jahres (nicht teuerungsbereinigt).</p>`;
     if (d.spx && d.spx.einnahmen) {
       const cats = Object.keys(d.spx.einnahmen);
       const dK = ctx.dK.spx?.einnahmen;
@@ -178,6 +201,9 @@ export function ausblick(ctx) {
     const now = b(pyr[yr]); const fut = pyr[String(j)] ? b(pyr[String(j)]) : null;
     if (fut) body += fig(groupedBars(['0–19', '20–64', '65–79', '80+'].map((l, i) => ({ label: l, items: [{ name: yr, v: now[i], cls: 'c-ch soft', text: fmtInt(Math.round(now[i])) }, { name: String(j), v: fut[i], cls: 'c-me', text: `rund ${rp(fut[i])}` }] })),
       { label: `Bevölkerung nach Altersgruppen, ${yr} und ${j} (Szenario ${v})`, legend: [{ name: yr, cls: 'c-ch soft' }, { name: String(j), cls: 'c-me' }] }));
+    const mf = P.pyr_mf && P.pyr_mf[v];
+    if (mf && mf[String(j)]) body += fig(pyramid(P.groups, mf[String(j)], mf[yr], { label: `Altersaufbau ${j} (Szenario ${v}) und ${yr}: Anteil jeder Altersgruppe in %`, aName: `${name} ${j}`, refName: `${name} ${yr}` }),
+      `Balken: ${j}, Männer links, Frauen rechts; Linie: ${yr}.`);
     const aq = (arr) => (sum(arr, 13, 20) / sum(arr, 4, 12)) * 100;
     body += `<table class="tab"><caption>Szenarien im Vergleich, ${esc(name)} ${j}</caption><thead><tr><th></th><th class="n">${yr}</th>${S.meta.prog.variants.map((vv) => `<th class="n">BFS ${vv}</th>`).join('')}</tr></thead><tbody>
       <tr><td>Bevölkerung</td><td class="n">${fmtInt(pj(d, 'bev', v, yr))}</td>${S.meta.prog.variants.map((vv) => `<td class="n">${rp(pj(d, 'bev', vv, j))}</td>`).join('')}</tr>
@@ -241,6 +267,9 @@ export function planung(ctx) {
     Q.push({ p: a1 - a0 >= R.aq_pp ? 7 : 3, q: 'Wer leistet künftig Pflege, Betreuung und Freiwilligenarbeit?',
       why: `Auf 100 Personen im Erwerbsalter kommen ${j} rund ${num(a1)} Personen ab 65 – heute sind es ${num(a0)}.` });
   }
+  const hr = heimRef(ctx); const gh = val('aph_g_pl80', hr.id);
+  if (gh != null && gh <= -15) Q.push({ p: 7, q: `Die Zahl der Pflegeheimplätze hält ${hr.txt} nicht mit der Zahl der Hochbetagten Schritt – welche Angebote fangen das auf?`,
+    why: `Seit ${S.meta.alter_jahre[0]} sind die Plätze pro 1000 Menschen ab 80 ${hr.txt} um ${num(Math.abs(gh))} % gesunken (Kanton ${sign(val('aph_g_pl80', ctx.kt))}). Mehr Pflege zu Hause, betreutes Wohnen oder Heime der Region können das ausgleichen.` });
   const s = val('spx_kl65', id); const sk = val('spx_kl65', ctx.kt);
   if (s == null) Q.push({ p: 5, q: `Welche Spitex-Organisation versorgt ${esc(name)}, und wächst ihr Angebot mit dem Bedarf?`, why: 'In der Gemeinde hat keine Spitex-Organisation ihren Sitz; ihre Leistungen erscheinen in der Statistik bei der Nachbargemeinde.' });
   else if (sk && Math.abs(s / sk - 1) >= R.spx_rel) Q.push({ p: 6, q: s < sk ? 'Weshalb erreicht die Spitex hier weniger ältere Menschen als im Kanton?' : 'Ist das gut ausgebaute Spitex-Angebot auch für den wachsenden Bedarf gerüstet?',
