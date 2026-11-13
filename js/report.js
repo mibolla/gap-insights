@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261113195938';
-import { loadProg, roundProg } from './prog.js?v=20261113195938';
-import { esc, toast } from './ui.js?v=20261113195938';
-import * as story from './report_story.js?v=20261113195938';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261113195938';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261113200622';
+import { loadProg, roundProg } from './prog.js?v=20261113200622';
+import { esc, toast } from './ui.js?v=20261113200622';
+import * as story from './report_story.js?v=20261113200622';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261113200622';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -32,10 +32,11 @@ export function openReportDialog(id) {
   const dlg = document.createElement('dialog'); dlg.className = 'rdlg'; dlg.setAttribute('aria-labelledby', 'rdlgTitle');
   const opt = R.chapters.filter((c) => c.opt);
   dlg.innerHTML = `<form method="dialog" class="rdlg-in">
+    <button type="button" class="rdlg-x" data-act="close" aria-label="Schliessen" title="Schliessen (Esc)">×</button>
     <div class="rdlg-head"><span class="eyebrow">Gemeindebericht</span><h2 id="rdlgTitle">Bericht für ${esc(r.n)} (${esc(r.kt)})</h2>
       <p class="muted small">Eine HTML-Datei mit allen Themen als zusammenhängende Geschichte – zum Lesen, Weitergeben und Drucken.</p></div>
     <fieldset class="rd-level"><legend>Umfang</legend>${Object.entries(R.levels).map(([k, l]) =>
-      `<label class="lvl"><input type="radio" name="level" value="${k}" ${k === st.level ? 'checked' : ''}><span><span><b>${esc(l.label)}</b> · ${esc(l.pages)}</span><span class="muted small">${esc(l.desc)}</span></span></label>`).join('')}</fieldset>
+      `<label class="lvl"><input type="radio" name="level" value="${k}" ${k === st.level ? 'checked autofocus' : ''}><span><span><b>${esc(l.label)}</b> · ${esc(l.pages)}</span><span class="muted small">${esc(l.desc)}</span></span></label>`).join('')}</fieldset>
     <fieldset><legend>Ausblick</legend>
       <div class="rd-row"><span class="pl-lab">Zieljahr</span><div class="seg" role="group" aria-label="Zieljahr">${S.meta.prog.years.map((y) => `<button type="button" data-j="${y}" aria-pressed="${y === st.j}">${y}</button>`).join('')}</div></div>
       <div class="rd-row"><span class="pl-lab">Variante</span><div class="seg" role="group" aria-label="Variante">${S.meta.prog.variants.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === st.v}">BFS ${v}</button>`).join('')}</div></div></fieldset>
@@ -58,7 +59,13 @@ export function openReportDialog(id) {
     return { level: st.level, j: st.j, v: st.v, chapters };
   };
   dlg.addEventListener('change', (ev) => { if (ev.target.name === 'level') { st.level = ev.target.value; sync(); } });
+  // a click on the darkened area around the dialog closes it (press and release outside, not while a report is built)
+  let busy = false; let downOutside = false;
+  const outside = (ev) => { const b = dlg.getBoundingClientRect();
+    return ev.target === dlg && (ev.clientX < b.left || ev.clientX > b.right || ev.clientY < b.top || ev.clientY > b.bottom); };
+  dlg.addEventListener('pointerdown', (ev) => { downOutside = outside(ev); });
   dlg.addEventListener('click', async (ev) => {
+    if (outside(ev)) { if (downOutside && !busy) dlg.close(); downOutside = false; return; }
     const b = ev.target.closest('button'); if (!b) return;
     if (b.dataset.j) { st.j = +b.dataset.j; sync(); return; }
     if (b.dataset.v) { st.v = b.dataset.v; sync(); return; }
@@ -66,7 +73,7 @@ export function openReportDialog(id) {
     if (act === 'close') { dlg.close(); return; }
     if (act === 'preview' || act === 'download') {
       const win = act === 'preview' ? window.open('', '_blank') : null;     // open synchronously: popup blockers
-      b.disabled = true; const old = b.textContent; b.textContent = 'Wird erstellt …';
+      b.disabled = true; busy = true; const old = b.textContent; b.textContent = 'Wird erstellt …';
       try {
         const o = opts(); const html = await buildReport(id, o);
         const url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
@@ -80,7 +87,7 @@ export function openReportDialog(id) {
       } catch (e) {
         console.error(e); if (win) win.close();
         toast('Der Bericht konnte nicht erstellt werden.');
-      } finally { b.disabled = false; b.textContent = old; }
+      } finally { b.disabled = false; busy = false; b.textContent = old; }
     }
   });
   dlg.addEventListener('close', () => dlg.remove());
