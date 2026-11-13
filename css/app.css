@@ -192,6 +192,15 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .map .pts circle:hover { fill-opacity: 1; stroke: var(--ink); stroke-width: 1.8; }
 @keyframes pt-pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .map .pts circle { animation: none; } }
+/* Spitäler: bubbles by Spitaltyp, translucent because they overlap in the cities */
+.map .pts circle.sp { fill-opacity: .66; stroke: #fff; stroke-width: .9; }
+.map .pts circle.sp:hover { fill-opacity: .95; stroke: var(--ink); stroke-width: 1.8; }
+.map .pts circle.sp.approx { stroke-dasharray: 2 1.5; }
+.map .pts .sp-Z, .legend .pt-key i.sp-Z { fill: #1b67b2; background: #1b67b2; box-shadow: none; }
+.map .pts .sp-G, .legend .pt-key i.sp-G { fill: #6fa8dc; background: #6fa8dc; box-shadow: none; }
+.map .pts .sp-P, .legend .pt-key i.sp-P { fill: #8e6bbf; background: #8e6bbf; box-shadow: none; }
+.map .pts .sp-R, .legend .pt-key i.sp-R { fill: #1d8f4e; background: #1d8f4e; box-shadow: none; }
+.map .pts .sp-S, .legend .pt-key i.sp-S { fill: #c0862f; background: #c0862f; box-shadow: none; }
 .legend .pt-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
 .legend .pt-key i { width: 10px; height: 10px; border-radius: 50%; background: var(--orange); border: 1px solid #fff; box-shadow: 0 0 0 1px var(--orange); display: inline-block; }
 .legend .pt-key i.ring { background: #fff; width: 8px; height: 8px; border: 1.5px solid var(--orange); box-shadow: none; }

@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113204700';
-import { createMap, legendHTML, reduced } from './map.js?v=20261113204700';
-import { omnibox } from './search.js?v=20261113204700';
-import { esc, main } from './ui.js?v=20261113204700';
-import { loadProg, pval, roundProg } from './prog.js?v=20261113204700';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113222405';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113222405';
+import { omnibox } from './search.js?v=20261113222405';
+import { esc, main } from './ui.js?v=20261113222405';
+import { loadProg, pval, roundProg } from './prog.js?v=20261113222405';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -52,6 +52,11 @@ export function render() {
         text: `der Menschen ab 80 leben in einer Gemeinde, deren Mitte höchstens 5 km vom nächsten Alters- und Pflegeheim entfernt ist. Jeder Punkt ist eines der ${fmtInt(H.heime)} Heime – je grösser, desto mehr Plätze. In ${H.far_gde} Gemeinden sind es mehr als 10 km, am weitesten in ${esc(far ? far.n : '')} (${fmt(H.max_km, { dec: 0 })} km).`,
         src: `BAG / SOMED ${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourHeime(m, t, alive),
         thema: 'inanspruchnahme', q: 'plaetze', cap: 'Alters- und Pflegeheime und Distanz der Gemeinden zum nächsten Heim' }; })(),
+    (() => { const P = M.spitaeler;
+      return { n: '', title: 'Spitäler', big: `${fmt(P.faelle / 1e6, { dec: 1 })} Mio.`,
+        text: `stationäre Fälle haben die ${fmtInt(P.spitaeler)} Spitäler der Schweiz ${M.jahr} behandelt – die Hälfte davon nur ${P.haelfte} Spitäler, allen voran ${esc(P.groesstes)} mit ${fmtInt(P.groesstes_faelle)} Fällen. Die Fläche jeder Blase entspricht den Fällen eines Spitals, die Farbe dem Spitaltyp.`,
+        src: `BAG, Kennzahlen der Schweizer Spitäler ${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourSpitaeler(m, t, alive),
+        ext: M.sources.kzp.url, extLabel: 'Kennzahlen der Spitäler (BAG)', cap: `Spitäler ${M.jahr} – Blasengrösse: stationäre Fälle pro Jahr` }; })(),
     { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m, t) => colourBy(m, 'spx_kl65', 'kt', t), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
     { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
@@ -97,8 +102,8 @@ export function render() {
           <span class="n">Kapitel ${k + 1} von ${chapters.length}</span><h3>${c.title}</h3>
           <span class="big num">${c.big}</span><p>${c.text}</p>
           <span class="src">Quelle: ${c.src}</span>
-          <div class="exits"><a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
-          <button class="btn small primary" type="button" data-us="${c.q}">Und bei uns?</button></div>
+          <div class="exits">${c.thema ? `<a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
+          <button class="btn small primary" type="button" data-us="${c.q}">Und bei uns?</button>` : `<a class="btn small" href="${c.ext}" target="_blank" rel="noopener">${esc(c.extLabel)} ↗</a>`}</div>
         </article>`).join('')}
       </div>
       <div class="story-map"><div class="story-dots" aria-hidden="true">${chapters.map((_, k) => `<span class="${k === 0 ? 'on' : ''}"></span>`).join('')}</div>
@@ -161,6 +166,10 @@ export function render() {
         const ids = Object.keys(f.vals); const vals = ids.map((k) => f.vals[k]); const br = quantiles(vals);
         map.choropleth(new Map(ids.map((k, n) => [k, classOf(vals[n], br)])));
         lEl.innerHTML = legendHTML(br, (x) => `+${fmt(x, { dec: 0 })} %`, 'Zunahme 80+ bis 2040 (Prognose, BFS mittel)');
+      }
+      else if (f.mode === 'spitaeler') {   // Spitäler as bubbles (as in the story chapter «Spitäler»)
+        const k = fi; lEl.innerHTML = '';
+        colourSpitaeler(map, null, () => fi === k).then((h) => { if (fi === k) lEl.innerHTML = h; });
       }
       else if (f.mode === 'heime') {   // Pflegeheime as animated points (as in the story chapter «Heime in der Nähe»)
         const k = fi; lEl.innerHTML = '';
@@ -239,6 +248,27 @@ async function colourHeime(map, setTip = null, alive = () => true) {
   return `<div class="legend"><span>Distanz zum nächsten Heim</span><span>bis 2 km</span><span class="ramp">${ramp}</span><span>über 10 km</span>
     <span class="pt-key"><i></i> Heim (Grösse = Plätze)</span><span class="pt-key"><i class="ring"></i> Lage ungefähr</span></div>`;
 }
+
+/** Spitäler as bubbles: area = stationäre Fälle, colour = Spitaltyp; returns the legend */
+let SPITAL = null;
+const loadSpitaeler = () => (SPITAL = SPITAL || fetch(dataUrl('spitaeler.json')).then((r) => r.json()));
+async function colourSpitaeler(map, setTip = null, alive = () => true) {
+  const P = await loadSpitaeler();
+  if (!alive()) return '';
+  map.clear(); map.setLevel('gde');
+  // largest first (data are sorted by cases), so small Spitäler stay on top and can be hovered
+  map.points(P.x.map((x, k) => ({ x, y: P.y[k], r: Math.max(1.6, Math.sqrt(P.c[k]) * 0.11), id: P.g[k], cls: `sp sp-${P.t[k]}${P.a[k] ? ' approx' : ''}`,
+    tip: `<b>${esc(abbr(P.n[k]))}</b><br>${esc(P.o[k])} · ${fmtInt(P.c[k])} stationäre Fälle${P.b[k] ? ` · ${fmtInt(P.b[k])} Betten` : ''}`
+      + `<br><span class="muted">${esc(P.gruppen[P.t[k]])}${P.st[k] > 1 ? ` · ${P.st[k]} Standorte, Fälle aller Standorte` : ''}${P.a[k] ? ' · Lage ungefähr' : ''}</span>` })), { animate: true });
+  if (setTip) {
+    const per = new Map(); P.g.forEach((g, k) => { const v = per.get(g) || [0, 0]; per.set(g, [v[0] + 1, v[1] + P.c[k]]); });
+    setTip((id) => { const r = region(id); if (!r) return ''; const v = per.get(id);
+      return `${tipName(r)} · ${v ? `${v[0]} Spital${v[0] > 1 ? 'äler' : ''} mit Sitz hier, ${fmtInt(v[1])} stationäre Fälle` : 'kein Spital mit Sitz hier'}`; });
+  }
+  const keys = Object.entries(P.gruppen).map(([c, l]) => `<span class="pt-key"><i class="sp-${c}"></i> ${esc(l.replace('Allgemeinspital, ', ''))}</span>`).join('');
+  return `<div class="legend"><span>Fläche = stationäre Fälle ${M_jahr()}</span>${keys}</div>`;
+}
+const M_jahr = () => S.meta.jahr;
 
 /** colour the map by the forecast change 2024 -> year (BFS mittel, quintiles); returns the legend */
 async function colourProg(map, indId, year, label, setTip = null, alive = () => true) {
