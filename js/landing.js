@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261112124917';
-import { createMap, legendHTML, reduced } from './map.js?v=20261112124917';
-import { omnibox } from './search.js?v=20261112124917';
-import { esc, main } from './ui.js?v=20261112124917';
-import { loadProg, pval } from './prog.js?v=20261112124917';
+import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261113184424';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113184424';
+import { omnibox } from './search.js?v=20261113184424';
+import { esc, main } from './ui.js?v=20261113184424';
+import { loadProg, pval } from './prog.js?v=20261113184424';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -42,7 +42,7 @@ export function render() {
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m) => colourBy(m, 'spx_kl65', 'kt'), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
     { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
       text: `Menschen ab 80 werden 2040 in der Schweiz leben – gemäss BFS-Referenzszenario (mittel), heute sind es ${fmtInt(Math.round(M.prog_ch.mittel.b80['2024'] / 1000) * 1000)}. Die Karte zeigt die erwartete Zunahme bis 2040 in jeder Gemeinde. Jede Prognose nennt ihr Modell und ihre Variante.`,
-      src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m) => { colourProg(m, 'p_b80', 2040); return '<div class="legend"><span>Zunahme Menschen ab 80, 2024–2040 (BFS mittel)</span></div>'; },
+      src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m) => colourProg(m, 'p_b80', 2040, 'Zunahme 80+ 2024–2040'),
       thema: 'alter', q: 'zukunft80', cap: 'Zunahme der Menschen ab 80 bis 2040, BFS mittel (in %)' },
   ];
 
@@ -166,8 +166,14 @@ export function render() {
   const dots = main().querySelectorAll('.story-dots span'); const cards = main().querySelectorAll('.story-card');
   const activate = (k) => {
     cards.forEach((c, j) => c.classList.toggle('active', j === k)); dots.forEach((d, j) => d.classList.toggle('on', j === k));
-    sCap.textContent = chapters[k].cap; sLeg.innerHTML = chapters[k].map(smap);
+    sCap.textContent = chapters[k].cap;
+    const leg = chapters[k].map(smap);
+    if (leg && typeof leg.then === 'function') {          // forecast maps load their data first
+      shown = k;
+      leg.then((h) => { if (shown === k) sLeg.innerHTML = h; });
+    } else { shown = k; sLeg.innerHTML = leg; }
   };
+  let shown = -1;
   activate(0);
   const io = new IntersectionObserver((ents) => ents.forEach((e) => { if (e.isIntersecting) activate(+e.target.dataset.k); }), { rootMargin: '-45% 0px -45% 0px' });
   cards.forEach((c) => io.observe(c)); cleanup.push(() => io.disconnect());
@@ -194,12 +200,13 @@ async function mapCard(container, id, pt, pendingQ) {
 }
 
 
-/** colour the map by the forecast change 2024 -> year (BFS mittel) */
-async function colourProg(map, indId, year) {
+/** colour the map by the forecast change 2024 -> year (BFS mittel, quintiles); returns the legend */
+async function colourProg(map, indId, year, label) {
   const P = await loadProg();
   const ids = S.regions.filter((r) => r.e === 'GDE').map((r) => r.id);
   const vals = ids.map((id) => { const a = pval(P, indId, id, 'mittel', 2024); const b = pval(P, indId, id, 'mittel', year); return a ? (b / a - 1) * 100 : null; });
   const br = quantiles(vals);
   map.clear(); map.setLevel('gde');
   map.choropleth(new Map(ids.map((id, k) => [id, classOf(vals[k], br)])));
+  return legendHTML(br, (x) => `${plusMinus(x, 0)} %`, label);
 }
