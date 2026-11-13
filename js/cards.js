@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113201544';
-import { toast, esc } from './ui.js?v=20261113201544';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113201544';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113201849';
+import { toast, esc } from './ui.js?v=20261113201849';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113201849';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -247,7 +247,7 @@ export function histLines(div, series, indId, years) {
   const data = use.map((s) => {
     const k0 = series.indexOf(s); const v = s.d.aph_hist[indId];
     return { type: 'scatter', mode: 'lines+markers', x, y: v, name: nameOf(s), connectgaps: false,
-      line: { color: colOf(s, k0), width: k0 === 0 ? 3 : 2, dash: k0 === 0 ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
+      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
       customdata: v.map((y) => fmtUnit(y, i)), hovertemplate: `${nameOf(s)} %{x}: %{customdata}<extra></extra>` };
   });
   div._table = { columns: ['Jahr', ...use.map((s) => `${nameOf(s)} (${i.unit})`)], rows: x.map((y, k) => [y, ...use.map((s) => s.d.aph_hist[indId][k])]) };

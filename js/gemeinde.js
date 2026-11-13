@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113201544';
-import { createMap } from './map.js?v=20261113201544';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113201544';
-import { omnibox } from './search.js?v=20261113201544';
-import { esc, main } from './ui.js?v=20261113201544';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113201544';
-import { openReportDialog } from './report.js?v=20261113201544';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113201849';
+import { createMap } from './map.js?v=20261113201849';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113201849';
+import { omnibox } from './search.js?v=20261113201849';
+import { esc, main } from './ui.js?v=20261113201849';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113201849';
+import { openReportDialog } from './report.js?v=20261113201849';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -247,6 +247,16 @@ function aggregate(ds) {
     const w = bw.map((x) => x.ts.bev[x.ts.bev.length - 1]); const W = w.reduce((a, b) => a + b, 0);
     out.bew = Object.fromEntries(Object.keys(bw[0].bew).map((k) => [k, bw.reduce((a, x, i) => a + (x.bew[k] || 0) * w[i], 0) / W]));
   }
+  // Rückblick Leistungen / Personal / Kosten: sum the parts of all members, then rebuild each indicator per year
+  const as = ds.filter((x) => x.aph_sums);
+  if (as.length) {
+    const sums = Object.fromEntries(Object.keys(as[0].aph_sums).map((k) => [k, sumArr(as.map((x) => x.aph_sums[k]))]));
+    const F = S.meta.hist_formula || {};
+    out.aph_hist = Object.fromEntries(Object.entries(F).map(([id, f]) => [id, sums[f[0] === 'ratio' ? f[1] : `${f[1]} × ${f[2]}`].map((_, k) => {
+      if (f[0] === 'ratio') { const den = f[2].reduce((a, c) => a + sums[c][k], 0); return den > 0 ? (sums[f[1]][k] / den) * f[3] : null; }
+      const w = sums[`${f[2]} | ${f[1]}`][k]; return w > 0 ? sums[`${f[1]} × ${f[2]}`][k] / w : null;
+    })]));
+  }
   const at = ds.filter((x) => x.aph_ts);     // Gemeinden without a Heim add 0 places but their population (ts)
   if (at.length) out.aph_ts = { y: at[0].aph_ts.y, ...Object.fromEntries(['pl', 'kl', 'n'].map((k) => [k, sumArr(at.map((x) => x.aph_ts[k]))])) };
   const ap = ds.filter((x) => x.aph);
@@ -324,7 +334,6 @@ async function special(box, r, d, subId, mode = 'kt') {
     const sub = subId.slice(5); const name = esc(shortName(r.id));
     const ids = (M.hist || []).filter((x) => S.ind.get(x).sub === sub);
     const notes = [];
-    if (grp) notes.push(`Für die Vergleichsgruppe «${esc(grp.name)}» gibt es keine Zeitreihe; gezeigt werden ${name}, Kanton und Schweiz.`);
     if (!d.aph_hist) notes.push(`${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
     const spx = M.indicators.filter((i) => i.sub === sub && i.src === 'spitex').map((i) => i.short);
     if (spx.length) notes.push(`Spitex (${spx.map(esc).join(', ')}): Werte nur für ${M.jahr}, siehe «Heute ${M.jahr}».`);
