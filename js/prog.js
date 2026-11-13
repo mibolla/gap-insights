@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261113191454';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261113191454';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113191454';
-import { esc } from './ui.js?v=20261113191454';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261113192416';
+import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261113192416';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113192416';
+import { esc } from './ui.js?v=20261113192416';
 
 let PV = null;
 export async function loadProg() {
@@ -30,6 +30,8 @@ export function roundProg(x, unit) {
 }
 const fmtP = (x, i) => (x == null ? '–' : i.unit === '%' ? `${fmt(roundProg(x, '%'), { dec: 1 })} %` : i.unit === 'pro 100' ? `${fmt(roundProg(x, i.unit), { dec: 1 })} pro 100` : `${fmtInt(roundProg(x, i.unit))}${i.unit === 'Plätze' ? ' Plätze' : ''}`);
 const pct = (a, b) => (b ? (a / b - 1) * 100 : null);
+/** round axis step: 1, 2 or 5 × 10^n, about four ticks per side */
+const niceStep = (m) => { const r = m / 4; const p = 10 ** Math.floor(Math.log10(r || 1)); return [1, 2, 5, 10].map((f) => f * p).find((s) => s >= r); };
 const sign = (x) => (x == null ? '–' : `${x >= 0 ? '+' : '−'}${fmt(Math.abs(x), { dec: 0 })} %`);
 
 // ------------------------------------------------------------------ Prognose-Etikett (declaration + controls)
@@ -162,13 +164,25 @@ export function fanChart(div, id, d, key, opts = {}) {
 /** age structure 2024 vs target year (selected variant), counts per 5-year group */
 export function pyrCompare(div, id, d) {
   const { v, j } = progState(); const p = d.prog; if (!p) return;
-  const a = p.pyr[v]['2024']; const b = p.pyr[v][String(j)];
+  // population pyramid: men left (negative x), women right; bars = target year, black step line = 2024
+  const a = p.pyr_mf[v]['2024']; const b = p.pyr_mf[v][String(j)];
+  const neg = (arr) => arr.map((x) => -x);
+  const line = (x, show) => ({ type: 'scatter', mode: 'lines', y: p.groups, x, name: '2024', showlegend: show, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' });
+  const hov = (sx) => `${sx} %{y} · ${j}: %{customdata[0]:,.0f} (2024: %{customdata[1]:,.0f})<extra></extra>`;
+  const cd = (arr1, arr0) => arr1.map((x, k) => [x, arr0[k]]);
+  const m = Math.max(...a.m, ...a.f, ...b.m, ...b.f) * 1.08;
+  const step = niceStep(m);
+  const ticks = []; for (let t = 0; t <= m; t += step) { ticks.push(t); if (t) ticks.unshift(-t); }
   plot(div, [
-    { type: 'bar', orientation: 'h', y: p.groups, x: a, name: '2024', marker: { color: '#b4c7d8' }, hovertemplate: '2024 · %{y}: %{x:,.0f}<extra></extra>' },
-    { type: 'bar', orientation: 'h', y: p.groups, x: b, name: `${j} (BFS ${v})`, marker: { color: C.me }, hovertemplate: `${j} · %{y}: %{x:,.0f}<extra></extra>` }],
-  baseLayout({ height: 460, barmode: 'group', bargap: 0.15, showlegend: true, legend: { orientation: 'h', y: -0.08 }, margin: { l: 8, r: 10, t: 6, b: 40 },
-    yaxis: { automargin: true, tickfont: { size: 11 } }, xaxis: { gridcolor: '#eef1f3', title: { text: 'Personen', font: { size: 11 } } } }));
-  div._table = { columns: ['Altersgruppe', '2024', `${j} BFS ${v}`, 'Veränderung %'], rows: p.groups.map((g, k) => [g, rnd(a[k], 0), rnd(b[k], 0), rnd(pct(b[k], a[k]), 1)]) };
+    { type: 'bar', orientation: 'h', y: p.groups, x: neg(b.m), name: `Männer ${j} (BFS ${v})`, marker: { color: '#7eaed9' }, customdata: cd(b.m, a.m), hovertemplate: hov('Männer') },
+    { type: 'bar', orientation: 'h', y: p.groups, x: b.f, name: `Frauen ${j} (BFS ${v})`, marker: { color: '#f2a46a' }, customdata: cd(b.f, a.f), hovertemplate: hov('Frauen') },
+    line(neg(a.m), true), line(a.f, false)],
+  baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true, legend: { orientation: 'h', y: -0.14, font: { size: 12 } }, margin: { l: 8, r: 10, t: 6, b: 66 },
+    yaxis: { automargin: true, tickfont: { size: 11 } },
+    xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => fmtInt(Math.abs(t))), zeroline: true, zerolinecolor: C.line, gridcolor: '#eef1f3',
+      title: { text: 'Personen  ·  ◀ Männer   |   Frauen ▶', font: { size: 11 } } } }));
+  div._table = { columns: ['Altersgruppe', 'Männer 2024', `Männer ${j} BFS ${v}`, 'Frauen 2024', `Frauen ${j} BFS ${v}`, 'Veränderung total %'],
+    rows: p.groups.map((g, k) => [g, rnd(a.m[k], 0), rnd(b.m[k], 0), rnd(a.f[k], 0), rnd(b.f[k], 0), rnd(pct(b.m[k] + b.f[k], a.m[k] + a.f[k]), 1)]) };
 }
 
 /** chart card helper with export menu */
@@ -193,7 +207,7 @@ export async function ausblickSection(box, r, d, subId, rerender) {
   const grid = document.createElement('div'); grid.className = 'cards'; box.appendChild(grid);
   if (subId === 'alter') {
     grid.appendChild(progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `Schwarz: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: gewählte Variante (BFS ${v}).`, mid, (div) => fanChart(div, r.id, d, 'b80')));
-    grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, BFS ${v}.`, mid, (div) => pyrCompare(div, r.id, d)));
+    grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), schwarze Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d)));
   } else {
     grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Linie: heutige Langzeitplätze am Standort. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
   }
