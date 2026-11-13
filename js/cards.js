@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113222405';
-import { toast, esc } from './ui.js?v=20261113222405';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113222405';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261113223941';
+import { toast, esc } from './ui.js?v=20261113223941';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113223941';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -243,7 +243,7 @@ export function aphLines(div, series, which, years) {
 export function histLines(div, series, indId, years) {
   const i = S.ind.get(indId);
   const use = series.filter((s) => s.d.aph_hist && s.d.aph_hist[indId] && s.d.aph_hist[indId].some((v) => v != null));
-  const ys = years[1] - years[0] + 1; const x = Array.from({ length: ys }, (_, k) => years[0] + k);
+  const x = (S.meta.hist_years && S.meta.hist_years[indId]) || Array.from({ length: years[1] - years[0] + 1 }, (_, k) => years[0] + k);
   const data = use.map((s) => {
     const k0 = series.indexOf(s); const v = s.d.aph_hist[indId];
     return { type: 'scatter', mode: 'lines+markers', x, y: v, name: nameOf(s), connectgaps: false,
@@ -253,7 +253,7 @@ export function histLines(div, series, indId, years) {
   div._table = { columns: ['Jahr', ...use.map((s) => `${nameOf(s)} (${i.unit})`)], rows: x.map((y, k) => [y, ...use.map((s) => s.d.aph_hist[indId][k])]) };
   div._title = `${i.label} ${years[0]}–${years[1]}`;
   plot(div, data, baseLayout({ height: 300, showlegend: true, legend: { orientation: 'h', y: -0.18 }, margin: { l: 44, r: 12, t: 10, b: 56 },
-    xaxis: { dtick: 2, gridcolor: '#eef1f3' }, yaxis: { title: { text: i.unit, font: { size: 11 } }, gridcolor: '#eef1f3', automargin: true } }));
+    xaxis: { dtick: x.length > 6 ? 2 : 1, gridcolor: '#eef1f3' }, yaxis: { title: { text: i.unit, font: { size: 11 } }, gridcolor: '#eef1f3', automargin: true } }));
 }
 
 export function shareBars(div, cats, series, unitLabel = '%') {

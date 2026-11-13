@@ -201,6 +201,13 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .map .pts .sp-P, .legend .pt-key i.sp-P { fill: #8e6bbf; background: #8e6bbf; box-shadow: none; }
 .map .pts .sp-R, .legend .pt-key i.sp-R { fill: #1d8f4e; background: #1d8f4e; box-shadow: none; }
 .map .pts .sp-S, .legend .pt-key i.sp-S { fill: #c0862f; background: #c0862f; box-shadow: none; }
+/* Spitex organisations: bubbles by Trägergruppe */
+.map .pts circle.sx { fill-opacity: .62; stroke: #fff; stroke-width: .8; }
+.map .pts circle.sx:hover { fill-opacity: .95; stroke: var(--ink); stroke-width: 1.8; }
+.map .pts circle.sx.approx { stroke-dasharray: 2 1.5; }
+.map .pts .sx-G, .legend .pt-key i.sx-G { fill: #1d8f4e; background: #1d8f4e; box-shadow: none; }
+.map .pts .sx-O, .legend .pt-key i.sx-O { fill: #3a4046; background: #3a4046; box-shadow: none; }
+.map .pts .sx-E, .legend .pt-key i.sx-E { fill: #e8701a; background: #e8701a; box-shadow: none; }
 .legend .pt-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
 .legend .pt-key i { width: 10px; height: 10px; border-radius: 50%; background: var(--orange); border: 1px solid #fff; box-shadow: 0 0 0 1px var(--orange); display: inline-block; }
 .legend .pt-key i.ring { background: #fff; width: 8px; height: 8px; border: 1.5px solid var(--orange); box-shadow: none; }

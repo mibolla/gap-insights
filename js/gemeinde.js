@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113222405';
-import { createMap } from './map.js?v=20261113222405';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113222405';
-import { omnibox } from './search.js?v=20261113222405';
-import { esc, main } from './ui.js?v=20261113222405';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113222405';
-import { openReportDialog } from './report.js?v=20261113222405';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113223941';
+import { createMap } from './map.js?v=20261113223941';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113223941';
+import { omnibox } from './search.js?v=20261113223941';
+import { esc, main } from './ui.js?v=20261113223941';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113223941';
+import { openReportDialog } from './report.js?v=20261113223941';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -250,9 +250,10 @@ function aggregate(ds) {
   // Rückblick Leistungen / Personal / Kosten: sum the parts of all members, then rebuild each indicator per year
   const as = ds.filter((x) => x.aph_sums);
   if (as.length) {
-    const sums = Object.fromEntries(Object.keys(as[0].aph_sums).map((k) => [k, sumArr(as.map((x) => x.aph_sums[k]))]));
+    const keys = [...new Set(as.flatMap((x) => Object.keys(x.aph_sums)))];
+    const sums = Object.fromEntries(keys.map((k) => [k, sumArr(as.filter((x) => x.aph_sums[k]).map((x) => x.aph_sums[k]))]));
     const F = S.meta.hist_formula || {};
-    out.aph_hist = Object.fromEntries(Object.entries(F).map(([id, f]) => [id, sums[f[0] === 'ratio' ? f[1] : `${f[1]} × ${f[2]}`].map((_, k) => {
+    out.aph_hist = Object.fromEntries(Object.entries(F).filter(([, f]) => sums[f[0] === 'ratio' ? f[1] : `${f[1]} × ${f[2]}`]).map(([id, f]) => [id, sums[f[0] === 'ratio' ? f[1] : `${f[1]} × ${f[2]}`].map((_, k) => {
       if (f[0] === 'ratio') { const den = f[2].reduce((a, c) => a + sums[c][k], 0); return den > 0 ? (sums[f[1]][k] / den) * f[3] : null; }
       const w = sums[`${f[2]} | ${f[1]}`][k]; return w > 0 ? sums[`${f[1]} × ${f[2]}`][k] / w : null;
     })]));
@@ -332,26 +333,11 @@ async function special(box, r, d, subId, mode = 'kt') {
     };
     seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
     box.appendChild(c.card); drawK('pl80');
+    histCards(box, r, d, series, (M.hist || []).filter((x) => S.ind.get(x).sub === 'inanspruchnahme'));
   } else if (subId.startsWith('hist_')) {
-    // Rückblick Leistungen / Personal / Kosten: one line chart per Heim indicator
-    const sub = subId.slice(5); const name = esc(shortName(r.id));
-    const ids = (M.hist || []).filter((x) => S.ind.get(x).sub === sub);
-    const notes = [];
-    if (!d.aph_hist) notes.push(`${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
-    const spx = M.indicators.filter((i) => i.sub === sub && i.src === 'spitex').map((i) => i.short);
-    if (spx.length) notes.push(`Spitex (${spx.map(esc).join(', ')}): Werte nur für ${M.jahr}, siehe «Heute ${M.jahr}».`);
-    if (notes.length) { const p = document.createElement('p'); p.className = 'note wide'; p.style.gridColumn = '1 / -1'; p.innerHTML = notes.join(' '); box.appendChild(p); }
-    ids.forEach((id) => {
-      const i = S.ind.get(id);
-      const c = chartCard(`${i.label} ${y0}–${y1}`, '', 'somed_ts', false);
-      box.appendChild(c.card);
-      const v = d.aph_hist && d.aph_hist[id];
-      const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
-      let txt = k0 >= 0 ? `${name}: ${y0 + k0} ${fmtUnit(v[k0], i)}, ${y0 + k1} <b>${fmtUnit(v[k1], i)}</b>.` : `Keine Werte für ${name}.`;
-      if (M.hist_col && M.hist_col[id]) txt += ` Bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch).`;
-      c.setSub(txt);
-      histLines(c.div, series, id, [y0, y1]);
-    });
+    // Rückblick Leistungen / Personal / Kosten / Finanzierung: one line chart per Heim and Spitex indicator
+    const sub = subId.slice(5);
+    histCards(box, r, d, series, (M.hist || []).filter((x) => S.ind.get(x).sub === sub));
   } else if (subId === 'haushalte' && d.hh) {
     const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
     box.appendChild(c.card);
@@ -388,6 +374,30 @@ async function special(box, r, d, subId, mode = 'kt') {
     p.innerHTML = `Dieses Thema wird für Bezirke und Kantone gezeigt. <a href="#/gemeinde/${r.bez}/statamb">Zum ${esc(regionLabel(r.bez, false))} →</a>`;
     box.appendChild(p);
   }
+}
+
+/** Rückblick charts for Heim (2012–) and Spitex (2021–) indicators, each over its own years (meta.hist_years) */
+function histCards(box, r, d, series, ids) {
+  const M = S.meta; const name = esc(shortName(r.id));
+  const yrs = (id) => M.hist_years[id];
+  const isSpx = (id) => S.ind.get(id).src === 'spitex';
+  const notes = [];
+  const aph = ids.filter((x) => !isSpx(x)); const spx = ids.filter(isSpx);
+  const has = (id) => d.aph_hist && d.aph_hist[id] && d.aph_hist[id].some((v) => v != null);
+  if (aph.length && !aph.some(has)) notes.push(`${name} hatte zwischen ${yrs(aph[0])[0]} und ${M.jahr} kein eigenes Alters- und Pflegeheim. Die Heim-Grafiken zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
+  if (spx.length) notes.push(`Spitex-Kennzahlen veröffentlicht das BAG seit ${yrs(spx[0])[0]}. Organisationen ohne Adresse im Kanton sind nach Einwohnern auf seine Gemeinden verteilt.`);
+  if (notes.length) { const p = document.createElement('p'); p.className = 'note wide'; p.style.gridColumn = '1 / -1'; p.innerHTML = notes.join(' '); box.appendChild(p); }
+  ids.forEach((id) => {
+    const i = S.ind.get(id); const y = yrs(id); const y0 = y[0]; const y1 = y[y.length - 1];
+    const c = chartCard(`${i.label} ${y0}–${y1}`, '', isSpx(id) ? 'spitex_ts' : 'somed_ts', false);
+    box.appendChild(c.card);
+    const v = d.aph_hist && d.aph_hist[id];
+    const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
+    let txt = k0 >= 0 ? `${name}: ${y[k0]} ${fmtUnit(v[k0], i)}, ${y[k1]} <b>${fmtUnit(v[k1], i)}</b>.` : `Keine Werte für ${name}.`;
+    if (M.hist_col && M.hist_col[id]) txt += ` Bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch).`;
+    c.setSub(txt);
+    histLines(c.div, series, id, [y0, y1]);
+  });
 }
 
 function lists(r, d, subId) {

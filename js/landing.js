@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113222405';
-import { createMap, legendHTML, reduced } from './map.js?v=20261113222405';
-import { omnibox } from './search.js?v=20261113222405';
-import { esc, main } from './ui.js?v=20261113222405';
-import { loadProg, pval, roundProg } from './prog.js?v=20261113222405';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113223941';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113223941';
+import { omnibox } from './search.js?v=20261113223941';
+import { esc, main } from './ui.js?v=20261113223941';
+import { loadProg, pval, roundProg } from './prog.js?v=20261113223941';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -59,6 +59,11 @@ export function render() {
         ext: M.sources.kzp.url, extLabel: 'Kennzahlen der Spitäler (BAG)', cap: `Spitäler ${M.jahr} – Blasengrösse: stationäre Fälle pro Jahr` }; })(),
     { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m, t) => colourBy(m, 'spx_kl65', 'kt', t), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
+    (() => { const X = M.spitex;
+      return { n: '', title: 'Spitex vor Ort', big: `${fmt(X.privat1, { dec: 0 })} %`,
+        text: `der Spitex-Klientinnen und -Klienten werden ${M.jahr} von privaten, gewinnorientierten Organisationen betreut – ${X.y0} waren es ${fmt(X.privat0, { dec: 0 })} %. Die gemeinnützigen Spitex betreuen noch ${fmt(X.gemein1, { dec: 0 })} % (${X.y0}: ${fmt(X.gemein0, { dec: 0 })} %). Jede Blase ist eine Organisation, ihre Fläche entspricht den Klientinnen und Klienten.`,
+        src: `BAG, Kennzahlen Krankenpflege und Hilfe zu Hause ${X.y0}–${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourSpitex(m, t, alive),
+        thema: 'inanspruchnahme', q: 'spitex', cap: `Spitex-Organisationen ${M.jahr} – Blasengrösse: Klientinnen und Klienten` }; })(),
     { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
       text: `Menschen ab 80 werden 2040 in der Schweiz leben – gemäss BFS-Referenzszenario (mittel), heute sind es ${fmtInt(Math.round(M.prog_ch.mittel.b80['2024'] / 1000) * 1000)}. Die Karte zeigt die erwartete Zunahme bis 2040 in jeder Gemeinde. Jede Prognose nennt ihr Modell und ihre Variante.`,
       src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m, t, alive) => colourProg(m, 'p_b80', 2040, 'Zunahme 80+ 2024–2040', t, alive),
@@ -94,7 +99,7 @@ export function render() {
   </section>
 
   <section class="story wrap" id="story" aria-labelledby="storyTitle">
-    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">${['Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht'][chapters.length - 3] || chapters.length} Blicke auf das Älterwerden in der Schweiz</h2></div>
+    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">${['Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht', 'Neun'][chapters.length - 3] || chapters.length} Blicke auf das Älterwerden in der Schweiz</h2></div>
       <a class="btn small" href="#choice">Story überspringen →</a></div>
     <div class="story-grid">
       <div class="story-cards">${chapters.map((c, k) => `
@@ -166,6 +171,10 @@ export function render() {
         const ids = Object.keys(f.vals); const vals = ids.map((k) => f.vals[k]); const br = quantiles(vals);
         map.choropleth(new Map(ids.map((k, n) => [k, classOf(vals[n], br)])));
         lEl.innerHTML = legendHTML(br, (x) => `+${fmt(x, { dec: 0 })} %`, 'Zunahme 80+ bis 2040 (Prognose, BFS mittel)');
+      }
+      else if (f.mode === 'spitex') {   // Spitex organisations as bubbles (as in the story chapter «Spitex vor Ort»)
+        const k = fi; lEl.innerHTML = '';
+        colourSpitex(map, null, () => fi === k).then((h) => { if (fi === k) lEl.innerHTML = h; });
       }
       else if (f.mode === 'spitaeler') {   // Spitäler as bubbles (as in the story chapter «Spitäler»)
         const k = fi; lEl.innerHTML = '';
@@ -269,6 +278,25 @@ async function colourSpitaeler(map, setTip = null, alive = () => true) {
   return `<div class="legend"><span>Fläche = stationäre Fälle ${M_jahr()}</span>${keys}</div>`;
 }
 const M_jahr = () => S.meta.jahr;
+
+/** Spitex organisations as bubbles: area = Klientinnen und Klienten, colour = Trägergruppe; returns the legend */
+let SPITEX = null;
+const loadSpitex = () => (SPITEX = SPITEX || fetch(dataUrl('spitex.json')).then((r) => r.json()));
+async function colourSpitex(map, setTip = null, alive = () => true) {
+  const X = await loadSpitex();
+  if (!alive()) return '';
+  map.clear(); map.setLevel('gde');
+  map.points(X.x.map((x, k) => ({ x, y: X.y[k], r: Math.max(1.4, Math.sqrt(X.c[k]) * 0.2), id: X.g[k], cls: `sx sx-${X.t[k]}${X.a[k] ? ' approx' : ''}`,
+    tip: `<b>${esc(abbr(X.n[k]))}</b><br>${esc(X.o[k])} · ${fmtInt(X.c[k])} Klientinnen und Klienten${X.v[k] ? ` · ${fmt(X.v[k], { dec: 0 })} Vollzeitstellen` : ''}`
+      + `<br><span class="muted">${esc(X.gruppen[X.t[k]])}${X.a[k] ? ' · Lage ungefähr' : ''}</span>` })), { animate: true });
+  if (setTip) {
+    const per = new Map(); X.g.forEach((g, k) => { const v = per.get(g) || [0, 0]; per.set(g, [v[0] + 1, v[1] + X.c[k]]); });
+    setTip((id) => { const r = region(id); if (!r) return ''; const v = per.get(id);
+      return `${tipName(r)} · ${v ? `${v[0]} Spitex-Organisation${v[0] > 1 ? 'en' : ''} mit Sitz hier, ${fmtInt(v[1])} Klientinnen und Klienten` : 'keine Spitex-Organisation mit Sitz hier'}`; });
+  }
+  const keys = Object.entries(X.gruppen).map(([c, l]) => `<span class="pt-key"><i class="sx-${c}"></i> ${esc(l)}</span>`).join('');
+  return `<div class="legend"><span>Fläche = Klientinnen und Klienten ${M_jahr()}</span>${keys}</div>`;
+}
 
 /** colour the map by the forecast change 2024 -> year (BFS mittel, quintiles); returns the legend */
 async function colourProg(map, indId, year, label, setTip = null, alive = () => true) {
