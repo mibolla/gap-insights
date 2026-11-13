@@ -1,5 +1,5 @@
 // Swiss map: Gemeinden as SVG paths (LV95 projected to a 1000 px wide box), zoom and pan with d3.zoom.
-import { S, region, fmtInt } from './store.js?v=20261113202622';
+import { S, region, fmtInt } from './store.js?v=20261113203945';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -39,6 +39,9 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
   const dotsG = el('g', 'dots'); root.appendChild(dotsG);
   const ktLines = el('g', 'kt'); root.appendChild(ktLines);
   for (const d of Object.values(G.kt)) { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); ktLines.appendChild(p); }
+  const ptsG = el('g', 'pts'); root.appendChild(ptsG);       // point layer (e.g. Pflegeheime) above everything
+  let ptTips = [];
+  const ptScale = (k) => ptsG.querySelectorAll('circle').forEach((c) => c.setAttribute('r', (+c.dataset.r / Math.sqrt(k)).toFixed(2)));
   container.appendChild(svg);
 
   // tooltip + controls
@@ -46,7 +49,7 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
   let zoom = null; let current = d3.zoomIdentity; let level = 'gde';
   if (interactive) {
     zoom = d3.zoom().scaleExtent([1, 14]).translateExtent([[-50, -50], [G.w + 50, G.h + 50]])
-      .on('zoom', (ev) => { current = ev.transform; root.setAttribute('transform', ev.transform); });
+      .on('zoom', (ev) => { current = ev.transform; root.setAttribute('transform', ev.transform); if (ptsG.firstChild) ptScale(ev.transform.k); });
     d3.select(svg).call(zoom).on('dblclick.zoom', null);
     const ctrl = document.createElement('div'); ctrl.className = 'map-ctrl no-print';
     ctrl.innerHTML = '<button type="button" aria-label="Hineinzoomen">+</button><button type="button" aria-label="Herauszoomen">−</button><button type="button" aria-label="Ganze Schweiz">⤢</button>';
@@ -59,6 +62,13 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
   const hitLayer = () => (level === 'gde' ? gdeG : areas[level].g);
   const pick = (ev) => ev.target && ev.target.dataset && ev.target.dataset.id;
   svg.addEventListener('mousemove', (ev) => {
+    const pt = ev.target && ev.target.dataset && ev.target.dataset.pt;
+    if (pt != null && !mini) {                    // a point has its own tooltip
+      const box = container.getBoundingClientRect();
+      tipEl.innerHTML = ptTips[+pt] || ''; tipEl.hidden = false;
+      tipEl.style.left = `${ev.clientX - box.left}px`; tipEl.style.top = `${ev.clientY - box.top}px`;
+      return;
+    }
     const id = pick(ev);
     if (!id || !tip || mini) { tipEl.hidden = true; return; }
     const box = container.getBoundingClientRect();
@@ -88,7 +98,22 @@ export function createMap(container, { onClick, tip = defaultTip, interactive = 
     clear() {
       paths.forEach((p) => { p.style.fill = ''; p.classList.remove('hl', 'hlp', 'sel', 'peer', 'dim'); });
       Object.values(areas).forEach((a) => a.paths.forEach((p) => { p.style.fill = ''; p.classList.remove('sel'); }));
-      dotsG.innerHTML = '';
+      dotsG.innerHTML = ''; ptsG.innerHTML = ''; ptTips = [];
+    },
+    /** free points in map pixels: [{x, y, r, id (region for clicks), tip (HTML), cls}]; animate = pop in from west to east */
+    points(list, { animate = false } = {}) {
+      ptsG.innerHTML = ''; ptTips = [];
+      const frag = document.createDocumentFragment();
+      list.forEach((p, k) => {
+        const c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.dataset.r = p.r; c.setAttribute('r', p.r);
+        c.dataset.pt = k; if (p.id) c.dataset.id = p.id; if (p.cls) c.setAttribute('class', p.cls);
+        if (animate && !reduced()) c.style.animationDelay = `${((p.x / G.w) * 1.4 + Math.random() * 0.15).toFixed(2)}s`;
+        else c.style.animation = 'none';
+        ptTips.push(p.tip || ''); frag.appendChild(c);
+      });
+      ptsG.appendChild(frag);
+      ptScale(current.k);
     },
     /** colour by class index (0-4) per region id; missing = default fill */
     choropleth(classes) {

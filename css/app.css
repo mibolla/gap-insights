@@ -185,6 +185,16 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .map .area.on path { stroke: var(--map-edge); stroke-width: .8; vector-effect: non-scaling-stroke; }
 .map .area path.sel { fill: var(--orange) !important; stroke: var(--ink); stroke-width: 1.6; }
 .map .kt path { fill: none; stroke: var(--map-kt); stroke-width: .8; vector-effect: non-scaling-stroke; pointer-events: none; }
+/* free points (landing: Pflegeheime): pop in from west to east, approximate locations as rings */
+.map .pts circle { fill: var(--orange); fill-opacity: .82; stroke: #fff; stroke-width: .8; vector-effect: non-scaling-stroke; cursor: pointer;
+  transform-box: fill-box; transform-origin: center; animation: pt-pop .55s cubic-bezier(.2, 1.6, .4, 1) both; transition: fill-opacity .15s ease; }
+.map .pts circle.approx { fill: #fff; fill-opacity: 1; stroke: var(--orange); stroke-width: 1.4; }
+.map .pts circle:hover { fill-opacity: 1; stroke: var(--ink); stroke-width: 1.8; }
+@keyframes pt-pop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .map .pts circle { animation: none; } }
+.legend .pt-key { display: inline-flex; align-items: center; gap: 6px; margin-left: 10px; }
+.legend .pt-key i { width: 10px; height: 10px; border-radius: 50%; background: var(--orange); border: 1px solid #fff; box-shadow: 0 0 0 1px var(--orange); display: inline-block; }
+.legend .pt-key i.ring { background: #fff; width: 8px; height: 8px; border: 1.5px solid var(--orange); box-shadow: none; }
 .map .dots circle { fill: var(--blue); fill-opacity: .55; stroke: #fff; stroke-width: .6; vector-effect: non-scaling-stroke; pointer-events: none; }
 .map-ctrl { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .map-ctrl button { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); cursor: pointer; font-size: 1.1rem; line-height: 1; color: var(--ink); box-shadow: var(--shadow); }

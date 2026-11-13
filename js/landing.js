@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261113202622';
-import { createMap, legendHTML, reduced } from './map.js?v=20261113202622';
-import { omnibox } from './search.js?v=20261113202622';
-import { esc, main } from './ui.js?v=20261113202622';
-import { loadProg, pval, roundProg } from './prog.js?v=20261113202622';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113203945';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113203945';
+import { omnibox } from './search.js?v=20261113203945';
+import { esc, main } from './ui.js?v=20261113203945';
+import { loadProg, pval, roundProg } from './prog.js?v=20261113203945';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -47,6 +47,11 @@ export function render() {
       src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
     { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Gemeinden mit einem eigenen Heim – Heime versorgen auch die Nachbargemeinden.`,
       src: `BAG / SOMED ${M.jahr}`, map: (m, t) => { const l = colourBy(m, 'aph_pl80', 'kt', t); m.dots((M.facts[4].set || []).map((id) => ({ id, r: 2.4 }))); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
+    (() => { const H = M.heime; const far = region(H.max_gde);
+      return { n: '', title: 'Heime in der Nähe', big: `${fmt(H.anteil_5km, { dec: 1 })} %`,
+        text: `der Menschen ab 80 leben in einer Gemeinde, deren Mitte höchstens 5 km vom nächsten Alters- und Pflegeheim entfernt ist. Jeder Punkt ist eines der ${fmtInt(H.heime)} Heime – je grösser, desto mehr Plätze. In ${H.far_gde} Gemeinden sind es mehr als 10 km, am weitesten in ${esc(far ? far.n : '')} (${fmt(H.max_km, { dec: 0 })} km).`,
+        src: `BAG / SOMED ${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourHeime(m, t, alive),
+        thema: 'inanspruchnahme', q: 'plaetze', cap: 'Alters- und Pflegeheime und Distanz der Gemeinden zum nächsten Heim' }; })(),
     { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m, t) => colourBy(m, 'spx_kl65', 'kt', t), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
     { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
@@ -84,12 +89,12 @@ export function render() {
   </section>
 
   <section class="story wrap" id="story" aria-labelledby="storyTitle">
-    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">Fünf Blicke auf das Älterwerden in der Schweiz</h2></div>
+    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">${['Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht'][chapters.length - 3] || chapters.length} Blicke auf das Älterwerden in der Schweiz</h2></div>
       <a class="btn small" href="#choice">Story überspringen →</a></div>
     <div class="story-grid">
       <div class="story-cards">${chapters.map((c, k) => `
         <article class="story-card${k === 0 ? ' active' : ''}" data-k="${k}">
-          <span class="n">${c.n} von ${chapters.length}</span><h3>${c.title}</h3>
+          <span class="n">Kapitel ${k + 1} von ${chapters.length}</span><h3>${c.title}</h3>
           <span class="big num">${c.big}</span><p>${c.text}</p>
           <span class="src">Quelle: ${c.src}</span>
           <div class="exits"><a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
@@ -209,6 +214,27 @@ async function mapCard(container, id, pt, pendingQ) {
   card.querySelector('a').focus({ preventScroll: true });
 }
 
+
+/** Pflegeheime as points (size = places) over the Gemeinden shaded by the distance to the nearest Heim; returns the legend */
+let HEIME = null;
+const loadHeime = () => (HEIME = HEIME || fetch(dataUrl('heime.json')).then((r) => r.json()));
+const abbr = (x, n = 40) => (x.length > n ? `${x.slice(0, n - 1).trimEnd()}…` : x);
+async function colourHeime(map, setTip = null, alive = () => true) {
+  const H = await loadHeime();
+  if (!alive()) return '';
+  const KM = [2, 5, 10]; const cls = (d) => (d == null ? -1 : KM.filter((b) => d > b).length);
+  const ids = S.regions.filter((r) => r.e === 'GDE').map((r) => r.id);
+  map.clear(); map.setLevel('gde');
+  map.choropleth(new Map(ids.map((id) => [id, cls(H.d[id])])));
+  // approximate locations first, then large before small: exact and small Heime stay on top and can be hovered
+  const order = H.x.map((_, k) => k).sort((i, j) => (H.a[j] - H.a[i]) || (H.p[j] - H.p[i]));
+  map.points(order.map((k) => ({ x: H.x[k], y: H.y[k], r: 1.3 + Math.sqrt(H.p[k]) * 0.26, id: H.g[k], cls: H.a[k] ? 'approx' : '',
+    tip: `<b>${esc(abbr(H.n[k]))}</b><br>${esc(H.o[k])} · ${fmtInt(H.p[k])} Plätze${H.a[k] ? '<br><span class="muted">Lage ungefähr (Gemeindemitte)</span>' : ''}` })), { animate: true });
+  if (setTip) setTip((id) => { const r = region(id); const d = H.d[id]; return r ? `${tipName(r)} · nächstes Heim ${d == null ? '–' : `${fmt(d, { dec: 1 })} km`}` : ''; });
+  const ramp = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)'].map((c) => `<span style="background:${c}"></span>`).join('');
+  return `<div class="legend"><span>Distanz zum nächsten Heim</span><span>bis 2 km</span><span class="ramp">${ramp}</span><span>über 10 km</span>
+    <span class="pt-key"><i></i> Heim (Grösse = Plätze)</span><span class="pt-key"><i class="ring"></i> Lage ungefähr</span></div>`;
+}
 
 /** colour the map by the forecast change 2024 -> year (BFS mittel, quintiles); returns the legend */
 async function colourProg(map, indId, year, label, setTip = null, alive = () => true) {
