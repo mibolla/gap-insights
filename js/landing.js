@@ -1,20 +1,29 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261113184424';
-import { createMap, legendHTML, reduced } from './map.js?v=20261113184424';
-import { omnibox } from './search.js?v=20261113184424';
-import { esc, main } from './ui.js?v=20261113184424';
-import { loadProg, pval } from './prog.js?v=20261113184424';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs } from './store.js?v=20261113185159';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113185159';
+import { omnibox } from './search.js?v=20261113185159';
+import { esc, main } from './ui.js?v=20261113185159';
+import { loadProg, pval, roundProg } from './prog.js?v=20261113185159';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
 
-function colourBy(map, indId, level = 'gde') {
+/** region name for map tooltips */
+function tipName(r) {
+  if (r.e === 'GDE') return `<b>${esc(r.n)}</b> (${r.kt})`;
+  if (r.e === 'BEZ') return `<b>Bezirk ${esc(r.n)}</b> (${r.kt})`;
+  return `<b>Kanton ${esc(r.n)}</b>`;
+}
+
+/** colour the map by an indicator; setTip (optional) receives a tooltip showing that indicator */
+function colourBy(map, indId, level = 'gde', setTip = null) {
   map.clear(); map.setLevel(level);
   const ids = S.regions.filter((r) => r.e === (level === 'gde' ? 'GDE' : level === 'kt' ? 'KT' : 'BEZ')).map((r) => r.id);
   const vals = ids.map((id) => val(indId, id));
   const br = quantiles(vals);
   map.choropleth(new Map(ids.map((id, k) => [id, classOf(vals[k], br)])));
   const i = S.ind.get(indId);
+  if (setTip) setTip((id) => { const r = region(id); return r ? `${tipName(r)} · ${esc(i.short)}: ${i.unit.startsWith('pro') ? fmt(val(indId, id), i) : fmtUnit(val(indId, id), i)}` : ''; });
   return legendHTML(br, (x) => fmt(x, i) + (i.unit === '%' ? ' %' : ''), i.short);
 }
 
@@ -33,16 +42,16 @@ export function render() {
 
   const chapters = [
     { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
-      src: `BFS STATPOP ${y0}–${y1}`, map: (m) => colourBy(m, 'a80'), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
+      src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
     { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
-      src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m) => colourBy(m, 'al65'), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
+      src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
     { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Gemeinden mit einem eigenen Heim – Heime versorgen auch die Nachbargemeinden.`,
-      src: `BAG / SOMED ${M.jahr}`, map: (m) => { const l = colourBy(m, 'aph_pl80', 'kt'); m.dots((M.facts[4].set || []).map((id) => ({ id, r: 2.4 }))); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
+      src: `BAG / SOMED ${M.jahr}`, map: (m, t) => { const l = colourBy(m, 'aph_pl80', 'kt', t); m.dots((M.facts[4].set || []).map((id) => ({ id, r: 2.4 }))); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
     { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
-      src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m) => colourBy(m, 'spx_kl65', 'kt'), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
+      src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m, t) => colourBy(m, 'spx_kl65', 'kt', t), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
     { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
       text: `Menschen ab 80 werden 2040 in der Schweiz leben – gemäss BFS-Referenzszenario (mittel), heute sind es ${fmtInt(Math.round(M.prog_ch.mittel.b80['2024'] / 1000) * 1000)}. Die Karte zeigt die erwartete Zunahme bis 2040 in jeder Gemeinde. Jede Prognose nennt ihr Modell und ihre Variante.`,
-      src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m) => colourProg(m, 'p_b80', 2040, 'Zunahme 80+ 2024–2040'),
+      src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m, t, alive) => colourProg(m, 'p_b80', 2040, 'Zunahme 80+ 2024–2040', t, alive),
       thema: 'alter', q: 'zukunft80', cap: 'Zunahme der Menschen ab 80 bis 2040, BFS mittel (in %)' },
   ];
 
@@ -161,17 +170,18 @@ export function render() {
   if (!reduced()) { const t = setInterval(() => { if (!paused && !document.hidden) show(fi + 1); }, 7000); cleanup.push(() => clearInterval(t)); }
 
   // ---- scroll story: sticky map recoloured per chapter
-  const smap = createMap(document.getElementById('storyMap'), { onClick: (id) => { location.hash = `#/gemeinde/${id}`; } });
+  let storyTip = null;                                    // tooltip of the active chapter (shows its indicator)
+  const smap = createMap(document.getElementById('storyMap'), { onClick: (id) => { location.hash = `#/gemeinde/${id}`; },
+    tip: (id) => (storyTip ? storyTip(id) : '') });
   const sLeg = document.getElementById('storyLegend'); const sCap = document.getElementById('storyCap');
   const dots = main().querySelectorAll('.story-dots span'); const cards = main().querySelectorAll('.story-card');
   const activate = (k) => {
     cards.forEach((c, j) => c.classList.toggle('active', j === k)); dots.forEach((d, j) => d.classList.toggle('on', j === k));
     sCap.textContent = chapters[k].cap;
-    const leg = chapters[k].map(smap);
-    if (leg && typeof leg.then === 'function') {          // forecast maps load their data first
-      shown = k;
-      leg.then((h) => { if (shown === k) sLeg.innerHTML = h; });
-    } else { shown = k; sLeg.innerHTML = leg; }
+    storyTip = null; shown = k;
+    const leg = chapters[k].map(smap, (f) => { if (shown === k) storyTip = f; }, () => shown === k);
+    if (leg && typeof leg.then === 'function') leg.then((h) => { if (shown === k) sLeg.innerHTML = h; });   // forecast maps load their data first
+    else sLeg.innerHTML = leg;
   };
   let shown = -1;
   activate(0);
@@ -201,12 +211,22 @@ async function mapCard(container, id, pt, pendingQ) {
 
 
 /** colour the map by the forecast change 2024 -> year (BFS mittel, quintiles); returns the legend */
-async function colourProg(map, indId, year, label) {
+async function colourProg(map, indId, year, label, setTip = null, alive = () => true) {
   const P = await loadProg();
+  if (!alive()) return '';                                 // another chapter was shown while loading
   const ids = S.regions.filter((r) => r.e === 'GDE').map((r) => r.id);
   const vals = ids.map((id) => { const a = pval(P, indId, id, 'mittel', 2024); const b = pval(P, indId, id, 'mittel', year); return a ? (b / a - 1) * 100 : null; });
   const br = quantiles(vals);
   map.clear(); map.setLevel('gde');
   map.choropleth(new Map(ids.map((id, k) => [id, classOf(vals[k], br)])));
+  if (setTip) {
+    const at = new Map(ids.map((id, k) => [id, k]));
+    const noun = { p_b80: 'Menschen ab 80', p_b65: 'Menschen ab 65', p_bev: 'Einwohner' }[indId] || '';
+    setTip((id) => {
+      const r = region(id); const k = at.get(id); if (!r || k === undefined) return '';
+      const a = pval(P, indId, id, 'mittel', 2024); const b = pval(P, indId, id, 'mittel', year);
+      return `${tipName(r)} · ${noun}: ${fmtInt(a)} (2024) → rund ${fmtInt(roundProg(b))} (${year}) · ${vals[k] == null ? '–' : plusMinus(vals[k], 0) + ' %'}`;
+    });
+  }
   return legendHTML(br, (x) => `${plusMinus(x, 0)} %`, label);
 }
