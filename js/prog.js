@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261113200622';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261113200622';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113200622';
-import { esc } from './ui.js?v=20261113200622';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261113201544';
+import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261113201544';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261113201544';
+import { esc } from './ui.js?v=20261113201544';
 
 let PV = null;
 export async function loadProg() {
@@ -136,8 +136,11 @@ export function fanChart(div, id, d, key, opts = {}) {
   const { v, j } = progState(); const p = d.prog; if (!p) return;
   const lab = { bev: 'Bevölkerung', b65: 'Menschen ab 65', b80: 'Menschen ab 80', aph: 'Benötigte Pflegeheimplätze' }[key];
   const data = [];
-  if (key !== 'aph') data.push({ type: 'scatter', mode: 'lines', x: d.ts.y, y: d.ts[key], name: 'beobachtet', line: { color: C.ink, width: 2.5 },
-    hovertemplate: '%{x}: %{y:,.0f} (beobachtet)<extra></extra>' });
+  // observed: population 2012–2024, or for 'aph' the long-term places at the location 2012–2024 (if there was a Heim)
+  const obs = key !== 'aph' ? { y: d.ts.y, v: d.ts[key], name: 'beobachtet' }
+    : d.aph_ts && d.aph_ts.pl.some((x) => x > 0) ? { y: d.aph_ts.y, v: d.aph_ts.pl, name: 'Plätze beobachtet' } : null;
+  if (obs) data.push({ type: 'scatter', mode: key === 'aph' ? 'lines+markers' : 'lines', x: obs.y, y: obs.v, name: obs.name, line: { color: C.ink, width: 2.5 }, marker: { size: 4 },
+    hovertemplate: `%{x}: %{y:,.0f} ${key === 'aph' ? 'Plätze (beobachtet)' : '(beobachtet)'}<extra></extra>` });
   data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p.tief[key], name: 'BFS tief', line: { width: 0 }, showlegend: false, hoverinfo: 'skip' });
   data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p.hoch[key], name: 'Spannweite tief–hoch', fill: 'tonexty', fillcolor: 'rgba(27,103,178,0.16)', line: { width: 0 }, hoverinfo: 'skip' });
   for (const vv of ['tief', 'mittel', 'hoch']) {
@@ -155,10 +158,10 @@ export function fanChart(div, id, d, key, opts = {}) {
   }
   plot(div, data, baseLayout({ height: 360, showlegend: true, legend: { orientation: 'h', y: -0.16 }, margin: { l: 56, r: 16, t: 24, b: 50 },
     xaxis: { gridcolor: '#eef1f3', dtick: 5 }, yaxis: { gridcolor: '#eef1f3', rangemode: 'tozero', title: { text: lab, font: { size: 11 } } }, shapes, annotations: ann }));
-  div._table = { columns: ['Jahr', ...(key !== 'aph' ? ['beobachtet'] : []), 'BFS tief', 'BFS mittel', 'BFS hoch'],
-    rows: [...(key !== 'aph' ? d.ts.y.filter((y) => y < 2024).map((y, k) => [y, d.ts[key][k], null, null, null]) : []),
-      ...p.y.map((y, k) => [y, ...(key !== 'aph' ? [y === 2024 ? d.ts[key][d.ts.y.indexOf(2024)] : null] : []), p.tief[key][k], p.mittel[key][k], p.hoch[key][k]])] };
-  div._title = `${lab} ${d.ts.y[0]}–2055 – ${shortName(id)}`;
+  div._table = { columns: ['Jahr', ...(obs ? [obs.name] : []), `${key === 'aph' ? 'Bedarf ' : ''}BFS tief`, `${key === 'aph' ? 'Bedarf ' : ''}BFS mittel`, `${key === 'aph' ? 'Bedarf ' : ''}BFS hoch`],
+    rows: [...(obs ? obs.y.filter((y) => y < 2024).map((y, k) => [y, obs.v[k], null, null, null]) : []),
+      ...p.y.map((y, k) => [y, ...(obs ? [y === 2024 ? obs.v[obs.y.indexOf(2024)] : null] : []), p.tief[key][k], p.mittel[key][k], p.hoch[key][k]])] };
+  div._title = `${lab} ${(obs || { y: [2024] }).y[0]}–2055 – ${shortName(id)}`;
 }
 
 /** age structure 2024 vs target year (selected variant), counts per 5-year group */
@@ -209,7 +212,7 @@ export async function ausblickSection(box, r, d, subId, rerender) {
     grid.appendChild(progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `Schwarz: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: gewählte Variante (BFS ${v}).`, mid, (div) => fanChart(div, r.id, d, 'b80')));
     grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), schwarze Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d)));
   } else {
-    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Linie: heutige Langzeitplätze am Standort. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
+    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
   }
   const cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards);
   for (const i of S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick')) cards.appendChild(await progCard(i.id, r.id));
