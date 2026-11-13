@@ -1,9 +1,9 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113203945';
-import { createMap, legendHTML, reduced } from './map.js?v=20261113203945';
-import { omnibox } from './search.js?v=20261113203945';
-import { esc, main } from './ui.js?v=20261113203945';
-import { loadProg, pval, roundProg } from './prog.js?v=20261113203945';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261113204700';
+import { createMap, legendHTML, reduced } from './map.js?v=20261113204700';
+import { omnibox } from './search.js?v=20261113204700';
+import { esc, main } from './ui.js?v=20261113204700';
+import { loadProg, pval, roundProg } from './prog.js?v=20261113204700';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -161,6 +161,10 @@ export function render() {
         const ids = Object.keys(f.vals); const vals = ids.map((k) => f.vals[k]); const br = quantiles(vals);
         map.choropleth(new Map(ids.map((k, n) => [k, classOf(vals[n], br)])));
         lEl.innerHTML = legendHTML(br, (x) => `+${fmt(x, { dec: 0 })} %`, 'Zunahme 80+ bis 2040 (Prognose, BFS mittel)');
+      }
+      else if (f.mode === 'heime') {   // Pflegeheime as animated points (as in the story chapter «Heime in der Nähe»)
+        const k = fi; lEl.innerHTML = '';
+        colourHeime(map, null, () => fi === k).then((h) => { if (fi === k) lEl.innerHTML = h; });
       }
       else if (f.mode === 'scale') lEl.innerHTML = colourBy(map, f.ind);
       else lEl.innerHTML = colourBy(map, f.ind, 'kt');
