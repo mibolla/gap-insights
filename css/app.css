@@ -55,6 +55,15 @@ button { font: inherit; }
   linear-gradient(135deg, var(--slate) 0 33%, var(--blue) 33% 66%, var(--green) 66%); }
 .brand-name { font-family: var(--font-display); font-weight: 700; font-size: 1.15rem; letter-spacing: -.01em; }
 .topbar-search { flex: 1 1 160px; max-width: 460px; min-width: 160px; }
+/* while typing, the top-bar search grows over the level control, and suggestions are never narrower than 400 px */
+.topbar-search { position: relative; }
+.topbar-search .omni { transition: width .18s ease; }
+.topbar-search .omni:focus-within { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: max(100%, 420px); z-index: 70; }
+.topbar-search .omni-list { min-width: 400px; }
+.topbar-in:has(.topbar-search .omni:focus-within) .lvl { visibility: hidden; }
+.omni-item { align-items: center; }
+.omni-lbl { flex: 1 1 auto; }
+.omni-item .meta { flex: none; }
 /* level indicator in the top bar (region pages) */
 .lvl { display: flex; align-items: center; gap: 8px; flex: none; }
 .lvl[hidden] { display: none; }
