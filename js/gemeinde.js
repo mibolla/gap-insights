@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114213440';
-import { createMap } from './map.js?v=20261114213440';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114213440';
-import { omnibox } from './search.js?v=20261114213440';
-import { esc, main } from './ui.js?v=20261114213440';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114213440';
-import { openReportDialog } from './report.js?v=20261114213440';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114213616';
+import { createMap } from './map.js?v=20261114213616';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114213616';
+import { omnibox } from './search.js?v=20261114213616';
+import { esc, main } from './ui.js?v=20261114213616';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114213616';
+import { openReportDialog } from './report.js?v=20261114213616';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -146,11 +146,24 @@ function compactBar(r, sub) {
     ${cur ? `<span class="tc-where t-${cur.thema.color}"><span class="tc-stripe"></span>${esc(cur.thema.label)}</span>
       <div class="tc-chips">${cur.thema.sub.map((s) => chip(cur.thema, s, base, sub)).join('')}</div>`
       : `<span class="tc-where"><span class="tc-stripe"></span>${esc(shortName(r.id))} · Überblick</span><div class="tc-chips"></div>`}
+    ${levelLadder(r)}
     <button class="btn small tc-all" type="button">Alle Themen ▾</button></div>`;
   el.querySelector('.tc-all').addEventListener('click', () => {
     document.getElementById('topics')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   });
   return el;
+}
+
+/** discreet orientation: Land › Kanton › Bezirk › Gemeinde, the current level highlighted, higher levels link to the parent region */
+function levelLadder(r) {
+  const steps = [['CH', 'Land', 'CH'], ['KT', 'Kanton', r.e === 'CH' ? null : `KT:${r.kt}`], ['BEZ', 'Bezirk', r.e === 'GDE' ? r.bez : r.e === 'BEZ' ? r.id : null], ['GDE', 'Gemeinde', r.e === 'GDE' ? r.id : null]];
+  const k = steps.findIndex((x) => x[0] === r.e);
+  return `<nav class="tc-lvl" aria-label="Räumliche Ebene: ${ebeneLabel[r.e]}">${steps.map(([e, lab, id], i) => {
+    const cls = i === k ? 'lv on' : i < k ? 'lv up' : 'lv off';
+    const t = id ? (id === 'CH' ? 'Schweiz' : regionLabel(id, false)) : '';
+    return (i ? '<span class="lv-sep" aria-hidden="true">›</span>' : '') + (i < k && id ? `<a class="${cls}" href="#/gemeinde/${id}" title="${esc(t)}">${lab}</a>`
+      : `<span class="${cls}"${i === k ? ` title="${esc(t)}" aria-current="location"` : ''}>${lab}</span>`);
+  }).join('')}</nav>`;
 }
 
 function wireCompact(panel, bar) {

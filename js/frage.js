@@ -1,11 +1,11 @@
 // Workflow B "Frage zuerst": answer for Switzerland (map + Kantone), then "Und bei uns?".
-import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML } from './store.js?v=20261114213440';
-import { createMap, legendHTML } from './map.js?v=20261114213440';
-import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261114213440';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114213440';
-import { omnibox } from './search.js?v=20261114213440';
-import { esc, main } from './ui.js?v=20261114213440';
-import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261114213440';
+import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML } from './store.js?v=20261114213616';
+import { createMap, legendHTML } from './map.js?v=20261114213616';
+import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261114213616';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114213616';
+import { omnibox } from './search.js?v=20261114213616';
+import { esc, main } from './ui.js?v=20261114213616';
+import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261114213616';
 
 const DL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>';
 
