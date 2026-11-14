@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114143521';
-import { createMap } from './map.js?v=20261114143521';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114143521';
-import { omnibox } from './search.js?v=20261114143521';
-import { esc, main } from './ui.js?v=20261114143521';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114143521';
-import { openReportDialog } from './report.js?v=20261114143521';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114143808';
+import { createMap } from './map.js?v=20261114143808';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114143808';
+import { omnibox } from './search.js?v=20261114143808';
+import { esc, main } from './ui.js?v=20261114143808';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114143808';
+import { openReportDialog } from './report.js?v=20261114143808';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -57,7 +57,7 @@ function header(r, d, sub) {
         <span><b>${fmtInt(ts.b80[n])}</b> ab 80${g80 != null ? ` (${plusMinus(g80)} % seit ${ts.y[0]})` : ''}</span>
         ${d.aph ? `<span><b>${fmtInt(d.aph.heime)}</b> Pflegeheim${d.aph.heime === 1 ? '' : 'e'} · ${fmtInt(d.aph.plaetze)} Plätze</span>` : r.e === 'GDE' ? '<span>kein Pflegeheim</span>' : ''}
         ${d.spitex && d.spitex.length ? `<span><b>${d.spitex.length}</b> Spitex-Organisation${d.spitex.length === 1 ? '' : 'en'} mit Sitz hier</span>` : ''}</div>
-      ${r.e === 'GDE' ? `<div class="rh-actions no-print"><button type="button" class="btn small magic" data-report><span class="mg-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3h9l5 5v13H5z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 17h5"/></svg><svg class="mg-spark s1" width="9" height="9" viewBox="0 0 10 10"><path d="M5 0 6.2 3.8 10 5 6.2 6.2 5 10 3.8 6.2 0 5 3.8 3.8z" fill="currentColor"/></svg><svg class="mg-spark s2" width="6" height="6" viewBox="0 0 10 10"><path d="M5 0 6.2 3.8 10 5 6.2 6.2 5 10 3.8 6.2 0 5 3.8 3.8z" fill="currentColor"/></svg></span>Bericht erstellen</button><span class="muted small">Alle Themen für ${esc(r.n)} als HTML-Bericht</span></div>` : ''}
+      ${r.e === 'GDE' ? `<div class="rh-actions no-print"><button type="button" class="btn small magic" data-report><span class="mg-ico" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 3h9l5 5v13H5z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 17h5"/></svg></span>Bericht erstellen</button><span class="muted small">Alle Themen für ${esc(r.n)} als HTML-Bericht</span></div>` : ''}
     </div><div class="rh-side"><div class="mini-map" id="miniMap" aria-hidden="true"></div>${r.e === 'GDE' ? nearby(r, sub) : ''}</div></div>`;
   wireNearby(el);
   return el;

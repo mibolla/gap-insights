@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114143521';
-import { loadProg, roundProg } from './prog.js?v=20261114143521';
-import { esc, toast } from './ui.js?v=20261114143521';
-import * as story from './report_story.js?v=20261114143521';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261114143521';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114143808';
+import { loadProg, roundProg } from './prog.js?v=20261114143808';
+import { esc, toast } from './ui.js?v=20261114143808';
+import * as story from './report_story.js?v=20261114143808';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114143808';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
