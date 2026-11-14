@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114232200';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114232200';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232200';
-import { esc } from './ui.js?v=20261114232200';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114232547';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114232547';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232547';
+import { esc } from './ui.js?v=20261114232547';
 
 let PV = null;
 export async function loadProg() {
@@ -229,8 +229,22 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   } else {
     grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
   }
+  // all forecast indicators of the topic in one card; buttons switch the indicator (sentence, bars, explanation follow)
   const cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards);
-  for (const i of S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick')) cards.appendChild(await progCard(i.id, r.id, mode));
+  const inds = S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick');
+  const LAB = { p_bev: 'Bevölkerung', p_b65: 'ab 65', p_b80: 'ab 80', p_a80: 'Anteil 80+', p_aq: 'Altersquotient', p_aph: 'Benötigte Plätze', p_aph_diff: 'Zusätzliche Plätze' };
+  let cur = inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
+  const show = async (iid) => {
+    cur = iid; const card = await progCard(iid, r.id, mode);
+    if (inds.length > 1) {
+      const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
+      seg.innerHTML = inds.map((i) => `<button type="button" data-k="${i.id}" aria-pressed="${i.id === iid}">${esc(LAB[i.id] || i.short)}</button>`).join('');
+      card.querySelector('.card-head').after(seg);
+      seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && b.dataset.k !== cur) show(b.dataset.k); });
+    }
+    cards.replaceChildren(card);
+  };
+  if (cur) await show(cur);
 }
 
 /** #/ausblick/<id>: all forecasts of a region on one page (time first) */
