@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261114203631';
-import { toast, esc } from './ui.js?v=20261114203631';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114203631';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114210958';
+import { toast, esc } from './ui.js?v=20261114210958';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114210958';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -75,7 +75,7 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
       <p><a href="${S.meta.sources[i.src].url}" target="_blank" rel="noopener">${esc(S.meta.sources[i.src].publisher)} – ${esc(S.meta.sources[i.src].name)} ↗</a> · <a href="#/daten">Methodik</a></p></details>
     <p class="src-line">${sourceHTML(i.src)}</p>`;
   const div = card.querySelector('.chart');
-  const useGroup = mode !== 'kt' && r.e !== 'CH' && r.e !== 'KT' && !proxy && levelOk;
+  const useGroup = mode !== 'kt' && r.e !== 'CH' && !proxy && levelOk;
   if (indId === 'bev' && !useGroup) div.remove();   // absolute size: no benchmark bars
   else requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, proxy || id)));
   card.addEventListener('click', (ev) => {
@@ -99,12 +99,13 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
 export function indicatorItem(indId, id, { mode = 'kt', div = null, sentence: sent = null, note = '' } = {}) {
   const i = S.ind.get(indId); const r = region(id);
   const unit = i.unit === 'pro 1000' ? 'von 1000' : i.unit;
-  const useGroup = mode !== 'kt' && r.e !== 'CH' && r.e !== 'KT';
-  let ids = useGroup ? [id, ...groupMembers(mode, id), `KT:${r.kt}`, 'CH'] : [id, ...parents(id)];
+  const useGroup = mode !== 'kt' && r.e !== 'CH';
+  const refIds = r.e === 'KT' ? ['CH'] : [`KT:${r.kt}`, 'CH'];
+  let ids = useGroup ? [id, ...groupMembers(mode, id), ...refIds] : [id, ...parents(id)];
   ids = [...new Set(ids)];
   const rows = ids.map((x) => { const rr = region(x); return [rr.e === 'CH' ? 'Schweiz' : shortName(x), ebene[rr.e], rr.kt || '', rnd(val(indId, x), i.dec + 1)]; });
   if (useGroup) {   // ranking: members sorted, references at the end
-    const refs = rows.slice(-2); const mem = rows.slice(0, -2).filter((x) => x[3] != null).sort((a, b) => b[3] - a[3]);
+    const refs = rows.slice(-refIds.length); const mem = rows.slice(0, -refIds.length).filter((x) => x[3] != null).sort((a, b) => b[3] - a[3]);
     rows.splice(0, rows.length, ...mem, ...refs);
   }
   return { title: `${i.label} – ${r.e === 'CH' ? 'Schweiz' : shortName(id)}`, sheet: i.short, sentence: sent ?? sentence(indId, id), note,
@@ -135,8 +136,8 @@ export function groupChart(div, indId, id, mode) {
   const i = S.ind.get(indId); const r = region(id);
   const members = [id, ...groupMembers(mode, id)];
   const rows = members.map((x) => ({ x, v: val(indId, x) })).filter((d) => d.v != null).sort((a, b) => b.v - a.v);
-  if (rows.length < 2) { div.innerHTML = `<p class="empty">Für „${groupLabel[mode]}“ liegen zu wenige Werte vor.</p>`; return; }
-  const vk = val(indId, `KT:${r.kt}`); const vc = val(indId, 'CH');
+  if (rows.length < 2) { div.innerHTML = `<p class="empty">Für „${groupLabelFor(mode, r.e)}“ liegen zu wenige Werte vor.</p>`; return; }
+  const vk = r.e === 'KT' ? null : val(indId, `KT:${r.kt}`); const vc = val(indId, 'CH');
   const shapes = []; const ann = [];
   // labels of the two reference lines: if the lines are close, put "Schweiz" one row higher so the texts never overlap
   const span = Math.max(...rows.map((d) => Math.abs(d.v)), Math.abs(vk ?? 0), Math.abs(vc ?? 0)) || 1;

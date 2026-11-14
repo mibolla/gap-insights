@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114203631';
-import { createMap } from './map.js?v=20261114203631';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114203631';
-import { omnibox } from './search.js?v=20261114203631';
-import { esc, main } from './ui.js?v=20261114203631';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114203631';
-import { openReportDialog } from './report.js?v=20261114203631';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114210958';
+import { createMap } from './map.js?v=20261114210958';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114210958';
+import { omnibox } from './search.js?v=20261114210958';
+import { esc, main } from './ui.js?v=20261114210958';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114210958';
+import { openReportDialog } from './report.js?v=20261114210958';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -205,14 +205,14 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     return;
   }
   let mode = prefs().mode || 'kt';
-  const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' ? ['kt', 'kanton'] : ['kt'];
+  const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt'];
   if (!modes.includes(mode)) mode = 'kt';
   // «Vergleichen mit» is a lever of its own: a full-width row in the topic panel, above the results
   let cmp = null;
   if (modes.length > 1) {
     cmp = document.createElement('div'); cmp.className = 'compare cmp-row no-print';
     cmp.innerHTML = `<span class="label">Vergleichen mit</span><div class="seg" role="group" aria-label="Vergleichen mit">
-      ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabel[m]}</button>`).join('')}</div>`;
+      ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabelFor(m, r.e)}</button>`).join('')}</div>`;
     document.querySelector('#topics .topics-in')?.appendChild(cmp);
   }
   // the box for «Eigene Auswahl» follows directly below the comparison row
@@ -251,13 +251,14 @@ function ownBox(r, mode, redraw) {
   if (!box) return;
   if (mode !== 'own') { box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
-  const own = (prefs().own || []).filter((x) => S.byId.has(x));   // ignore ids that no longer exist (merged Gemeinden, old links)
-  box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">Zum Beispiel die Gemeinden Ihrer Versorgungsregion. Die Auswahl bleibt in diesem Browser gespeichert.</p>
+  const own = ownList(r.e);   // one list per level; ids that no longer exist are ignored
+  const key = ownKey(r.e); const what = { GDE: ['Gemeinden', 'Gemeinde'], BEZ: ['Bezirke', 'Bezirk'], KT: ['Kantone', 'Kanton'] }[r.e];
+  box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">${r.e === 'GDE' ? 'Zum Beispiel die Gemeinden Ihrer Versorgungsregion.' : `${what[0]}, mit denen Sie ${esc(shortName(r.id))} vergleichen möchten.`} Die Auswahl bleibt in diesem Browser gespeichert.</p>
     <div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
-      <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || '<span class="muted small">Noch keine Gemeinden gewählt.</span>'}</div><div id="ownSearch"></div></div>`;
-  box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { setPrefs({ own: own.filter((x) => x !== b.dataset.rm) }); redraw(); }));
-  omnibox(document.getElementById('ownSearch'), { id: 'omniOwn', compact: true, placeholder: 'Gemeinde hinzufügen …', filter: (it) => it.go.startsWith('#/gemeinde/GDE:'),
-    onPick: (it) => { const gid = it.go.split('/')[2]; setPrefs({ own: [...new Set([...own, gid])] }); redraw(); } });
+      <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || `<span class="muted small">Noch keine ${what[0]} gewählt.</span>`}</div><div id="ownSearch"></div></div>`;
+  box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { setPrefs({ [key]: own.filter((x) => x !== b.dataset.rm) }); redraw(); }));
+  omnibox(document.getElementById('ownSearch'), { id: 'omniOwn', compact: true, placeholder: `${what[1]} hinzufügen …`, filter: (it) => it.go.startsWith(`#/gemeinde/${r.e}:`) && it.go !== `#/gemeinde/${r.id}`,
+    onPick: (it) => { const gid = it.go.split('/')[2]; setPrefs({ [key]: [...new Set([...own, gid])] }); redraw(); } });
 }
 
 // ------------------------------------------------------------------ comparison series for the topic charts
@@ -306,12 +307,12 @@ async function compareSeries(r, d, mode) {
   const dk = await Promise.all(kt.map((x) => detail(x)));
   const refs = kt.map((x, k) => ({ id: x, d: dk[k] }));
   if (r.e === 'GDE' && mode === 'kt') return [{ id: r.id, d }, { id: r.bez, d: await detail(r.bez) }, ...refs];
-  const members = r.e === 'GDE' || (r.e === 'BEZ' && mode === 'kanton') ? groupMembers(mode, r.id) : [];
+  const members = r.e !== 'CH' && mode !== 'kt' ? groupMembers(mode, r.id) : [];
   if (!members.length) return [{ id: r.id, d }, ...refs];
   const ds = await Promise.all(members.map((x) => detail(x)));
   // «Eigene Auswahl» with a single Gemeinde is shown under its name, with several as the group
   const gname = mode === 'own' && members.length === 1 ? shortName(members[0])
-    : `${r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : GROUP_NAME[mode]} (${members.length})`;
+    : `${mode === 'kanton' && r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : mode === 'kanton' && r.e === 'KT' ? 'Übrige Kantone' : GROUP_NAME[mode]} (${members.length})`;
   return [{ id: r.id, d }, { id: 'GRP', grp: true, name: gname, d: aggregate(ds) }, ...refs];
 }
 

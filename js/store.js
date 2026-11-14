@@ -121,13 +121,22 @@ export function groupMembers(mode, id) {
     return S.regions.filter((x) => x.e === 'GDE' && x.kt === r.kt && x.id !== id)
       .sort((a, b) => Math.abs(Math.log(a.pop / r.pop)) - Math.abs(Math.log(b.pop / r.pop))).slice(0, 12).map((x) => x.id);
   }
-  if (mode === 'kanton') {
-    return S.regions.filter((x) => x.e === r.e && x.kt === r.kt && x.id !== id).map((x) => x.id);
+  if (mode === 'kanton') {   // Gemeinden/Bezirke: all of the same level in the Kanton; Kantone: all other Kantone
+    return S.regions.filter((x) => x.e === r.e && (r.e === 'KT' || x.kt === r.kt) && x.id !== id).map((x) => x.id);
   }
-  if (mode === 'own') return (prefs().own || []).filter((x) => x !== id && S.byId.has(x));
+  if (mode === 'own') return ownList(r.e).filter((x) => x !== id);
   return [];
 }
 export const groupLabel = { kt: 'Bezirk, Kanton, Schweiz', nb: 'Nachbargemeinden', size: 'Ähnliche Grösse', kanton: 'Alle im Kanton', own: 'Eigene Auswahl' };
+/** label of a comparison mode for a region level */
+export function groupLabelFor(mode, e) {
+  if (mode === 'kt') return e === 'BEZ' ? 'Kanton, Schweiz' : e === 'KT' ? 'Schweiz' : groupLabel.kt;
+  if (mode === 'kanton') return e === 'KT' ? 'Alle Kantone' : e === 'BEZ' ? 'Alle Bezirke im Kanton' : groupLabel.kanton;
+  return groupLabel[mode];
+}
+/** «Eigene Auswahl»: one list per level (Gemeinden, Bezirke, Kantone), stored in this browser */
+export const ownKey = (e) => ({ GDE: 'own', BEZ: 'ownBEZ', KT: 'ownKT' }[e] || 'own');
+export const ownList = (e) => (prefs()[ownKey(e)] || []).filter((x) => S.byId.has(x) && region(x).e === e);
 
 // ---------- preferences, Favoriten (browser storage; key 'mappe' kept so saved favourites survive)
 const KEY = 'gap-insights-v1';
