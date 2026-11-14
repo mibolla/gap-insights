@@ -496,6 +496,29 @@ details.how p { margin-top: 6px; }
 
 /* ---------- Gemeindebericht: button and options dialog */
 .rh-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+/* «Bericht erstellen»: the place where everything comes together – brand gradient, a light sweep now and then,
+   twinkling sparkles, a soft glow on hover. Same size as a small button. */
+.btn.magic { position: relative; overflow: hidden; isolation: isolate; color: #fff; border: 0; padding: 7px 14px 7px 11px; gap: 8px;
+  background: linear-gradient(115deg, #1d4f91 0%, var(--blue) 42%, #1f7f86 78%, var(--green) 100%); background-size: 160% 100%; background-position: 0 0;
+  box-shadow: 0 1px 2px rgba(16, 42, 80, .25), 0 4px 14px -4px rgba(27, 103, 178, .55), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: background-position .5s ease, box-shadow .25s ease, transform .15s ease; font-weight: 600; letter-spacing: .01em; }
+.btn.magic::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, .38) 48%, transparent 66%); transform: translateX(-120%);
+  animation: mg-sweep 5.5s ease-in-out 1.2s infinite; }
+.btn.magic:hover { color: #fff; background-position: 100% 0; transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 42, 80, .25), 0 8px 22px -6px rgba(29, 143, 78, .55), 0 0 0 4px rgba(27, 103, 178, .12), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.btn.magic:hover::before { animation-duration: 1.4s; animation-delay: 0s; }
+.btn.magic:active { transform: translateY(0); }
+.btn.magic:focus-visible { outline: 3px solid rgba(27, 103, 178, .45); outline-offset: 2px; }
+.mg-ico { position: relative; display: inline-grid; place-items: center; }
+.mg-spark { position: absolute; color: #fff7c2; filter: drop-shadow(0 0 2px rgba(255, 236, 140, .9)); animation: mg-twinkle 2.6s ease-in-out infinite; }
+.mg-spark.s1 { top: -5px; right: -6px; }
+.mg-spark.s2 { bottom: -2px; left: -5px; animation-delay: 1.3s; }
+.btn.magic:hover .mg-spark { animation-duration: .9s; }
+@keyframes mg-sweep { 0%, 62% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+@keyframes mg-twinkle { 0%, 100% { opacity: .25; transform: scale(.6) rotate(0); } 50% { opacity: 1; transform: scale(1.1) rotate(45deg); } }
+@media (prefers-reduced-motion: reduce) { .btn.magic::before, .mg-spark { animation: none; } .mg-spark { opacity: .9; } .btn.magic, .btn.magic:hover { transform: none; } }
+@media print { .btn.magic { display: none; } }
 .rdlg { border: 0; border-radius: 14px; padding: 0; width: min(620px, calc(100vw - 32px)); max-height: calc(100vh - 32px); box-shadow: 0 20px 60px rgba(23, 35, 44, .3); color: var(--ink); background: var(--surface); }
 .rdlg::backdrop { background: rgba(23, 35, 44, .45); }
 .rdlg-in { position: relative; display: flex; flex-direction: column; gap: 16px; padding: 24px; }
