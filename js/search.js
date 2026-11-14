@@ -1,5 +1,5 @@
 // Omnibox: one field for Gemeinde, Bezirk, Kanton, Thema and Frage.
-import { S, fmtInt, wappenImg } from './store.js?v=20261114141052';
+import { S, fmtInt, wappenImg } from './store.js?v=20261114141402';
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
 

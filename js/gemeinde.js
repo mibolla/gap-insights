@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141052';
-import { createMap } from './map.js?v=20261114141052';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141052';
-import { omnibox } from './search.js?v=20261114141052';
-import { esc, main } from './ui.js?v=20261114141052';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141052';
-import { openReportDialog } from './report.js?v=20261114141052';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141402';
+import { createMap } from './map.js?v=20261114141402';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141402';
+import { omnibox } from './search.js?v=20261114141402';
+import { esc, main } from './ui.js?v=20261114141402';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141402';
+import { openReportDialog } from './report.js?v=20261114141402';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -57,7 +57,7 @@ function header(r, d, sub) {
 }
 
 // ------------------------------------------------------------------ discreet list beside the mini map: neighbours / similar size
-const NEAR_N = 4;
+const NEAR_N = 5;
 function nearby(r, sub) {
   const nb = groupMembers('nb', r.id).map(region).filter(Boolean).sort((a, b) => b.pop - a.pop);
   // similar size: the closest Gemeinden by population in all of Switzerland (log distance)

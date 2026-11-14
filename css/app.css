@@ -304,7 +304,7 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 
 /* ---------- region pages */
 .rhead { background: var(--surface); border-bottom: 1px solid var(--line); }
-.rhead-in { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; padding-block: 22px 18px; align-items: start; }
+.rhead-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; padding-block: 22px 18px; align-items: start; }
 .crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .86rem; color: var(--muted); }
 .crumbs a { color: var(--muted); text-decoration: none; }
 .crumbs a:hover { color: var(--blue); }
@@ -315,8 +315,10 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .keyfacts b { color: var(--ink); font-weight: 600; }
 .mini-map { height: 160px; }
 .mini-map .map { aspect-ratio: auto; height: 100%; }
-.rh-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.rh-side:has(.near) .mini-map { height: 132px; }
+.rh-side { display: grid; grid-template-columns: 260px; min-width: 0; }
+/* Gemeinde: map left, list right, same height (the map stretches to the list) */
+.rh-side:has(.near) { grid-template-columns: 240px 210px; gap: 18px; align-items: stretch; }
+.rh-side:has(.near) .mini-map { height: auto; min-height: 150px; }
 /* neighbours / similar size: small and muted so the selected Gemeinde keeps the attention */
 .near { font-size: .8rem; color: var(--muted); }
 .near-tabs { display: flex; gap: 14px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
@@ -332,7 +334,9 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .nr-kt { flex: none; font-size: .7rem; color: var(--faint); }
 .nr-p { margin-left: auto; padding-left: 8px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nr-more { padding: 2px 0 0; font-size: .72rem; color: var(--faint); }
-@media (max-width: 760px) { .rhead-in { grid-template-columns: minmax(0, 1fr); } .mini-map { display: none; } .near-list { columns: 2; column-gap: 18px; } }
+@media (max-width: 1060px) { .rh-side:has(.near) { grid-template-columns: 200px 190px; gap: 14px; } }
+@media (max-width: 760px) { .rhead-in { grid-template-columns: minmax(0, 1fr); } .mini-map { display: none; }
+  .rh-side, .rh-side:has(.near) { grid-template-columns: minmax(0, 1fr); } }
 
 /* topic panel: one row per Thema, Überblick tile on the left */
 .topics { background: var(--surface); border-bottom: 1px solid var(--line); }
