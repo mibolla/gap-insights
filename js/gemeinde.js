@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114140540';
-import { createMap } from './map.js?v=20261114140540';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114140540';
-import { omnibox } from './search.js?v=20261114140540';
-import { esc, main } from './ui.js?v=20261114140540';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114140540';
-import { openReportDialog } from './report.js?v=20261114140540';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141052';
+import { createMap } from './map.js?v=20261114141052';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141052';
+import { omnibox } from './search.js?v=20261114141052';
+import { esc, main } from './ui.js?v=20261114141052';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141052';
+import { openReportDialog } from './report.js?v=20261114141052';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -60,10 +60,12 @@ function header(r, d, sub) {
 const NEAR_N = 4;
 function nearby(r, sub) {
   const nb = groupMembers('nb', r.id).map(region).filter(Boolean).sort((a, b) => b.pop - a.pop);
-  const sz = groupMembers('size', r.id).map(region).filter(Boolean).slice(0, NEAR_N).sort((a, b) => b.pop - a.pop);
+  // similar size: the closest Gemeinden by population in all of Switzerland (log distance)
+  const sz = S.regions.filter((x) => x.e === 'GDE' && x.id !== r.id)
+    .sort((a, b) => Math.abs(Math.log(a.pop / r.pop)) - Math.abs(Math.log(b.pop / r.pop))).slice(0, NEAR_N).sort((a, b) => b.pop - a.pop);
   if (!nb.length && !sz.length) return '';
   const tab = prefs().nearTab === 'size' && sz.length ? 'size' : nb.length ? 'nb' : 'size';
-  const row = (x) => `<li><a href="#/gemeinde/${x.id}${sub ? '/' + sub : ''}" title="${esc(x.n)} (${x.kt}) · ${fmtInt(x.pop)} Einwohner">${wappenImg(x.id, 'wappen')}<span class="nr-n">${esc(x.n)}</span><span class="nr-kt">${x.kt}</span><span class="nr-p num">${fmtInt(x.pop)}</span></a></li>`;
+  const row = (x) => `<li><a href="#/gemeinde/${x.id}${sub ? '/' + sub : ''}" title="${esc(x.n)} (${x.kt}) · ${fmtInt(x.pop)} Einwohner">${wappenImg(x.id, 'wappen')}<span class="nr-n">${esc(x.n.replace(` (${x.kt})`, ''))}</span><span class="nr-kt">${x.kt}</span><span class="nr-p num">${fmtInt(x.pop)}</span></a></li>`;
   const list = (k, xs, more) => `<ul class="near-list" data-near="${k}"${k === tab ? '' : ' hidden'}>${xs.slice(0, NEAR_N).map(row).join('')}${more > 0 ? `<li class="nr-more">+ ${more} weitere</li>` : ''}</ul>`;
   return `<nav class="near no-print" aria-label="Gemeinden in der Nähe und ähnlich grosse Gemeinden">
     <div class="near-tabs" role="tablist">${[['nb', 'Nachbarn', nb], ['size', 'Ähnliche Grösse', sz]].filter(([, , xs]) => xs.length).map(([k, l]) =>
