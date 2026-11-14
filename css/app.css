@@ -392,6 +392,14 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .trow .chip { padding: 4px 10px; font-size: .84rem; }
 .trow.active { background: var(--t-soft); border-top-color: transparent; }
 .trow.active + .trow { border-top-color: transparent; }
+/* «Vergleichen mit»: a row of the panel like the topics, teal = the comparison group in the charts */
+.trow.t-cmp { --t: #2a9d8f; --t-soft: #e3f3f1; border-top: 1px dashed var(--line-strong); margin-top: 4px; padding-top: 9px; }
+.trow.t-cmp .tlabel { color: var(--muted); font-weight: 600; }
+.cmp-chip { font: inherit; font-size: .84rem; background: var(--surface); }
+.cmp-chip:hover { border-color: var(--t); color: var(--t); }
+.cmp-chip.on { background: var(--t); border-color: var(--t); color: #fff; }
+.topics-in > .own-row { grid-column: 1 / -1; margin-top: 10px; }
+.topics-in > .own-row .card { border: 1px solid #2a9d8f; background: #f4fbfa; }
 @media (max-width: 760px) {
   .topics-in { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .ov { flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; padding: 10px 14px; }

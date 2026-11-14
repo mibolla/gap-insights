@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114212820';
-import { createMap } from './map.js?v=20261114212820';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114212820';
-import { omnibox } from './search.js?v=20261114212820';
-import { esc, main } from './ui.js?v=20261114212820';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114212820';
-import { openReportDialog } from './report.js?v=20261114212820';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114213440';
+import { createMap } from './map.js?v=20261114213440';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114213440';
+import { omnibox } from './search.js?v=20261114213440';
+import { esc, main } from './ui.js?v=20261114213440';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114213440';
+import { openReportDialog } from './report.js?v=20261114213440';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -39,6 +39,10 @@ export async function render(id, sub, p3) {
   if (!sub) await portrait(page, r, d);
   else if (sub === '__ausblick') await ausblickPage(page, r, d, rerender);
   else await topic(page, r, d, sub, zeit, rerender);
+  if (!sub || sub === '__ausblick') {   // pages without comparison charts: the row only stores the choice for the topics
+    const keep = () => ownBox(r, curMode(r), keep);
+    wireCmp(r, keep); keep();
+  }
   if (focusInd) requestAnimationFrame(() => document.getElementById(`ind-${focusInd}`)?.scrollIntoView({ block: 'start' }));
   else window.scrollTo(0, 0);
   if (wantReport && r.e === 'GDE') openReportDialog(id);
@@ -109,8 +113,28 @@ function topicPanel(r, sub) {
       <div class="trow t-${t.color}${cur && cur.thema.id === t.id ? ' active' : ''}">
         <span class="tlabel">${esc(t.label)}</span>
         <div class="tchips">${t.sub.map((s) => chip(t, s, base, sub)).join('')}</div>
-      </div>`).join('')}</div></div>`;
+      </div>`).join('')}${cmpRow(r)}</div>
+    <div class="own-row no-print" id="ownBox" hidden></div></div>`;
   return el;
+}
+
+// ------------------------------------------------------------------ «Vergleichen mit»: a fixed row of the topic panel
+const modesFor = (r) => (r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt']);
+const curMode = (r) => { const m = prefs().mode || 'kt'; return modesFor(r).includes(m) ? m : 'kt'; };
+function cmpRow(r) {
+  const modes = modesFor(r); if (modes.length < 2) return '';
+  const mode = curMode(r);
+  return `<div class="trow t-cmp no-print" id="cmpRow" role="group" aria-label="Vergleichen mit"><span class="tlabel">Vergleichen mit</span>
+    <div class="tchips">${modes.map((m) => `<button type="button" class="chip cmp-chip${m === mode ? ' on' : ''}" data-m="${m}" aria-pressed="${m === mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>`;
+}
+/** wire the comparison row; onChange(mode) redraws what depends on it */
+function wireCmp(r, onChange) {
+  const row = document.getElementById('cmpRow'); if (!row) return;
+  row.querySelectorAll('.cmp-chip').forEach((b) => { b.onclick = () => {
+    const m = b.dataset.m; setPrefs({ mode: m });
+    row.querySelectorAll('.cmp-chip').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+    onChange(m);
+  }; });
 }
 
 function compactBar(r, sub) {
@@ -199,20 +223,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   if (zeitReq) setPrefs({ zeit });
   const zbar = zs.length > 1 ? `<nav class="zeit no-print" aria-label="Zeitansicht">${zs.map((z) =>
     `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
-  let mode = prefs().mode || 'kt';
-  const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt'];
-  if (!modes.includes(mode)) mode = 'kt';
-  // «Vergleichen mit» is a lever of its own: a full-width row in the topic panel, above the results
-  let cmp = null;
-  if (modes.length > 1) {
-    cmp = document.createElement('div'); cmp.className = 'compare cmp-row no-print';
-    cmp.innerHTML = `<span class="label">Vergleichen mit</span><div class="seg" role="group" aria-label="Vergleichen mit">
-      ${modes.map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === mode}">${groupLabelFor(m, r.e)}</button>`).join('')}</div>`;
-    document.querySelector('#topics .topics-in')?.appendChild(cmp);
-  }
-  // the box for «Eigene Auswahl» follows directly below the comparison row
-  const ownEl = document.createElement('div'); ownEl.id = 'ownBox'; ownEl.className = 'own-row no-print';
-  (cmp ? cmp.after(ownEl) : null);
+  let mode = curMode(r);
   if (zeit === 'ausblick') {      // forecasts: the same «Vergleichen mit» row; the forecast cards rank the group
     page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${zbar}<div id="ausblick"></div>`;
     const drawA = async () => {
@@ -221,11 +232,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
       await ausblickSection(box, r, d, subId, rerender, mode);
       box.style.minHeight = ''; window.scrollTo(0, y); ownBox(r, mode, drawA);
     };
-    cmp?.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
-      mode = b.dataset.m; setPrefs({ mode });
-      cmp.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-      drawA();
-    }));
+    wireCmp(r, (m) => { mode = m; drawA(); });
     await drawA();
     return;
   }
@@ -248,11 +255,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     box.querySelectorAll('.js-plotly-plot').forEach((g) => Plotly.Plots.resize(g));
   };
   const redrawAll = () => { draw(); drawSpecial(); };
-  cmp?.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
-    mode = b.dataset.m; setPrefs({ mode });
-    cmp.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
-    redrawAll();
-  }));
+  wireCmp(r, (m) => { mode = m; redrawAll(); });
   await drawSpecial();
   draw();
 }
