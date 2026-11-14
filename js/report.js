@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs } from './store.js?v=20261113223941';
-import { loadProg, roundProg } from './prog.js?v=20261113223941';
-import { esc, toast } from './ui.js?v=20261113223941';
-import * as story from './report_story.js?v=20261113223941';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261113223941';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114010945';
+import { loadProg, roundProg } from './prog.js?v=20261114010945';
+import { esc, toast } from './ui.js?v=20261114010945';
+import * as story from './report_story.js?v=20261114010945';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114010945';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -20,6 +20,9 @@ function logoDataUrl() {
   }
   return LOGO;
 }
+/** Wappen of the Gemeinde as data URI (null if missing) */
+const wappenDataUrl = (id) => { const u = wappen(id); return !u ? Promise.resolve(null) : fetch(u).then((x) => (x.ok ? x.blob() : null))
+  .then((b) => b && new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(b); })).catch(() => null); };
 const appBase = () => `${location.origin}${location.pathname}`;
 
 // ------------------------------------------------------------------ dialog
@@ -100,8 +103,8 @@ export const fileName = (r, o) => `GAP-Insights_Bericht_${r.n.replace(/[^\p{L}\p
 // ------------------------------------------------------------------ assembly
 export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null, base = null } = {}) {
   const r = region(id); const R = S.meta.report; const full = level === 'ausfuehrlich';
-  const [d, dB, dK, dCH, P, css, logo] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
-    fetch(`css/report.css${V}`).then((x) => x.text()), logoDataUrl()]);
+  const [d, dB, dK, dCH, P, css, logo, wap] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
+    fetch(`css/report.css${V}`).then((x) => x.text()), logoDataUrl(), wappenDataUrl(id)]);
   const ctx = { id, r, name: r.n, d, dB, dK, dCH, P, v, j: +j, full, level, kt: `KT:${r.kt}`, ktName: region(`KT:${r.kt}`).n, small: r.pop < R.small };
   const want = R.chapters.filter((c) => (!c.only || c.only === level) && (!c.opt || !chapters || chapters.includes(c.id)));
   const out = []; const used = [];
@@ -142,7 +145,7 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
 <header class="cover"><div class="cover-in">
   <div class="cover-text">
     <p class="eyebrow">Gemeindebericht · ${esc(lv.label)}</p>
-    <h1>${esc(title)}</h1>
+    <h1>${wap ? `<img class="wappen" src="${wap}" alt="Wappen ${esc(r.n)}">` : ''}${esc(title)}</h1>
     <p class="sub">${esc(R.subtitle)}</p>
     <p class="where">Gemeinde im Bezirk ${esc(r.bn)}, Kanton ${esc(ctx.ktName)}</p>
     <div class="kf"><span><b>${fmtInt(r.pop)}</b>Einwohner ${S.meta.jahr}</span><span><b>${fmt(story.keyNumbers(ctx).b80 / r.pop * 100, { dec: 1 })} %</b>ab 80 Jahren</span>

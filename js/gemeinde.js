@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink } from './store.js?v=20261113223941';
-import { createMap } from './map.js?v=20261113223941';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261113223941';
-import { omnibox } from './search.js?v=20261113223941';
-import { esc, main } from './ui.js?v=20261113223941';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261113223941';
-import { openReportDialog } from './report.js?v=20261113223941';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114010945';
+import { createMap } from './map.js?v=20261114010945';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114010945';
+import { omnibox } from './search.js?v=20261114010945';
+import { esc, main } from './ui.js?v=20261114010945';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114010945';
+import { openReportDialog } from './report.js?v=20261114010945';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -44,7 +44,7 @@ function header(r, d) {
   const el = document.createElement('section'); el.className = 'rhead';
   el.innerHTML = `<div class="wrap rhead-in"><div>
       <nav class="crumbs" aria-label="Räumliche Ebene">${crumbs.map((c) => `<a href="#/gemeinde/${c}">${esc(c === 'CH' ? 'Schweiz' : shortName(c))}</a><span class="sep">›</span>`).join('')}<span>${esc(shortName(r.id))}</span></nav>
-      <h1>${esc(r.e === 'GDE' ? r.n : regionLabel(r.id, false))} <span class="kind">${ebeneLabel[r.e]}${r.e !== 'CH' && r.e !== 'KT' ? ' · ' + r.kt : ''}</span></h1>
+      <h1>${wappenImg(r.id, 'wappen wappen-h')}${esc(r.e === 'GDE' ? r.n : regionLabel(r.id, false))} <span class="kind">${ebeneLabel[r.e]}${r.e !== 'CH' && r.e !== 'KT' ? ' · ' + r.kt : ''}</span></h1>
       <div class="keyfacts num"><span><b>${fmtInt(r.pop)}</b> Einwohner</span>
         <span><b>${fmt(val('a65', r.id), 'a65')} %</b> ab 65</span>
         <span><b>${fmtInt(ts.b80[n])}</b> ab 80${g80 != null ? ` (${plusMinus(g80)} % seit ${ts.y[0]})` : ''}</span>
@@ -221,7 +221,8 @@ function ownBox(r, mode, redraw) {
   box.hidden = false;
   const own = prefs().own || [];
   box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">Zum Beispiel die Gemeinden Ihrer Versorgungsregion. Die Auswahl bleibt in diesem Browser gespeichert.</p>
-    <div class="chips">${own.map((x) => `<button class="chip" type="button" data-rm="${x}">${esc(shortName(x))} ×</button>`).join('') || '<span class="muted small">Noch keine Gemeinden gewählt.</span>'}</div><div id="ownSearch"></div></div>`;
+    <div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
+      <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || '<span class="muted small">Noch keine Gemeinden gewählt.</span>'}</div><div id="ownSearch"></div></div>`;
   box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { setPrefs({ own: own.filter((x) => x !== b.dataset.rm) }); redraw(); }));
   omnibox(document.getElementById('ownSearch'), { id: 'omniOwn', compact: true, placeholder: 'Gemeinde hinzufügen …', filter: (it) => it.go.startsWith('#/gemeinde/GDE:'),
     onPick: (it) => { const gid = it.go.split('/')[2]; setPrefs({ own: [...new Set([...own, gid])] }); redraw(); } });

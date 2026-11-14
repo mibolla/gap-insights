@@ -75,6 +75,20 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .omni-item { display: flex; justify-content: space-between; gap: 12px; padding: 8px 16px; cursor: pointer; }
 .omni-item[aria-selected="true"], .omni-item:hover { background: var(--blue-soft); }
 .omni-item .meta { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+.omni-lbl { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+/* ---------- Wappen (coats of arms) */
+.wappen { display: inline-block; width: auto; flex: none; object-fit: contain; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.18)); }
+.wappen-s { height: 22px; max-width: 20px; }
+.wappen-h { height: 1.25em; max-width: 1.1em; }
+.gcards { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 14px; }
+.gcard { display: flex; align-items: center; gap: 14px; padding: 12px 10px 12px 16px; border: 1px solid var(--line-strong); border-radius: 16px; background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.05); min-width: 0; }
+.gcard .wappen { height: 44px; max-width: 40px; }
+.gc-txt { display: flex; flex-direction: column; color: var(--ink); text-decoration: none; min-width: 0; margin-right: 6px; }
+.gc-txt b { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+.gc-txt span { color: var(--muted); font-size: .84rem; }
+.gc-txt:hover b { color: var(--blue); }
+.gc-x { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.gc-x:hover, .gc-x:focus-visible { background: var(--blue-soft); color: var(--ink); }
 .omni-empty { padding: 12px 16px; color: var(--muted); }
 
 /* ---------- buttons, chips */

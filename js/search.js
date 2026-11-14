@@ -1,5 +1,5 @@
 // Omnibox: one field for Gemeinde, Bezirk, Kanton, Thema and Frage.
-import { S, fmtInt } from './store.js?v=20261113223941';
+import { S, fmtInt, wappenImg } from './store.js?v=20261114010945';
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
 
@@ -11,7 +11,7 @@ function index() {
     if (r.e === 'CH') continue;
     const kind = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirke' : 'Kantone';
     const label = r.e === 'GDE' ? r.n : r.e === 'BEZ' ? `Bezirk ${r.n}` : `Kanton ${r.n}`;
-    items.push({ kind, label, meta: `${r.e === 'KT' ? '' : r.kt + ' · '}${fmtInt(r.pop)} Einw.`, key: norm(`${r.n} ${r.kt}`), go: `#/gemeinde/${r.id}`, pop: r.pop, rank: r.e === 'GDE' ? 0 : r.e === 'BEZ' ? 1 : 2 });
+    items.push({ kind, label, meta: `${r.e === 'KT' ? '' : r.kt + ' · '}${fmtInt(r.pop)} Einw.`, key: norm(`${r.n} ${r.kt}`), go: `#/gemeinde/${r.id}`, rid: r.id, pop: r.pop, rank: r.e === 'GDE' ? 0 : r.e === 'BEZ' ? 1 : 2 });
   }
   for (const q of S.meta.questions) items.push({ kind: 'Fragen', label: q.text, meta: '', key: norm(`${q.text} ${q.syn}`), go: `#/frage/${q.id}`, rank: 0 });
   for (const t of S.meta.themen) for (const s of t.sub) {
@@ -52,7 +52,7 @@ export function omnibox(slot, { placeholder = 'Gemeinde, Thema oder Frage eingeb
     if (!input.value.trim()) { close(); return; }
     list.innerHTML = groups.length ? groups.map(([k, v]) => `<div class="omni-group">${k}</div>` + v.map((it) => {
       const i = flat.indexOf(it);
-      return `<div class="omni-item" role="option" id="${id}-o${i}" data-i="${i}" aria-selected="${i === active}"><span>${it.label}</span><span class="meta">${it.meta}</span></div>`;
+      return `<div class="omni-item" role="option" id="${id}-o${i}" data-i="${i}" aria-selected="${i === active}"><span class="omni-lbl">${it.rid ? wappenImg(it.rid, 'wappen wappen-s') : ''}${it.label}</span><span class="meta">${it.meta}</span></div>`;
     }).join('')).join('') : '<div class="omni-empty">Nichts gefunden. Versuchen Sie einen Gemeindenamen oder ein Stichwort wie „Spitex“.</div>';
     list.hidden = false; box.setAttribute('aria-expanded', 'true');
   };

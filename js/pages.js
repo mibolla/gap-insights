@@ -1,9 +1,9 @@
 // Themen overview, one Thema (list of questions + Swiss values), Favoriten, Daten & Methodik.
-import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261113223941';
-import { indicatorCard, indicatorItem } from './cards.js?v=20261113223941';
-import { exportItems } from './export.js?v=20261113223941';
-import { omnibox } from './search.js?v=20261113223941';
-import { esc, main, toast } from './ui.js?v=20261113223941';
+import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261114010945';
+import { indicatorCard, indicatorItem } from './cards.js?v=20261114010945';
+import { exportItems } from './export.js?v=20261114010945';
+import { omnibox } from './search.js?v=20261114010945';
+import { esc, main, toast } from './ui.js?v=20261114010945';
 
 export function themen() {
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Frage zuerst</span><h2>Themen und Fragen</h2></div></div>
@@ -88,6 +88,7 @@ export function daten(anchor) {
       <p><b>Haushalte.</b> Privathaushalte nach Grösse stammen aus STATPOP ${M.jahr}. Werte zum Alleinleben im Alter stammen aus einer BFS-Tabelle mit dem Gemeindestand 2025; für 25 Gemeinden, die per 1.1.2025 fusioniert haben, liegt dort kein Wert vor. Sehr kleine Zahlen werden vom BFS aus Datenschutzgründen gerundet oder unterdrückt.</p>
       <p><b>Vergleiche.</b> Die Sätze vergleichen mit dem Kanton und der Schweiz: «etwa gleich» bei weniger als 3 % Unterschied (bei Anteilen 0.3 Prozentpunkte), «deutlich» ab 15 % (bei Anteilen 3 Prozentpunkte). Sie bewerten nicht, ob ein Wert gut oder schlecht ist.</p>
       <p><b>Jahre.</b> Spitex, Pflegeheime, Haushalte und Altersstruktur: ${M.jahr}. Bevölkerungsbewegungen: Durchschnitt ${M.periode[0]}–${M.periode[1]}. Datenstand der App: ${M.built}.</p>
+      <p><b>Wappen.</b> Die Gemeinde- und Kantonswappen stammen aus der einheitlichen Wappenreihe auf <a href="https://commons.wikimedia.org/wiki/Category:Coats_of_arms_of_municipalities_of_Switzerland" target="_blank" rel="noopener">Wikimedia Commons</a>, zugeordnet über die BFS-Gemeindenummer in Wikidata. Die Dateien sind dort als gemeinfrei gekennzeichnet; die Wappen selbst sind Hoheitszeichen der Gemeinden und Kantone. Gemeinden ohne Wappen auf Commons zeigen das Kantonswappen.</p>
       <p><b>Für Fachleute.</b> Die frei kombinierbaren Blasendiagramme aller Kennzahlen finden Sie im CoP-Dashboard (MAIN_CoP_Dashboard.html); das vollständige Datenmodell mit allen Attributen steht in <span class="num">data/unified/REF/REF_attribute.csv</span>.</p>
     </article>
     <article class="card prose" id="prognosen"><h3>Prognosen (Ausblick)</h3>
