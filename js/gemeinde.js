@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141928';
-import { createMap } from './map.js?v=20261114141928';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141928';
-import { omnibox } from './search.js?v=20261114141928';
-import { esc, main } from './ui.js?v=20261114141928';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141928';
-import { openReportDialog } from './report.js?v=20261114141928';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114142026';
+import { createMap } from './map.js?v=20261114142026';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114142026';
+import { omnibox } from './search.js?v=20261114142026';
+import { esc, main } from './ui.js?v=20261114142026';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114142026';
+import { openReportDialog } from './report.js?v=20261114142026';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -29,11 +29,10 @@ export async function render(id, sub, p3) {
   const mm = document.getElementById('miniMap');
   if (mm && r.e !== 'CH') {
     const m = createMap(mm, { interactive: false, mini: true }); m.select(id);
-    // hovering a neighbour in the list colours it on the mini map (hover or keyboard focus, not click)
+    // only while the mouse is over a neighbour in the list: colour it on the mini map
     main().querySelectorAll('.near-list[data-near="nb"] a[data-id]').forEach((a) => {
-      const on = () => m.highlight([a.dataset.id]); const off = () => m.highlight([]);
-      a.addEventListener('mouseenter', on); a.addEventListener('focus', on);
-      a.addEventListener('mouseleave', off); a.addEventListener('blur', off);
+      a.addEventListener('mouseenter', () => m.highlight([a.dataset.id]));
+      a.addEventListener('mouseleave', () => m.highlight([]));
     });
   }
   const rerender = async () => { const y = window.scrollY; await render(id, sub, p3); window.scrollTo(0, y); };
