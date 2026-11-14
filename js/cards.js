@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114223536';
-import { toast, esc } from './ui.js?v=20261114223536';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114223536';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114224057';
+import { toast, esc } from './ui.js?v=20261114224057';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114224057';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -187,18 +187,28 @@ export function chartCard(title, sub, srcKey, wide = true) {
 const nameOf = (s) => s.name || shortName(s.id);
 const colOf = (s, k) => (k === 0 ? C.me : s.grp ? C.grp : s.id === 'CH' ? C.ch : (region(s.id) || {}).e === 'BEZ' ? C.bez : C.kt);
 
+/** outline of a pyramid side as a staircase on a numeric y axis: each age group k spans k-0.4 … k+0.4 at value x[k] */
+export function stairs(x) {
+  const xs = []; const ys = [];
+  x.forEach((v, k) => { xs.push(v, v); ys.push(k - 0.5, k + 0.5); });
+  return { x: xs, y: ys };
+}
 export function pyramid(div, d, dk, years, refName = 'Schweiz') {
   const [y0, y1] = years; const g = d.pyr.groups;
   const tot = (p) => p.m.reduce((a, b) => a + b, 0) + p.f.reduce((a, b) => a + b, 0);
   const pct = (arr, p) => arr.map((x) => (x / tot(p)) * 100);
   const now = d.pyr[y1]; const then = d.pyr[y0]; const ref = dk.pyr[y1];
+  // numeric y axis (index of the age group): bars centred on k, comparison lines as exact staircases over each bar
+  const yi = g.map((_, k) => k);
+  const st = (x, extra) => ({ type: 'scatter', mode: 'lines', ...stairs(x), hoverinfo: 'skip', ...extra });
+  const refLine = { color: refName === 'Schweiz' ? C.kt : C.grp, width: refName === 'Schweiz' ? 1.2 : 2, dash: 'dot' };
   const data = [
-    { type: 'bar', orientation: 'h', y: g, x: pct(now.m, now).map((x) => -x), name: `Männer ${y1}`, marker: { color: '#7eaed9' }, hovertemplate: 'Männer %{y}: %{customdata:.1f} %<extra></extra>', customdata: pct(now.m, now) },
-    { type: 'bar', orientation: 'h', y: g, x: pct(now.f, now), name: `Frauen ${y1}`, marker: { color: '#f2a46a' }, hovertemplate: 'Frauen %{y}: %{x:.1f} %<extra></extra>' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(then.m, then).map((x) => -x), name: `${y0}`, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(then.f, then), showlegend: false, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.m, ref).map((x) => -x), name: `${refName} ${y1}`, line: { color: refName === 'Schweiz' ? C.kt : C.grp, width: refName === 'Schweiz' ? 1.2 : 2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
-    { type: 'scatter', mode: 'lines', y: g, x: pct(ref.f, ref), showlegend: false, line: { color: refName === 'Schweiz' ? C.kt : C.grp, width: refName === 'Schweiz' ? 1.2 : 2, dash: 'dot', shape: 'hvh' }, hoverinfo: 'skip' },
+    { type: 'bar', orientation: 'h', y: yi, x: pct(now.m, now).map((x) => -x), name: `Männer ${y1}`, marker: { color: '#7eaed9' }, text: g, hovertemplate: 'Männer %{text}: %{customdata:.1f} %<extra></extra>', textposition: 'none', customdata: pct(now.m, now) },
+    { type: 'bar', orientation: 'h', y: yi, x: pct(now.f, now), name: `Frauen ${y1}`, marker: { color: '#f2a46a' }, text: g, hovertemplate: 'Frauen %{text}: %{x:.1f} %<extra></extra>', textposition: 'none' },
+    st(pct(then.m, then).map((x) => -x), { name: `${y0}`, line: { color: C.ink, width: 1.5 } }),
+    st(pct(then.f, then), { showlegend: false, line: { color: C.ink, width: 1.5 } }),
+    st(pct(ref.m, ref).map((x) => -x), { name: `${refName} ${y1}`, line: refLine }),
+    st(pct(ref.f, ref), { showlegend: false, line: refLine }),
   ];
   const m = Math.max(...data.slice(0, 2).flatMap((t) => t.x.map(Math.abs)), ...pct(ref.m, ref), ...pct(ref.f, ref)) * 1.1;
   const ticks = [-6, -4, -2, 0, 2, 4, 6].filter((t) => Math.abs(t) <= m);
@@ -210,7 +220,7 @@ export function pyramid(div, d, dk, years, refName = 'Schweiz') {
   plot(div, data, baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true,
     legend: { orientation: 'h', y: -0.08, font: { size: 12 } }, margin: { l: 8, r: 8, t: 8, b: 40 },
     xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => `${Math.abs(t)} %`), zeroline: true, zerolinecolor: C.line, gridcolor: '#eef1f3' },
-    yaxis: { automargin: true, tickfont: { size: 11 } } }));
+    yaxis: { automargin: true, tickfont: { size: 11 }, tickvals: yi, ticktext: g, range: [-0.6, g.length - 0.4], zeroline: false, showgrid: false } }));
 }
 
 export function indexLines(div, series, which, years) {

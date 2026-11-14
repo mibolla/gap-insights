@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114223536';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows } from './cards.js?v=20261114223536';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114223536';
-import { esc } from './ui.js?v=20261114223536';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114224057';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114224057';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114224057';
+import { esc } from './ui.js?v=20261114224057';
 
 let PV = null;
 export async function loadProg() {
@@ -181,18 +181,19 @@ export function pyrCompare(div, id, d) {
   // population pyramid: men left (negative x), women right; bars = target year, black step line = 2024
   const a = p.pyr_mf[v]['2024']; const b = p.pyr_mf[v][String(j)];
   const neg = (arr) => arr.map((x) => -x);
-  const line = (x, show) => ({ type: 'scatter', mode: 'lines', y: p.groups, x, name: '2024', showlegend: show, line: { color: C.ink, width: 1.5, shape: 'hvh' }, hoverinfo: 'skip' });
-  const hov = (sx) => `${sx} %{y} · ${j}: %{customdata[0]:,.0f} (2024: %{customdata[1]:,.0f})<extra></extra>`;
-  const cd = (arr1, arr0) => arr1.map((x, k) => [x, arr0[k]]);
+  const yi = p.groups.map((_, k) => k);   // numeric y axis: the 2024 staircase sits exactly over each bar
+  const line = (x, show) => ({ type: 'scatter', mode: 'lines', ...stairs(x), name: '2024', showlegend: show, line: { color: C.ink, width: 1.5 }, hoverinfo: 'skip' });
+  const hov = (sx) => `${sx} %{customdata[2]} · ${j}: %{customdata[0]:,.0f} (2024: %{customdata[1]:,.0f})<extra></extra>`;
+  const cd = (arr1, arr0) => arr1.map((x, k) => [x, arr0[k], p.groups[k]]);
   const m = Math.max(...a.m, ...a.f, ...b.m, ...b.f) * 1.08;
   const step = niceStep(m);
   const ticks = []; for (let t = 0; t <= m; t += step) { ticks.push(t); if (t) ticks.unshift(-t); }
   plot(div, [
-    { type: 'bar', orientation: 'h', y: p.groups, x: neg(b.m), name: `Männer ${j} (BFS ${v})`, marker: { color: '#7eaed9' }, customdata: cd(b.m, a.m), hovertemplate: hov('Männer') },
-    { type: 'bar', orientation: 'h', y: p.groups, x: b.f, name: `Frauen ${j} (BFS ${v})`, marker: { color: '#f2a46a' }, customdata: cd(b.f, a.f), hovertemplate: hov('Frauen') },
+    { type: 'bar', orientation: 'h', y: yi, x: neg(b.m), name: `Männer ${j} (BFS ${v})`, marker: { color: '#7eaed9' }, customdata: cd(b.m, a.m), hovertemplate: hov('Männer') },
+    { type: 'bar', orientation: 'h', y: yi, x: b.f, name: `Frauen ${j} (BFS ${v})`, marker: { color: '#f2a46a' }, customdata: cd(b.f, a.f), hovertemplate: hov('Frauen') },
     line(neg(a.m), true), line(a.f, false)],
   baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true, legend: { orientation: 'h', y: -0.14, font: { size: 12 } }, margin: { l: 8, r: 10, t: 6, b: 66 },
-    yaxis: { automargin: true, tickfont: { size: 11 } },
+    yaxis: { automargin: true, tickfont: { size: 11 }, tickvals: yi, ticktext: p.groups, range: [-0.6, p.groups.length - 0.4], zeroline: false, showgrid: false },
     xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => fmtInt(Math.abs(t))), zeroline: true, zerolinecolor: C.line, gridcolor: '#eef1f3',
       title: { text: 'Personen  ·  ◀ Männer   |   Frauen ▶', font: { size: 11 } } } }));
   div._table = { columns: ['Altersgruppe', 'Männer 2024', `Männer ${j} BFS ${v}`, 'Frauen 2024', `Frauen ${j} BFS ${v}`, 'Veränderung total %'],
