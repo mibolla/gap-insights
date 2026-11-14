@@ -1,14 +1,37 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114220522';
-import { loadProg, roundProg } from './prog.js?v=20261114220522';
-import { esc, toast } from './ui.js?v=20261114220522';
-import * as story from './report_story.js?v=20261114220522';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261114220522';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261114222104';
+import { loadProg, roundProg } from './prog.js?v=20261114222104';
+import { esc, toast } from './ui.js?v=20261114222104';
+import * as story from './report_story.js?v=20261114222104';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114222104';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
 const V = window.GAP_BUILD ? `?v=${window.GAP_BUILD}` : '';
-const fill = (s, ctx) => String(s || '').replaceAll('{name}', ctx.name).replaceAll('{a0}', S.meta.alter_jahre[0]).replaceAll('{j}', ctx.j);
+/** texts that depend on the level of the report (Gemeinde-, Bezirks-, Kantonsbericht) */
+export function levelTexts(r) {
+  const kt = region(`KT:${r.kt}`);
+  if (r.e === 'BEZ') return { art: 'Bezirksbericht', name: `Bezirk ${r.n}`, in_name: `im Bezirk ${r.n}`, of_name: `des Bezirks ${r.n}`,
+    ref: `KT:${r.kt}`, refLab: 'Kanton', refName: `Kanton ${kt.n}`, im: 'im Kanton', imName: `im Kanton ${kt.n}`, mid: null, unitDat: 'im Bezirk',
+    where: `Bezirk im Kanton ${kt.n}`, vers_hint: ' – Werte eines Bezirks sind deshalb Standortwerte, die auch Nachbarbezirke versorgen',
+    disk: 'im Bezirk', pool: 'BEZ', pool_one: 'ein Bezirk des Kantons', poolPl: `Bezirke des Kantons ${kt.n}`, poolDat: `Bezirken des Kantons ${kt.n}` };
+  if (r.e === 'KT') return { art: 'Kantonsbericht', name: `Kanton ${r.n}`, in_name: `im Kanton ${r.n}`, of_name: `des Kantons ${r.n}`,
+    ref: 'CH', refLab: 'Schweiz', refName: 'Schweiz', im: 'in der Schweiz', imName: 'in der Schweiz', mid: null, unitDat: 'im Kanton',
+    where: 'Kanton der Schweiz', vers_hint: ' – Kantonswerte fassen alle Gemeinden zusammen und sind genau',
+    disk: 'im Kanton', pool: 'KT', pool_one: 'ein Kanton', poolPl: 'Kantone der Schweiz', poolDat: 'Kantonen der Schweiz' };
+  return { art: 'Gemeindebericht', name: r.n, in_name: `in ${r.n}`, of_name: `von ${r.n}`,
+    ref: `KT:${r.kt}`, refLab: 'Kanton', refName: `Kanton ${kt.n}`, im: 'im Kanton', imName: `im Kanton ${kt.n}`, mid: r.bez, midName: `Bezirk ${r.bn}`, unitDat: 'in der Gemeinde',
+    where: `Gemeinde im Bezirk ${r.bn}, Kanton ${kt.n}`, vers_hint: ' – die Gemeinde ist deshalb immer zusammen mit Bezirk und Kanton zu lesen',
+    disk: 'in der Gemeinde', pool: 'GDE', pool_one: 'eine Gemeinde des Kantons', poolPl: `Gemeinden des Kantons ${kt.n}`, poolDat: `Gemeinden des Kantons ${kt.n}` };
+}
+/** comparison groups offered in the report («Vergleichen mit», without the standard) */
+export const reportModes = (r) => (r.e === 'GDE' ? ['size', 'nb', 'kanton', 'own'] : ['kanton', 'own']);
+const fill = (s, ctx) => {
+  const L = ctx.L || {};
+  let t = String(s || '').replaceAll('{a0}', S.meta.alter_jahre[0]).replaceAll('{j}', ctx.j);
+  for (const k of ['in_name', 'art', 'vers_hint', 'disk', 'pool_one', 'grp_txt']) t = t.replaceAll(`{${k}}`, (k === 'grp_txt' ? ctx.grpTxt : L[k]) ?? '');
+  return t.replaceAll('{name}', ctx.name);
+};
 const HSLU = 'https://www.hslu.ch/de-ch/gesundheit/';
 let LOGO = null;
 /** HSLU logo as data URI, so the downloaded report stays a single file */
@@ -27,26 +50,29 @@ const appBase = () => `${location.origin}${location.pathname}`;
 
 // ------------------------------------------------------------------ dialog
 export function openReportDialog(id) {
-  const r = region(id); if (!r || r.e !== 'GDE') return;
+  const r = region(id); if (!r || !['GDE', 'BEZ', 'KT'].includes(r.e)) return; const L = levelTexts(r);
   const R = S.meta.report; const p = prefs();
   const st = { level: p.reportLevel || 'kompakt', j: +(p.zieljahr || S.meta.prog.default_year), v: p.variant || S.meta.prog.default_variant,
-    off: new Set(p.reportOff || []) };
+    off: new Set(p.reportOff || []), mode: reportModes(r).includes(p.reportMode || p.mode) ? (p.reportMode || p.mode) : reportModes(r)[0] };
   document.querySelector('dialog.rdlg')?.remove();
   const dlg = document.createElement('dialog'); dlg.className = 'rdlg'; dlg.setAttribute('aria-labelledby', 'rdlgTitle');
   const opt = R.chapters.filter((c) => c.opt);
   dlg.innerHTML = `<form method="dialog" class="rdlg-in">
     <button type="button" class="rdlg-x" data-act="close" aria-label="Schliessen" title="Schliessen (Esc)">×</button>
-    <div class="rdlg-head"><span class="eyebrow">Gemeindebericht</span><h2 id="rdlgTitle">Bericht für ${esc(r.n)} (${esc(r.kt)})</h2>
+    <div class="rdlg-head"><span class="eyebrow">${L.art}</span><h2 id="rdlgTitle">Bericht für ${esc(L.name)}${r.e === 'KT' ? '' : ` (${esc(r.kt)})`}</h2>
       <p class="muted small">Eine HTML-Datei mit allen Themen als zusammenhängende Geschichte – zum Lesen, Weitergeben und Drucken.</p></div>
     <fieldset class="rd-level"><legend>Umfang</legend>${Object.entries(R.levels).map(([k, l]) =>
       `<label class="lvl"><input type="radio" name="level" value="${k}" ${k === st.level ? 'checked autofocus' : ''}><span><span><b>${esc(l.label)}</b> · ${esc(l.pages)}</span><span class="muted small">${esc(l.desc)}</span></span></label>`).join('')}</fieldset>
     <fieldset><legend>Ausblick</legend>
       <div class="rd-row"><span class="pl-lab">Zieljahr</span><div class="seg" role="group" aria-label="Zieljahr">${S.meta.prog.years.map((y) => `<button type="button" data-j="${y}" aria-pressed="${y === st.j}">${y}</button>`).join('')}</div></div>
       <div class="rd-row"><span class="pl-lab">Variante</span><div class="seg" role="group" aria-label="Variante">${S.meta.prog.variants.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === st.v}">BFS ${v}</button>`).join('')}</div></div></fieldset>
+    <fieldset><legend>Vergleichen mit</legend>
+      <div class="rd-row"><span class="pl-lab">Gruppe</span><div class="seg wrap" role="group" aria-label="Vergleichen mit">${reportModes(r).map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === st.mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>
+      <p class="muted small rd-own"></p></fieldset>
     <fieldset><legend>Kapitel</legend><div class="rd-chaps">${opt.map((c) =>
-      `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: r.n, j: st.j }))}${c.only ? ' <span class="muted small">(nur Ausführlich)</span>' : ''}</label>`).join('')}</div>
+      `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: L.name, j: st.j, L }))}${c.only ? ' <span class="muted small">(nur Ausführlich)</span>' : ''}</label>`).join('')}</div>
       <p class="muted small">«Auf einen Blick», «Fragen für die Planung» und «Daten und Methode» sind immer enthalten.</p></fieldset>
-    <p class="small muted rd-ex">Beispiel ansehen: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">Sursee kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">Sursee ausführlich</a></p>
+    ${r.e !== 'GDE' ? '' : `<p class="small muted rd-ex">Beispiel ansehen: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">Sursee kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">Sursee ausführlich</a></p>`}
     <div class="rdlg-foot"><button type="button" class="btn ghost" data-act="close">Abbrechen</button>
       <button type="button" class="btn primary" data-act="download">Bericht herunterladen</button></div></form>`;
   document.body.appendChild(dlg);
@@ -54,11 +80,15 @@ export function openReportDialog(id) {
     dlg.querySelectorAll('[data-only]').forEach((c) => { c.disabled = c.dataset.only !== st.level; c.closest('label').classList.toggle('dis', c.disabled); });
     dlg.querySelectorAll('[data-j]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.j === st.j)));
     dlg.querySelectorAll('[data-v]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === st.v)));
+    dlg.querySelectorAll('[data-m]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.m === st.mode)));
+    const n = groupMembers(st.mode, id).length;
+    dlg.querySelector('.rd-own').textContent = st.mode === 'own' ? (n ? `Ihre Auswahl: ${groupMembers('own', id).map(shortName).join(', ')}.` : 'Ihre Eigene Auswahl ist noch leer – stellen Sie sie in einem Thema unter «Vergleichen mit» zusammen.') : `${n} ${L.pool === 'GDE' ? 'Gemeinden' : L.pool === 'BEZ' ? 'Bezirke' : 'Kantone'} im Vergleich.`;
   };
   const opts = () => {
     const chapters = [...dlg.querySelectorAll('input[name="ch"]')].filter((c) => c.checked && !c.disabled).map((c) => c.value);
     setPrefs({ reportLevel: st.level, reportOff: [...dlg.querySelectorAll('input[name="ch"]')].filter((c) => !c.checked).map((c) => c.value) });
-    return { level: st.level, j: st.j, v: st.v, chapters };
+    setPrefs({ reportMode: st.mode });
+    return { level: st.level, j: st.j, v: st.v, chapters, mode: st.mode };
   };
   dlg.addEventListener('change', (ev) => { if (ev.target.name === 'level') { st.level = ev.target.value; sync(); } });
   // a click on the darkened area around the dialog closes it (press and release outside, not while a report is built)
@@ -71,6 +101,7 @@ export function openReportDialog(id) {
     const b = ev.target.closest('button'); if (!b) return;
     if (b.dataset.j) { st.j = +b.dataset.j; sync(); return; }
     if (b.dataset.v) { st.v = b.dataset.v; sync(); return; }
+    if (b.dataset.m) { st.mode = b.dataset.m; sync(); return; }
     const act = b.dataset.act;
     if (act === 'close') { dlg.close(); return; }
     if (act === 'preview' || act === 'download') {
@@ -97,14 +128,19 @@ export function openReportDialog(id) {
   dlg.showModal();
 }
 
-export const fileName = (r, o) => `GAP-Insights_Bericht_${r.n.replace(/[^\p{L}\p{N}]+/gu, '-')}_${o.j}_${o.level}.html`;
+export const fileName = (r, o) => `GAP-Insights_Bericht_${levelTexts(r).name.replace(/[^\p{L}\p{N}]+/gu, '-')}_${o.j}_${o.level}.html`;
 
 // ------------------------------------------------------------------ assembly
-export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null, base = null } = {}) {
-  const r = region(id); const R = S.meta.report; const full = level === 'ausfuehrlich';
-  const [d, dB, dK, dCH, P, css, logo, wap] = await Promise.all([detail(id), detail(r.bez), detail(`KT:${r.kt}`), detail('CH'), loadProg(),
+export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.default_year, v = S.meta.prog.default_variant, chapters = null, base = null, mode = null } = {}) {
+  const r = region(id); const R = S.meta.report; const full = level === 'ausfuehrlich'; const L = levelTexts(r);
+  if (!reportModes(r).includes(mode)) mode = reportModes(r)[0];
+  const [d, dB, dK, dCH, P, css, logo, wap] = await Promise.all([detail(id), L.mid ? detail(L.mid) : null, detail(L.ref), detail('CH'), loadProg(),
     fetch(`css/report.css${V}`).then((x) => x.text()), logoDataUrl(), wappenDataUrl(id)]);
-  const ctx = { id, r, name: r.n, d, dB, dK, dCH, P, v, j: +j, full, level, kt: `KT:${r.kt}`, ktName: region(`KT:${r.kt}`).n, small: r.pop < R.small };
+  const grp = groupMembers(mode, id); const gl = groupLabelFor(mode, r.e);
+  const grpTxt = mode === 'own' ? (grp.length ? `die ${grp.length} Regionen Ihrer eigenen Auswahl` : 'Ihre eigene Auswahl (leer)') : mode === 'nb' ? 'die Nachbargemeinden'
+    : mode === 'size' ? 'die Gemeinden ähnlicher Grösse im Kanton' : r.e === 'KT' ? 'alle anderen Kantone' : r.e === 'BEZ' ? 'die übrigen Bezirke des Kantons' : 'die übrigen Gemeinden des Kantons';
+  const grpShort = mode === 'kanton' ? (r.e === 'KT' ? 'übrige Kantone' : r.e === 'BEZ' ? 'übrige Bezirke im Kanton' : 'übrige Gemeinden im Kanton') : gl;
+  const ctx = { id, r, L, name: L.name, d, dB, dK, dCH, P, v, j: +j, full, level, kt: L.ref, ktName: L.refName, small: r.e === 'GDE' && r.pop < R.small, mode, grp, grpLabel: grpShort, grpTxt };
   const want = R.chapters.filter((c) => (!c.only || c.only === level) && (!c.opt || !chapters || chapters.includes(c.id)));
   const out = []; const used = [];
   for (const c of want) {
@@ -137,30 +173,30 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Noto+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
 <style>${css}</style></head>
 <body>
-<div class="bar"><a class="brand" href="${esc(link)}" aria-label="GAP-Insights: ${esc(r.n)} in der App öffnen"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">GAP-Insights</span></a>
-  <span class="bar-what">Gemeindebericht ${esc(r.n)}</span>
+<div class="bar"><a class="brand" href="${esc(link)}" aria-label="GAP-Insights: ${esc(L.name)} in der App öffnen"><span class="brand-mark" aria-hidden="true"></span><span class="brand-name">GAP-Insights</span></a>
+  <span class="bar-what">${L.art} ${esc(L.name)}</span>
   <button type="button" class="no-print" onclick="window.print()">Drucken / als PDF</button>
   <a class="org" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="170" height="26"></a></div>
 <header class="cover"><div class="cover-in">
   <div class="cover-text">
-    <p class="eyebrow">Gemeindebericht · ${esc(lv.label)}</p>
-    <h1>${wap ? `<img class="wappen" src="${wap}" alt="Wappen ${esc(r.n)}">` : ''}${esc(title)}</h1>
-    <p class="sub">${esc(R.subtitle)}</p>
-    <p class="where">Gemeinde im Bezirk ${esc(r.bn)}, Kanton ${esc(ctx.ktName)}</p>
+    <p class="eyebrow">${L.art} · ${esc(lv.label)}</p>
+    <h1>${wap ? `<img class="wappen" src="${wap}" alt="Wappen ${esc(L.name)}">` : ''}${esc(title)}</h1>
+    <p class="sub">${esc(fill(R.subtitle, ctx))}</p>
+    <p class="where">${esc(L.where)}</p>
     <div class="kf"><span><b>${fmtInt(r.pop)}</b>Einwohner ${S.meta.jahr}</span><span><b>${fmt(story.keyNumbers(ctx).b80 / r.pop * 100, { dec: 1 })} %</b>ab 80 Jahren</span>
       <span><b>${d.aph && d.aph.heime ? fmtInt(d.aph.plaetze) : '–'}</b>Pflegeheimplätze</span><span><b>${fmtInt(roundProg(story.keyNumbers(ctx).b80j, 'Personen'))}</b>ab 80 im Jahr ${j} (rund)</span></div>
   </div>
   <div class="cover-maps">${locatorKanton(id)}${locatorCH(id)}</div>
 </div>
-<dl class="meta"><div><dt>Umfang</dt><dd>${esc(lv.label)} (${esc(lv.pages)})</dd></div><div><dt>Ausblick</dt><dd>BFS-Szenario ${esc(v)}, Zieljahr ${j}</dd></div>
+<dl class="meta"><div><dt>Umfang</dt><dd>${esc(lv.label)} (${esc(lv.pages)})</dd></div><div><dt>Ausblick</dt><dd>BFS-Szenario ${esc(v)}, Zieljahr ${j}</dd></div><div><dt>Vergleich</dt><dd>${esc(gl)}${grp.length ? ` (${grp.length})` : ''}</dd></div>
   <div><dt>Datenstand</dt><dd>${S.meta.jahr} (Zeitreihen ab ${S.meta.alter_jahre[0]})</dd></div><div><dt>Erstellt</dt><dd>${esc(today)}</dd></div>
-  <div><dt>In der App</dt><dd><a href="${esc(link)}">${esc(r.n)} in GAP-Insights öffnen</a></dd></div></dl>
+  <div><dt>In der App</dt><dd><a href="${esc(link)}">${esc(L.name)} in GAP-Insights öffnen</a></dd></div></dl>
 </header>
 <div class="layout">
   <nav class="toc no-print" aria-label="Inhalt"><p>Inhalt</p><ol>${out.map(({ c }, k) => `<li><a href="#${c.id}"><span class="tt"><span class="tn">${k + 1}</span>${esc(fill(c.title, ctx))}</span><span class="tq">${esc(fill(c.frage, ctx))}</span></a></li>`).join('')}</ol></nav>
   <main>${wrapT(sections)}</main>
 </div>
-<footer class="foot"><a class="org-small" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="118" height="18"></a><p>GAP-Insights · Hochschule Luzern – Gesundheit · Bericht für ${esc(r.n)} (${esc(r.kt)}), erstellt am ${esc(today)}. Daten: BFS, BAG, swisstopo. Prognosen: BFS-Szenarien 2025, regionalisiert durch die HSLU.</p>
+<footer class="foot"><a class="org-small" href="${HSLU}" title="Hochschule Luzern – Gesundheit"><img src="${logo}" alt="HSLU Hochschule Luzern" width="118" height="18"></a><p>GAP-Insights · Hochschule Luzern – Gesundheit · ${L.art} für ${esc(L.name)}${r.e === 'KT' ? '' : ` (${esc(r.kt)})`}, erstellt am ${esc(today)}. Daten: BFS, BAG, swisstopo. Prognosen: BFS-Szenarien 2025, regionalisiert durch die HSLU.</p>
 <p><a href="${esc(link)}">${esc(link)}</a></p></footer>
 <script>
 /* highlight the chapter in view in the table of contents */

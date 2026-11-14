@@ -1,7 +1,7 @@
 // Gemeindebericht: small, dependency-free SVG charts. Every function returns an SVG string.
 // Colours come from CSS classes defined in css/report.css (c-me, c-bez, c-kt, c-ch, …), so both themes work.
-import { S } from './store.js?v=20261114220522';
-import { esc } from './ui.js?v=20261114220522';
+import { S } from './store.js?v=20261114222104';
+import { esc } from './ui.js?v=20261114222104';
 
 const nf = (d) => new Intl.NumberFormat('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
 /** values that round to zero are shown as 0, never «-0.0» */
@@ -218,15 +218,17 @@ export function locatorKanton(id) {
   const sw = (bb.x1 - bb.x0) / 320;
   const gde = S.regions.filter((x) => x.e === 'GDE' && x.kt === kt);
   let b = '';
-  for (const g of gde) { const d = G.gde[g.id.slice(4)]; if (d) b += `<path class="m-gde${g.id === id ? ' m-me' : g.bez === r.bez ? ' m-bez' : ''}" d="${d}" stroke-width="${sw}"/>`; }
+  // Gemeinde: itself orange, its Bezirk light; Bezirk: its Gemeinden orange; Kanton: all Gemeinden orange
+  const me = (g) => (r.e === 'GDE' ? g.id === id : r.e === 'BEZ' ? g.bez === id : true);
+  for (const g of gde) { const d = G.gde[g.id.slice(4)]; if (d) b += `<path class="m-gde${me(g) ? ' m-me' : r.e === 'GDE' && g.bez === r.bez ? ' m-bez' : ''}" d="${d}" stroke-width="${sw}"/>`; }
   b += `<path class="m-kt" d="${G.kt[kt]}" stroke-width="${sw * 2.2}"/>`;
-  return `<svg class="rmap" viewBox="${vb}" role="img" aria-label="${esc(`Lage von ${r.n} im Kanton ${kt}`)}">${b}</svg>`;
+  return `<svg class="rmap" viewBox="${vb}" role="img" aria-label="${esc(r.e === 'KT' ? `Kanton ${r.n}` : `Lage von ${r.n} im Kanton ${kt}`)}">${b}</svg>`;
 }
 export function locatorCH(id) {
   const G = S.geo; const r = S.byId.get(id);
   let b = `<path class="m-ch" d="${G.ch}"/>`;
   b += `<path class="m-ktsel" d="${G.kt[r.kt]}"/>`;
-  const c = G.c[id.slice(4)];
+  const c = r.e === 'GDE' ? G.c[id.slice(4)] : null;
   if (c) b += `<circle class="m-pin" cx="${c[0]}" cy="${c[1]}" r="9"/>`;
   return `<svg class="rmap ch" viewBox="0 0 ${G.w} ${G.h}" role="img" aria-label="${esc(`Kanton ${r.kt} in der Schweiz`)}">${b}</svg>`;
 }

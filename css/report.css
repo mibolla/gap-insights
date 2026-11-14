@@ -179,7 +179,7 @@ figcaption { font-size: .82rem; color: var(--muted); margin-top: 6px; max-width:
 .c-mark { stroke: var(--me); stroke-width: 2; }
 .c-band { fill: var(--band); }
 rect.c-me, circle.c-me { fill: var(--me); } rect.c-me.soft { fill: var(--me-soft); }
-rect.c-bez { fill: var(--bez); } rect.c-kt { fill: var(--kt); } rect.c-ch { fill: var(--ch); } rect.c-ch.soft { fill: var(--ch-soft); }
+rect.c-grp { fill: #2a9d8f; } rect.c-bez { fill: var(--bez); } rect.c-kt { fill: var(--kt); } rect.c-ch { fill: var(--ch); } rect.c-ch.soft { fill: var(--ch-soft); }
 .ln { fill: none; stroke-width: 2; stroke-linejoin: round; } .ln.b { stroke-width: 3; } .ln.dash { stroke-dasharray: 6 4; stroke-width: 2.5; }
 .ln.c-me { stroke: var(--me); } .ln.c-kt { stroke: var(--kt); } .ln.c-ch { stroke: var(--ch); }
 circle.dot.c-kt { fill: var(--kt); } circle.dot.c-ch { fill: var(--ch); }
