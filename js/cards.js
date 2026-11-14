@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114230311';
-import { toast, esc } from './ui.js?v=20261114230311';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114230311';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114230644';
+import { toast, esc } from './ui.js?v=20261114230644';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114230644';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -238,7 +238,7 @@ function leanPlot(div, data, ends0, nm, years, { note = '', ref100 = false, toze
   if (note) ann.push({ text: note, xref: 'paper', yref: 'paper', x: 0, y: 1.02, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 11, color: C.muted } });
   const lw = Math.max(60, ...ends.map((e) => (nm(e.s).length + 4) * 7)) + 14;
   plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: ann,
-    xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line },
+    xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: years[1] - years[0] <= 6 ? Array.from({ length: years[1] - years[0] + 1 }, (_, k) => years[0] + k) : [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line },
     yaxis: { gridcolor: '#e6eaed', zeroline: false, rangemode: tozero ? 'tozero' : 'normal' },
     shapes: ref100 ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.muted, width: 1, dash: 'dot' } }] : [] }));
 }
@@ -290,14 +290,14 @@ export function histLines(div, series, indId, years) {
   const x = (S.meta.hist_years && S.meta.hist_years[indId]) || Array.from({ length: years[1] - years[0] + 1 }, (_, k) => years[0] + k);
   const data = use.map((s) => {
     const k0 = series.indexOf(s); const v = s.d.aph_hist[indId];
-    return { type: 'scatter', mode: 'lines+markers', x, y: v, name: nameOf(s), connectgaps: false,
-      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp || s.col ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
-      customdata: v.map((y) => fmtUnit(y, i)), hovertemplate: `${nameOf(s)} %{x}: %{customdata}<extra></extra>` };
+    return { type: 'scatter', mode: 'lines', x, y: v, name: nmOf(s), connectgaps: false, showlegend: false,
+      line: { color: colOf(s, k0), width: k0 === 0 ? 3.5 : s.grp ? 2.5 : 2 },
+      customdata: v.map((y) => fmtUnit(y, i)), hovertemplate: `${nmOf(s)} %{x}: %{customdata}<extra></extra>` };
   });
   div._table = { columns: ['Jahr', ...use.map((s) => `${nameOf(s)} (${i.unit})`)], rows: x.map((y, k) => [y, ...use.map((s) => s.d.aph_hist[indId][k])]) };
   div._title = `${i.label} ${years[0]}–${years[1]}`;
-  plot(div, data, baseLayout({ height: 300, showlegend: true, legend: { orientation: 'h', y: -0.18 }, margin: { l: 44, r: 12, t: 10, b: 56 },
-    xaxis: { dtick: x.length > 6 ? 2 : 1, gridcolor: '#eef1f3' }, yaxis: { title: { text: i.unit, font: { size: 11 } }, gridcolor: '#eef1f3', automargin: true } }));
+  leanPlot(div, data, use.map((s) => ({ s, k: series.indexOf(s), x, y: s.d.aph_hist[indId] })), nmOf, [x[0], x[x.length - 1]],
+    { note: i.unit, fmtEnd: (v) => fmt(v, i) });
 }
 
 export function shareBars(div, cats, series, unitLabel = '%') {

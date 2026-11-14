@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114230311';
-import { createMap } from './map.js?v=20261114230311';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114230311';
-import { omnibox } from './search.js?v=20261114230311';
-import { esc, main } from './ui.js?v=20261114230311';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114230311';
-import { openReportDialog } from './report.js?v=20261114230311';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114230644';
+import { createMap } from './map.js?v=20261114230644';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114230644';
+import { omnibox } from './search.js?v=20261114230644';
+import { esc, main } from './ui.js?v=20261114230644';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114230644';
+import { openReportDialog } from './report.js?v=20261114230644';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -464,16 +464,30 @@ function histCards(box, r, d, series, ids) {
   if (aph.length && !aph.some(has)) notes.push(`${name} hatte zwischen ${yrs(aph[0])[0]} und ${M.jahr} kein eigenes Alters- und Pflegeheim. Die Heim-Grafiken zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
   if (spx.length) notes.push(`Spitex-Kennzahlen veröffentlicht das BAG seit ${yrs(spx[0])[0]}. Organisationen ohne Adresse im Kanton sind nach Einwohnern auf seine Gemeinden verteilt.`);
   if (notes.length) { const p = document.createElement('p'); p.className = 'note wide'; p.style.gridColumn = '1 / -1'; p.innerHTML = notes.join(' '); box.appendChild(p); }
-  ids.forEach((id) => {
-    const i = S.ind.get(id); const y = yrs(id); const y0 = y[0]; const y1 = y[y.length - 1];
-    const c = chartCard(`${i.label} ${y0}–${y1}`, '', isSpx(id) ? 'spitex_ts' : 'somed_ts', false);
+  // one card per source (Pflegeheime / Spitex); buttons switch the indicator
+  const SUBN = { leistungen: 'Leistungen', personal: 'Personal', kosten: 'Kosten', finanzierung: 'Finanzierung', inanspruchnahme: 'Inanspruchnahme' };
+  [[aph, 'somed_ts', 'Alters- und Pflegeheime'], [spx, 'spitex_ts', 'Spitex']].forEach(([grp, src, lab]) => {
+    if (!grp.length) return;
+    const y = yrs(grp[0]); const c = chartCard(`${lab}: ${SUBN[S.ind.get(grp[0]).sub] || ''} ${y[0]}–${y[y.length - 1]}`, '', src, false);
+    let seg = null;
+    if (grp.length > 1) {
+      seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
+      seg.innerHTML = grp.map((id, j) => `<button type="button" data-k="${id}" aria-pressed="${j === 0}">${esc(S.ind.get(id).short)}</button>`).join('');
+      c.card.querySelector('.card-head').after(seg);
+    }
     box.appendChild(c.card);
-    const v = d.aph_hist && d.aph_hist[id];
-    const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
-    let txt = k0 >= 0 ? `${name}: ${y[k0]} ${fmtUnit(v[k0], i)}, ${y[k1]} <b>${fmtUnit(v[k1], i)}</b>.` : `Keine Werte für ${name}.`;
-    if (M.hist_col && M.hist_col[id]) txt += ` Bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch).`;
-    c.setSub(txt);
-    histLines(c.div, series, id, [y0, y1]);
+    const draw = (id) => {
+      const i = S.ind.get(id); const yy = yrs(id); const y1 = yy[yy.length - 1];
+      const v = d.aph_hist && d.aph_hist[id];
+      const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
+      let txt = k0 >= 0 ? `${esc(i.label)} – ${name}: ${yy[k0]} ${fmtUnit(v[k0], i)}, ${yy[k1]} <b>${fmtUnit(v[k1], i)}</b>.` : `${esc(i.label)}: keine Werte für ${name}.`;
+      if (M.hist_col && M.hist_col[id]) txt += ` Bis ${y1 - 1}: BAG-Index der Pflegeintensität (gleiche Skala 1–12, ${y1} identisch).`;
+      c.setSub(txt);
+      histLines(c.div, series, id, [yy[0], y1]);
+      seg?.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.k === id)));
+    };
+    seg?.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) draw(b.dataset.k); });
+    draw(grp[0]);
   });
 }
 
