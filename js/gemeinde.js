@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114231041';
-import { createMap } from './map.js?v=20261114231041';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114231041';
-import { omnibox } from './search.js?v=20261114231041';
-import { esc, main } from './ui.js?v=20261114231041';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114231041';
-import { openReportDialog } from './report.js?v=20261114231041';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114231442';
+import { createMap } from './map.js?v=20261114231442';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114231442';
+import { omnibox } from './search.js?v=20261114231442';
+import { esc, main } from './ui.js?v=20261114231442';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114231442';
+import { openReportDialog } from './report.js?v=20261114231442';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -390,9 +390,14 @@ async function special(box, r, d, subId, mode = 'kt') {
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     seg.innerHTML = Object.entries(APH_TS_OPTS).map(([k, l], j) => `<button type="button" data-k="${k}" aria-pressed="${j === 0}">${l}</button>`).join('');
     c.card.querySelector('.card-head').after(seg);
+    const how = document.createElement('details'); how.className = 'how'; c.card.querySelector('.src-line').before(how);
+    const HOWI = { pl80: 'aph_pl80', kl80: 'aph_kl80', pl: 'aph_g_pl' };
     const f0 = (x) => fmt(x, { dec: 0 });
     const drawK = (k) => {
       const me = { d };
+      const hi = S.ind.get(HOWI[k]); const so = S.meta.sources.somed_ts;
+      how.innerHTML = `<summary>Wie wird das gemessen?</summary><p><b>${esc(APH_TS_OPTS[k])}.</b> ${k === 'pl' ? `Langzeitplätze in Alters- und Pflegeheimen am Standort, als Index (${y0} = 100).` : esc(hi.def)} Jahreswerte ${y0}–${y1} aus den BAG-Kennzahlen; Bevölkerung ab 80 aus demselben Jahr.</p>${hi.note ? `<p class="small muted">${esc(hi.note)}</p>` : ''}
+        <p><a href="${so.url}" target="_blank" rel="noopener">${esc(so.publisher)} – ${esc(so.name)} ↗</a> · <a href="#/daten">Methodik</a></p>`;
       let txt;
       if (!own) txt = `${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen die Versorgung in der Umgebung.`;
       else if (k === 'pl') {
@@ -475,9 +480,15 @@ function histCards(box, r, d, series, ids) {
       seg.innerHTML = grp.map((id, j) => `<button type="button" data-k="${id}" aria-pressed="${j === 0}">${esc(S.ind.get(id).short)}</button>`).join('');
       c.card.querySelector('.card-head').after(seg);
     }
+    // «Wie wird das gemessen?» for the selected indicator (definition, reading note, link to the source)
+    const how = document.createElement('details'); how.className = 'how';
+    c.card.querySelector('.src-line').before(how);
     box.appendChild(c.card);
     const draw = (id) => {
       const i = S.ind.get(id); const yy = yrs(id); const y1 = yy[yy.length - 1];
+      const so = M.sources[i.src];
+      how.innerHTML = `<summary>Wie wird das gemessen?</summary><p><b>${esc(i.label)}.</b> ${esc(i.def)}</p>${i.note ? `<p class="small muted">${esc(i.note)}</p>` : ''}
+        <p><a href="${so.url}" target="_blank" rel="noopener">${esc(so.publisher)} – ${esc(so.name)} ↗</a> · <a href="#/daten">Methodik</a></p>`;
       const v = d.aph_hist && d.aph_hist[id];
       const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
       let txt = k0 >= 0 ? `${esc(i.label)} – ${name}: ${yy[k0]} ${fmtUnit(v[k0], i)}, ${yy[k1]} <b>${fmtUnit(v[k1], i)}</b>.` : `${esc(i.label)}: keine Werte für ${name}.`;
