@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261114235847';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115001016';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,10 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261114235847';
-import { omnibox } from './search.js?v=20261114235847';
-import { esc, main } from './ui.js?v=20261114235847';
-import { loadProg, pval, roundProg } from './prog.js?v=20261114235847';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115001016';
+import { omnibox } from './search.js?v=20261115001016';
+import { esc, main } from './ui.js?v=20261115001016';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115001016';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -52,8 +52,8 @@ export function render() {
       src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
     { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
       src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
-    { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Gemeinden mit einem eigenen Heim – Heime versorgen auch die Nachbargemeinden.`,
-      src: `BAG / SOMED ${M.jahr}`, map: (m, t) => { const l = colourBy(m, 'aph_pl80', 'kt', t); m.dots((M.facts[4].set || []).map((id) => ({ id, r: 2.4 }))); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
+    { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
+      src: `BAG / SOMED ${M.jahr}`, map: (m, t, alive) => { const l = colourBy(m, 'aph_pl80', 'kt', t); heimPoints(m, alive); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
     (() => { const H = M.heime; const far = region(H.max_gde);
       return { n: '', title: 'Heime in der Nähe', big: `${fmt(H.anteil_5km, { dec: 1 })} %`,
         text: `der Menschen ab 80 leben in einer Gemeinde, deren Mitte höchstens 5 km vom nächsten Alters- und Pflegeheim entfernt ist. Jeder Punkt ist eines der ${fmtInt(H.heime)} Heime – je grösser, desto mehr Plätze. In ${H.far_gde} Gemeinden sind es mehr als 10 km, am weitesten in ${esc(far ? far.n : '')} (${fmt(H.max_km, { dec: 0 })} km).`,
@@ -265,6 +265,14 @@ async function colourHeime(map, setTip = null, alive = () => true) {
   const ramp = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)'].map((c) => `<span style="background:${c}"></span>`).join('');
   return `<div class="legend"><span>Distanz zum nächsten Heim</span><span>bis 2 km</span><span class="ramp">${ramp}</span><span>über 10 km</span>
     <span class="pt-key"><i></i> Heim (Grösse = Plätze)</span><span class="pt-key"><i class="ring"></i> Lage ungefähr</span></div>`;
+}
+
+/** the real Heim locations as small points over another map (chapter «Pflege im Heim») */
+async function heimPoints(map, alive = () => true) {
+  const H = await loadHeime(); if (!alive()) return;
+  const order = H.x.map((_, k) => k).sort((i, j) => (H.a[j] - H.a[i]) || (H.p[j] - H.p[i]));
+  map.points(order.map((k) => ({ x: H.x[k], y: H.y[k], r: 1 + Math.sqrt(H.p[k]) * 0.2, id: H.g[k], cls: H.a[k] ? 'approx' : '',
+    tip: `<b>${esc(abbr(H.n[k]))}</b><br>${esc(H.o[k])} · ${fmtInt(H.p[k])} Plätze${H.a[k] ? '<br><span class="muted">Lage ungefähr (Gemeindemitte)</span>' : ''}` })));
 }
 
 /** Spitäler as bubbles: area = stationäre Fälle, colour = Spitaltyp; returns the legend */
