@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114224057';
-import { createMap } from './map.js?v=20261114224057';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114224057';
-import { omnibox } from './search.js?v=20261114224057';
-import { esc, main } from './ui.js?v=20261114224057';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114224057';
-import { openReportDialog } from './report.js?v=20261114224057';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114225343';
+import { createMap } from './map.js?v=20261114225343';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114225343';
+import { omnibox } from './search.js?v=20261114225343';
+import { esc, main } from './ui.js?v=20261114225343';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114225343';
+import { openReportDialog } from './report.js?v=20261114225343';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -364,7 +364,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop');
     box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
   } else if (subId === 'entwicklung') {
-    const c = chartCard(`Entwicklung ${y0}–${y1}`, '', 'statpop');
+    const c = chartCard(`Entwicklung ${y0}–${y1}`, '', 'statpop', false);   // half width, lean style like the report
     const n = d.ts.y.length - 1;
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     const opts = { b80: 'ab 80 Jahren', b65: 'ab 65 Jahren', bev: 'Gesamte Bevölkerung' };
