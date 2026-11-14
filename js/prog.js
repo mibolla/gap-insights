@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114232547';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114232547';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232547';
-import { esc } from './ui.js?v=20261114232547';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114233350';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114233350';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114233350';
+import { esc } from './ui.js?v=20261114233350';
 
 let PV = null;
 export async function loadProg() {
@@ -132,6 +132,7 @@ export async function progCard(indId, id, mode = 'kt') {
       xaxis: { visible: false, rangemode: 'tozero' }, bargap: 0.35,
       annotations: [{ text: lab, xref: 'paper', yref: 'paper', x: 0, y: 1.02, yanchor: 'bottom', xanchor: 'left', showarrow: false, font: { size: 11, color: C.muted } }] }));
     if (members.length) scrollRows(div, rows.length, rowH, 22, rows.findIndex((d) => d.x === id));
+    div._rowIds = rows.map((d) => d.x);
     div._table = { columns: ['Region', `${base}`, ...S.meta.prog.variants.map((vv) => `${j} BFS ${vv}`)],
       rows: ids.map((x) => [x === 'CH' ? 'Schweiz' : shortName(x), rnd(pval(P, indId, x, 'mittel', base), 2), ...S.meta.prog.variants.map((vv) => rnd(pval(P, indId, x, vv, j), 2))]) };
   });
@@ -201,8 +202,8 @@ export function pyrCompare(div, id, d) {
 }
 
 /** chart card helper with export menu */
-export function progChartCard(title, sub, mid, draw) {
-  const card = document.createElement('article'); card.className = 'card wide';
+export function progChartCard(title, sub, mid, draw, wide = true) {
+  const card = document.createElement('article'); card.className = wide ? 'card wide' : 'card';
   card.innerHTML = `<div class="card-head"><h3>${esc(title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-act="export" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg></button></div></div>
     ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div>
     <details class="how"><summary>Wie wird das berechnet?</summary>${(() => { const m = model(mid, progState().v);
@@ -216,6 +217,44 @@ export function progChartCard(title, sub, mid, draw) {
   return card;
 }
 
+/** bar chart state for an animated switch: region id -> {y centre, bar width, label y} (screen px) */
+function barState(div) {
+  if (!div || !div._rowIds) return null;
+  const pts = div.querySelectorAll('.bars .point'); const ticks = div.querySelectorAll('.ytick');
+  const st = new Map();
+  div._rowIds.forEach((rid, k) => {
+    const p = pts[k]?.querySelector('path'); const t = ticks[k]; if (!p) return;
+    const b = p.getBoundingClientRect(); st.set(rid, { y: b.top + b.height / 2, w: b.width, ty: t ? t.getBoundingClientRect().top : null });
+  });
+  return st;
+}
+/** FLIP: bars, values and names start where they were and slide to their new rank and length */
+function animateBars(div, prev) {
+  if (!div || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let tries = 0;
+  const run = () => {
+    const pts = div.querySelectorAll('.bars .point');
+    if (!div._rowIds || pts.length < div._rowIds.length) { if (tries++ < 40) requestAnimationFrame(run); return; }
+    const ticks = div.querySelectorAll('.ytick'); const moves = [];
+    div._rowIds.forEach((rid, k) => {
+      const g = pts[k]; const path = g.querySelector('path'); const txt = g.querySelector('text'); const t = ticks[k];
+      const b = path.getBoundingClientRect(); const o = prev.get(rid);
+      if (!o) { moves.push([g, 'opacity:0', 'opacity:1']); if (t) moves.push([t, 'opacity:0', 'opacity:1']); return; }
+      const dy = o.y - (b.top + b.height / 2); const sx = b.width ? o.w / b.width : 1;
+      moves.push([g, `transform:translateY(${dy}px)`, 'transform:none']);
+      path.style.transformBox = 'fill-box'; path.style.transformOrigin = '0 50%';
+      moves.push([path, `transform:scaleX(${sx})`, 'transform:none']);
+      if (txt) moves.push([txt, 'opacity:0', 'opacity:1']);   // values are positioned by Plotly's own transform: fade, don't move
+      if (t && o.ty != null) moves.push([t, `transform:translateY(${o.ty - t.getBoundingClientRect().top}px)`, 'transform:none']);
+    });
+    moves.forEach(([el, from]) => { el.style.transition = 'none'; el.setAttribute('data-flip', ''); el.style.cssText += ';' + from; });
+    div.getBoundingClientRect();   // apply the start state
+    requestAnimationFrame(() => moves.forEach(([el, , to]) => { el.style.transition = 'transform .6s cubic-bezier(.2,.7,.2,1), opacity .5s ease .25s'; el.style.cssText += ';' + to; }));
+    setTimeout(() => moves.forEach(([el]) => { el.style.transition = ''; el.style.transform = ''; el.style.opacity = ''; }), 1000);   // back to Plotly's own styling
+  };
+  requestAnimationFrame(run);
+}
+
 /** content of a topic's Ausblick view */
 export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   if (!d.prog) { box.innerHTML = '<p class="empty">Für diese Region liegt keine Prognose vor.</p>'; return; }
@@ -224,10 +263,10 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   box.appendChild(progLabel(mid, rerender));
   const grid = document.createElement('div'); grid.className = 'cards'; box.appendChild(grid);
   if (subId === 'alter') {
-    grid.appendChild(progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `Schwarz: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: gewählte Variante (BFS ${v}).`, mid, (div) => fanChart(div, r.id, d, 'b80')));
-    grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), schwarze Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d)));
+    grid.appendChild(progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `Schwarz: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: gewählte Variante (BFS ${v}).`, mid, (div) => fanChart(div, r.id, d, 'b80'), false));
+    grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), schwarze Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d), false));
   } else {
-    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
+    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph'), false));
   }
   // all forecast indicators of the topic in one card; buttons switch the indicator (sentence, bars, explanation follow)
   const cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards);
@@ -235,6 +274,7 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   const LAB = { p_bev: 'Bevölkerung', p_b65: 'ab 65', p_b80: 'ab 80', p_a80: 'Anteil 80+', p_aq: 'Altersquotient', p_aph: 'Benötigte Plätze', p_aph_diff: 'Zusätzliche Plätze' };
   let cur = inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
   const show = async (iid) => {
+    const prev = barState(cards.querySelector('.chart'));
     cur = iid; const card = await progCard(iid, r.id, mode);
     if (inds.length > 1) {
       const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
@@ -243,6 +283,7 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
       seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && b.dataset.k !== cur) show(b.dataset.k); });
     }
     cards.replaceChildren(card);
+    if (prev) animateBars(card.querySelector('.chart'), prev);
   };
   if (cur) await show(cur);
 }
