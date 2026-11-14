@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114211752';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261114211752';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114211752';
-import { esc } from './ui.js?v=20261114211752';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114212552';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows } from './cards.js?v=20261114212552';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114212552';
+import { esc } from './ui.js?v=20261114212552';
 
 let PV = null;
 export async function loadProg() {
@@ -115,20 +115,23 @@ export async function progCard(indId, id, mode = 'kt') {
   const members = mode !== 'kt' && r.e !== 'CH' ? groupMembers(mode, id) : [];
   const refIds = r.e === 'KT' ? ['CH'] : [`KT:${r.kt}`, 'CH'];
   const ids = members.length ? [id, ...members, ...refIds] : [id, ...parents(id)];
+  // in a ranking, Kanton and Schweiz are sorted in as benchmarks (with distinct labels, a Gemeinde may share the Kanton's name)
   const rows = members.length
-    ? [...[id, ...members].map(metric).filter((d) => d.y != null).sort((a, b) => b.y - a.y), ...refIds.map(metric).filter((d) => d.y != null)]
+    ? [id, ...members, ...refIds].map(metric).filter((d) => d.y != null).sort((a, b) => b.y - a.y)
     : ids.map(metric).filter((d) => d.y != null);
+  const lab0 = (x) => (x === 'CH' ? 'Schweiz' : members.length && refIds.includes(x) ? `Kanton ${region(x).kt}` : shortName(x));
   const grpCol = (x) => (x === id ? C.me : x === 'CH' ? C.ch : region(x).e === 'KT' && (members.length === 0 || refIds.includes(x)) ? C.kt : members.length ? C.grey : C.bez);
   const rowH = members.length ? 26 : 46;
   const div = card.querySelector('.chart');
   const lab = share ? `${i.short.replace(' (Prognose)', '')} ${j}` : indId === 'p_aph_diff' ? `Zusätzliche Plätze ${j} in % der heutigen Plätze` : `Veränderung ${base}–${j} in %`;
   requestAnimationFrame(() => {
-    plot(div, [{ type: 'bar', orientation: 'h', y: rows.map((d) => (d.x === id ? `<b>${shortName(d.x)}</b>` : shortName(d.x))), x: rows.map((d) => d.y),
+    plot(div, [{ type: 'bar', orientation: 'h', y: rows.map((d) => (d.x === id ? `<b>${shortName(d.x)}</b>` : lab0(d.x))), x: rows.map((d) => d.y),
       marker: { color: rows.map((d) => grpCol(d.x)) },
       text: rows.map((d) => (share ? fmtP(d.y, i) : sign(d.y))), textposition: 'outside', cliponaxis: false, hoverinfo: 'skip' }],
     baseLayout({ height: rowH * rows.length + 46, margin: { l: 8, r: 70, t: 22, b: 4 }, yaxis: { autorange: 'reversed', automargin: true },
       xaxis: { visible: false, rangemode: 'tozero' }, bargap: 0.35,
       annotations: [{ text: lab, xref: 'paper', yref: 'paper', x: 0, y: 1.02, yanchor: 'bottom', xanchor: 'left', showarrow: false, font: { size: 11, color: C.muted } }] }));
+    if (members.length) scrollRows(div, rows.length, rowH, 22, rows.findIndex((d) => d.x === id));
     div._table = { columns: ['Region', `${base}`, ...S.meta.prog.variants.map((vv) => `${j} BFS ${vv}`)],
       rows: ids.map((x) => [x === 'CH' ? 'Schweiz' : shortName(x), rnd(pval(P, indId, x, 'mittel', base), 2), ...S.meta.prog.variants.map((vv) => rnd(pval(P, indId, x, vv, j), 2))]) };
   });

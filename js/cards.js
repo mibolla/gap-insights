@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114211752';
-import { toast, esc } from './ui.js?v=20261114211752';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114211752';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114212552';
+import { toast, esc } from './ui.js?v=20261114212552';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114212552';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -22,6 +22,19 @@ export const plot = (div, data, layout, cfg = {}) => {
   if (layout.height) div.style.height = `${layout.height}px`;
   return Plotly.react(div, data, layout, { ...CFG, ...cfg });
 };
+/** long rankings (more than `show` bars): a window of `show` rows that scrolls, opened at the selected region */
+export const SCROLL_ROWS = 10;
+export function scrollRows(div, n, rowH, top, focus = 0, show = SCROLL_ROWS) {
+  const old = div.parentElement?.classList.contains('chart-scroll') ? div.parentElement : null;
+  if (n <= show) { if (old) { old.replaceWith(div); } return; }
+  const wrap = old || document.createElement('div');
+  if (!old) { wrap.className = 'chart-scroll'; div.replaceWith(wrap); wrap.appendChild(div); }
+  wrap.style.maxHeight = `${top + rowH * show + 6}px`;
+  let hint = wrap.nextElementSibling?.classList.contains('scroll-hint') ? wrap.nextElementSibling : null;
+  if (!hint) { hint = document.createElement('p'); hint.className = 'scroll-hint'; wrap.after(hint); }
+  hint.textContent = `${n} Einträge – in der Liste scrollen`;
+  requestAnimationFrame(() => { wrap.scrollTop = Math.max(0, top + rowH * focus - (rowH * show) / 2); });
+}
 
 const ICON = {
   star: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m12 3 2.7 5.6 6.2.9-4.5 4.3 1 6.2L12 17l-5.5 3 1-6.2L3 9.5l6.2-.9z"/></svg>',
@@ -154,6 +167,7 @@ export function groupChart(div, indId, id, mode) {
     hovertemplate: '%{y}: %{x}<extra></extra>' }],
   baseLayout({ height: 26 * rows.length + (close ? 74 : 60), margin: { l: 8, r: 60, t: close ? 40 : 26, b: 4 }, shapes, annotations: ann,
     yaxis: { autorange: 'reversed', automargin: true, tickfont: { size: 12 } }, xaxis: { visible: false, rangemode: 'tozero' }, bargap: 0.25 }));
+  scrollRows(div, rows.length, 26, close ? 40 : 26, rows.findIndex((d) => d.x === id));
 }
 
 // ---------------------------------------------------------------- special charts per Unterthema
