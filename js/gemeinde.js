@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114225343';
-import { createMap } from './map.js?v=20261114225343';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114225343';
-import { omnibox } from './search.js?v=20261114225343';
-import { esc, main } from './ui.js?v=20261114225343';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114225343';
-import { openReportDialog } from './report.js?v=20261114225343';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114225850';
+import { createMap } from './map.js?v=20261114225850';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114225850';
+import { omnibox } from './search.js?v=20261114225850';
+import { esc, main } from './ui.js?v=20261114225850';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114225850';
+import { openReportDialog } from './report.js?v=20261114225850';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -379,7 +379,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
     box.appendChild(c.card); drawK('b80');
   } else if (subId === 'heimentwicklung') {
-    const c = chartCard(`Alters- und Pflegeheime ${y0}–${y1}`, '', 'somed_ts');
+    const c = chartCard(`Alters- und Pflegeheime ${y0}–${y1}`, '', 'somed_ts', false);   // half width, lean style
     const n = y1 - y0; const name = esc(shortName(r.id));
     const own = d.aph_ts && d.aph_ts.pl.some((x) => x > 0);
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');

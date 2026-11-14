@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114225343';
-import { toast, esc } from './ui.js?v=20261114225343';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114225343';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114225850';
+import { toast, esc } from './ui.js?v=20261114225850';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114225850';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -223,6 +223,28 @@ export function pyramid(div, d, dk, years, refName = 'Schweiz') {
     yaxis: { automargin: true, tickfont: { size: 11 }, tickvals: yi, ticktext: g, range: [-0.6, g.length - 0.4], zeroline: false, showgrid: false } }));
 }
 
+/** lean line chart (report style): end dots and «Name value» labels at the line ends (pushed apart), horizontal grid only.
+ *  ends: [{s, k, x:[years], y:[values]}] in series order; data: the line traces */
+function leanPlot(div, data, ends0, nm, years, { note = '', ref100 = false, tozero = false, fmtEnd = (v) => fmtInt(Math.round(v)) } = {}) {
+  const ends = ends0.map((e) => { let i = e.y.length - 1; while (i >= 0 && e.y[i] == null) i--; return i < 0 ? null : { ...e, x: e.x[i], y: e.y[i] }; }).filter(Boolean);
+  data.push({ type: 'scatter', mode: 'markers', x: ends.map((e) => e.x), y: ends.map((e) => e.y), showlegend: false, hoverinfo: 'skip',
+    marker: { size: ends.map((e) => (e.k === 0 ? 9 : 7)), color: ends.map((e) => colOf(e.s, e.k)) } });
+  const H = 300; const all = data.flatMap((t) => t.y).filter((v) => v != null);
+  const lo = Math.min(ref100 ? 100 : tozero ? 0 : Infinity, ...all); const hi = Math.max(ref100 ? 100 : -Infinity, ...all);
+  const gap = ((hi - lo) || 1) * 17 / (H - 40);
+  const lbl = [...ends].sort((a, b) => b.y - a.y); lbl.forEach((e, i) => { e.ly = i ? Math.min(e.y, lbl[i - 1].ly - gap) : e.y; });
+  const ann = lbl.map((e) => ({ x: e.x, y: e.ly, xanchor: 'left', xshift: 8, showarrow: false,
+    text: `${e.k === 0 ? '<b>' : ''}${nm(e.s)} ${fmtEnd(e.y)}${e.k === 0 ? '</b>' : ''}`, font: { size: e.k === 0 ? 13 : 12, color: colOf(e.s, e.k) } }));
+  if (note) ann.push({ text: note, xref: 'paper', yref: 'paper', x: 0, y: 1.02, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 11, color: C.muted } });
+  const lw = Math.max(60, ...ends.map((e) => (nm(e.s).length + 4) * 7)) + 14;
+  plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: ann,
+    xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line },
+    yaxis: { gridcolor: '#e6eaed', zeroline: false, rangemode: tozero ? 'tozero' : 'normal' },
+    shapes: ref100 ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.muted, width: 1, dash: 'dot' } }] : [] }));
+}
+/** display name in charts: Kantone as «Kanton XY» */
+const nmOf = (s) => (s.id === 'CH' || s.grp ? nameOf(s) : region(s.id).e === 'KT' ? `Kanton ${region(s.id).kt}` : nameOf(s));
+
 export function indexLines(div, series, which, years) {
   // series: [{id, d}] ; which: 'bev'|'b65'|'b80'
   // lean style (like the report): solid lines, the region thick, names and end values at the line ends instead of a legend
@@ -231,24 +253,7 @@ export function indexLines(div, series, which, years) {
   const data = series.map((s, k) => ({ type: 'scatter', mode: 'lines', x: s.d.ts.y, y: idx(s.d), name: nm(s), showlegend: false,
     line: { color: colOf(s, k), width: k === 0 ? 3.5 : s.grp ? 2.5 : 2 },
     customdata: s.d.ts[which], hovertemplate: `${nm(s)} %{x}: %{customdata:,.0f} Personen (Index %{y:.0f})<extra></extra>` }));
-  const ends = series.map((s, k) => { const y = idx(s.d); return { k, x: s.d.ts.y[y.length - 1], y: y[y.length - 1], s }; }).filter((e) => e.y != null);
-  data.push({ type: 'scatter', mode: 'markers', x: ends.map((e) => e.x), y: ends.map((e) => e.y), showlegend: false, hoverinfo: 'skip',
-    marker: { size: ends.map((e) => (e.k === 0 ? 9 : 7)), color: ends.map((e) => colOf(e.s, e.k)) } });
-  // end labels: sorted from the top, pushed apart so they never overlap
-  const H = 300; const lo = Math.min(100, ...data.flatMap((t) => t.y).filter((v) => v != null)); const hi = Math.max(100, ...data.flatMap((t) => t.y).filter((v) => v != null));
-  const gap = ((hi - lo) || 1) * 17 / (H - 40);
-  const lbl = [...ends].sort((a, b) => b.y - a.y); for (let i = 1; i < lbl.length; i++) lbl[i].ly = Math.min(lbl[i].y, (lbl[i - 1].ly ?? lbl[i - 1].y) - gap); lbl[0].ly = lbl[0].y;
-  const ann = lbl.map((e) => ({ x: e.x, y: e.ly ?? e.y, xanchor: 'left', xshift: 8, showarrow: false, cliponaxis: false, text: `${e.k === 0 ? '<b>' : ''}${nm(e.s)} ${fmtInt(Math.round(e.y))}${e.k === 0 ? '</b>' : ''}`,
-    font: { size: e.k === 0 ? 13 : 12, color: colOf(e.s, e.k) } }));
-  const lab = { bev: 'Bevölkerung', b65: 'Personen ab 65', b80: 'Personen ab 80' }[which];
-  div._table = { columns: ['Jahr', ...series.flatMap((s) => [`${nameOf(s)}: ${lab}`, `${nameOf(s)}: Index ${years[0]} = 100`])],
-    rows: series[0].d.ts.y.map((y, k) => [y, ...series.flatMap(({ d }) => [d.ts[which][k], rnd(d.ts[which][0] ? (d.ts[which][k] / d.ts[which][0]) * 100 : null, 1)])]) };
-  div._title = `Entwicklung ${lab} ${years[0]}–${years[1]}`;
-  const lw = Math.max(...ends.map((e) => (nm(e.s).length + 4) * 7)) + 14;
-  plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: [...ann,
-      { text: `Index ${years[0]} = 100`, xref: 'paper', yref: 'paper', x: 0, y: 1.02, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 11, color: C.muted } }],
-    xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line }, yaxis: { gridcolor: '#e6eaed', zeroline: false },
-    shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.muted, width: 1, dash: 'dot' } }] }));
+  leanPlot(div, data, series.map((s, k) => ({ s, k, x: s.d.ts.y, y: idx(s.d) })), nm, years, { note: `Index ${years[0]} = 100`, ref100: true });
 }
 
 /** Alters- und Pflegeheime over time. which: 'pl80' places per 1000 80+, 'kl80' residents per 1000 80+,
@@ -264,20 +269,18 @@ export function aphLines(div, series, which, years) {
   const abs = which === 'kl80' ? 'kl' : 'pl';
   const data = use.map((s) => {
     const k0 = series.indexOf(s); const a = s.d.aph_ts;
-    return { type: 'scatter', mode: 'lines+markers', x: a.y, y: a.y.map((_, k) => rnd(aphRate(s, which, k), 1)), name: nameOf(s),
-      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
+    return { type: 'scatter', mode: 'lines', x: a.y, y: a.y.map((_, k) => rnd(aphRate(s, which, k), 1)), name: nmOf(s), showlegend: false,
+      line: { color: colOf(s, k0), width: k0 === 0 ? 3.5 : s.grp ? 2.5 : 2 },
       customdata: a[abs], hovertemplate: which === 'pl'
-        ? `${nameOf(s)} %{x}: %{customdata:,.0f} Plätze (Index %{y:.0f})<extra></extra>`
-        : `${nameOf(s)} %{x}: %{y:.0f} pro 1000 ab 80 (%{customdata:,.0f} ${abs === 'kl' ? 'Heimbewohnende' : 'Plätze'})<extra></extra>` };
+        ? `${nmOf(s)} %{x}: %{customdata:,.0f} Plätze (Index %{y:.0f})<extra></extra>`
+        : `${nmOf(s)} %{x}: %{y:.0f} pro 1000 ab 80 (%{customdata:,.0f} ${abs === 'kl' ? 'Heimbewohnende' : 'Plätze'})<extra></extra>` };
   });
   const lab = APH_TS_OPTS[which];
   div._table = { columns: ['Jahr', ...use.flatMap((s) => [`${nameOf(s)}: ${abs === 'kl' ? 'Heimbewohnende' : 'Plätze'}`, `${nameOf(s)}: ${which === 'pl' ? `Index ${years[0]} = 100` : 'pro 1000 ab 80'}`])],
     rows: (use[0] ? use[0].d.aph_ts.y : []).map((y, k) => [y, ...use.flatMap((s) => [s.d.aph_ts[abs][k], rnd(aphRate(s, which, k), 1)])]) };
   div._title = `${lab} ${years[0]}–${years[1]}`;
-  plot(div, data, baseLayout({ height: 340, showlegend: true, legend: { orientation: 'h', y: -0.15 }, margin: { l: 44, r: 12, t: 10, b: 50 },
-    xaxis: { dtick: 2, gridcolor: '#eef1f3' },
-    yaxis: { title: { text: which === 'pl' ? `Index ${years[0]} = 100` : 'pro 1000 Menschen ab 80', font: { size: 11 } }, gridcolor: '#eef1f3', rangemode: which === 'pl' ? 'normal' : 'tozero' },
-    shapes: which === 'pl' ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.line, width: 1 } }] : [] }));
+  leanPlot(div, data, use.map((s) => ({ s, k: series.indexOf(s), x: s.d.aph_ts.y, y: s.d.aph_ts.y.map((_, k) => aphRate(s, which, k)) })), nmOf, years,
+    { note: which === 'pl' ? `Index ${years[0]} = 100` : 'pro 1000 Menschen ab 80', ref100: which === 'pl', tozero: which !== 'pl' });
 }
 
 /** one Heim indicator over time (detail.aph_hist[indId]); series without values are left out */
