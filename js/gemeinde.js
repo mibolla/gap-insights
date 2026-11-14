@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141402';
-import { createMap } from './map.js?v=20261114141402';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141402';
-import { omnibox } from './search.js?v=20261114141402';
-import { esc, main } from './ui.js?v=20261114141402';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141402';
-import { openReportDialog } from './report.js?v=20261114141402';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114141928';
+import { createMap } from './map.js?v=20261114141928';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114141928';
+import { omnibox } from './search.js?v=20261114141928';
+import { esc, main } from './ui.js?v=20261114141928';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114141928';
+import { openReportDialog } from './report.js?v=20261114141928';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -27,7 +27,15 @@ export async function render(id, sub, p3) {
   const page = document.createElement('div'); page.className = 'wrap page'; main().appendChild(page);
   // mini map
   const mm = document.getElementById('miniMap');
-  if (mm && r.e !== 'CH') { const m = createMap(mm, { interactive: false, mini: true }); m.select(id); }
+  if (mm && r.e !== 'CH') {
+    const m = createMap(mm, { interactive: false, mini: true }); m.select(id);
+    // hovering a neighbour in the list colours it on the mini map (hover or keyboard focus, not click)
+    main().querySelectorAll('.near-list[data-near="nb"] a[data-id]').forEach((a) => {
+      const on = () => m.highlight([a.dataset.id]); const off = () => m.highlight([]);
+      a.addEventListener('mouseenter', on); a.addEventListener('focus', on);
+      a.addEventListener('mouseleave', off); a.addEventListener('blur', off);
+    });
+  }
   const rerender = async () => { const y = window.scrollY; await render(id, sub, p3); window.scrollTo(0, y); };
   if (!sub) await portrait(page, r, d);
   else if (sub === '__ausblick') await ausblickPage(page, r, d, rerender);
@@ -65,7 +73,7 @@ function nearby(r, sub) {
     .sort((a, b) => Math.abs(Math.log(a.pop / r.pop)) - Math.abs(Math.log(b.pop / r.pop))).slice(0, NEAR_N).sort((a, b) => b.pop - a.pop);
   if (!nb.length && !sz.length) return '';
   const tab = prefs().nearTab === 'size' && sz.length ? 'size' : nb.length ? 'nb' : 'size';
-  const row = (x) => `<li><a href="#/gemeinde/${x.id}${sub ? '/' + sub : ''}" title="${esc(x.n)} (${x.kt}) · ${fmtInt(x.pop)} Einwohner">${wappenImg(x.id, 'wappen')}<span class="nr-n">${esc(x.n.replace(` (${x.kt})`, ''))}</span><span class="nr-kt">${x.kt}</span><span class="nr-p num">${fmtInt(x.pop)}</span></a></li>`;
+  const row = (x) => `<li><a data-id="${x.id}" href="#/gemeinde/${x.id}${sub ? '/' + sub : ''}" title="${esc(x.n)} (${x.kt}) · ${fmtInt(x.pop)} Einwohner">${wappenImg(x.id, 'wappen')}<span class="nr-n">${esc(x.n.replace(` (${x.kt})`, ''))}</span><span class="nr-kt">${x.kt}</span><span class="nr-p num">${fmtInt(x.pop)}</span></a></li>`;
   const list = (k, xs, more) => `<ul class="near-list" data-near="${k}"${k === tab ? '' : ' hidden'}>${xs.slice(0, NEAR_N).map(row).join('')}${more > 0 ? `<li class="nr-more">+ ${more} weitere</li>` : ''}</ul>`;
   return `<nav class="near no-print" aria-label="Gemeinden in der Nähe und ähnlich grosse Gemeinden">
     <div class="near-tabs" role="tablist">${[['nb', 'Nachbarn', nb], ['size', 'Ähnliche Grösse', sz]].filter(([, , xs]) => xs.length).map(([k, l]) =>

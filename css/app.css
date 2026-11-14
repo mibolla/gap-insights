@@ -315,6 +315,7 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .keyfacts b { color: var(--ink); font-weight: 600; }
 .mini-map { height: 160px; }
 .mini-map .map { aspect-ratio: auto; height: 100%; }
+.mini-map .gde path.hl { fill: var(--blue); stroke: var(--ink); stroke-width: 1.2; transition: fill .15s; }
 .rh-side { display: grid; grid-template-columns: 260px; min-width: 0; }
 /* Gemeinde: map left, list right, same height (the map stretches to the list) */
 .rh-side:has(.near) { grid-template-columns: 240px 210px; gap: 18px; align-items: stretch; }
