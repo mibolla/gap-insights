@@ -134,6 +134,7 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .viewbar + .own-row { margin-top: -8px; }
 .viewbar + .own-row .card { border: 1px solid #2a9d8f; background: #f4fbfa; box-shadow: none; }
 @media (max-width: 640px) { .cmpsel { margin-left: 0; } .topics-compact .cmpsel.sm { display: none; } }
+.rd-grp .seg { flex-wrap: wrap; justify-content: flex-start; }
 .own-card { padding: 12px 16px; gap: 8px; }
 .own-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .own-head h3 { font-size: .98rem; margin: 0; }

@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261114222104';
-import { loadProg, roundProg } from './prog.js?v=20261114222104';
-import { esc, toast } from './ui.js?v=20261114222104';
-import * as story from './report_story.js?v=20261114222104';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261114222104';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261114223536';
+import { loadProg, roundProg } from './prog.js?v=20261114223536';
+import { esc, toast } from './ui.js?v=20261114223536';
+import * as story from './report_story.js?v=20261114223536';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114223536';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -67,7 +67,7 @@ export function openReportDialog(id) {
       <div class="rd-row"><span class="pl-lab">Zieljahr</span><div class="seg" role="group" aria-label="Zieljahr">${S.meta.prog.years.map((y) => `<button type="button" data-j="${y}" aria-pressed="${y === st.j}">${y}</button>`).join('')}</div></div>
       <div class="rd-row"><span class="pl-lab">Variante</span><div class="seg" role="group" aria-label="Variante">${S.meta.prog.variants.map((v) => `<button type="button" data-v="${v}" aria-pressed="${v === st.v}">BFS ${v}</button>`).join('')}</div></div></fieldset>
     <fieldset><legend>Vergleichen mit</legend>
-      <div class="rd-row"><span class="pl-lab">Gruppe</span><div class="seg wrap" role="group" aria-label="Vergleichen mit">${reportModes(r).map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === st.mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>
+      <div class="rd-grp"><div class="seg wrap" role="group" aria-label="Vergleichen mit">${reportModes(r).map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === st.mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>
       <p class="muted small rd-own"></p></fieldset>
     <fieldset><legend>Kapitel</legend><div class="rd-chaps">${opt.map((c) =>
       `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: L.name, j: st.j, L }))}${c.only ? ' <span class="muted small">(nur Ausführlich)</span>' : ''}</label>`).join('')}</div>
