@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114230644';
-import { toast, esc } from './ui.js?v=20261114230644';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114230644';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114231041';
+import { toast, esc } from './ui.js?v=20261114231041';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114231041';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -226,21 +226,42 @@ export function pyramid(div, d, dk, years, refName = 'Schweiz') {
 /** lean line chart (report style): end dots and «Name value» labels at the line ends (pushed apart), horizontal grid only.
  *  ends: [{s, k, x:[years], y:[values]}] in series order; data: the line traces */
 function leanPlot(div, data, ends0, nm, years, { note = '', ref100 = false, tozero = false, fmtEnd = (v) => fmtInt(Math.round(v)) } = {}) {
-  const ends = ends0.map((e) => { let i = e.y.length - 1; while (i >= 0 && e.y[i] == null) i--; return i < 0 ? null : { ...e, x: e.x[i], y: e.y[i] }; }).filter(Boolean);
+  const nLines = data.length;                 // traces 0..nLines-1 are the lines, in the order of ends0
+  const ends = ends0.map((e, ti) => { let i = e.y.length - 1; while (i >= 0 && e.y[i] == null) i--; return i < 0 ? null : { ...e, ti, x: e.x[i], y: e.y[i] }; }).filter(Boolean);
   data.push({ type: 'scatter', mode: 'markers', x: ends.map((e) => e.x), y: ends.map((e) => e.y), showlegend: false, hoverinfo: 'skip',
     marker: { size: ends.map((e) => (e.k === 0 ? 9 : 7)), color: ends.map((e) => colOf(e.s, e.k)) } });
   const H = 300; const all = data.flatMap((t) => t.y).filter((v) => v != null);
   const lo = Math.min(ref100 ? 100 : tozero ? 0 : Infinity, ...all); const hi = Math.max(ref100 ? 100 : -Infinity, ...all);
   const gap = ((hi - lo) || 1) * 17 / (H - 40);
   const lbl = [...ends].sort((a, b) => b.y - a.y); lbl.forEach((e, i) => { e.ly = i ? Math.min(e.y, lbl[i - 1].ly - gap) : e.y; });
-  const ann = lbl.map((e) => ({ x: e.x, y: e.ly, xanchor: 'left', xshift: 8, showarrow: false,
+  const ann = lbl.map((e) => ({ x: e.x, y: e.ly, xanchor: 'left', xshift: 8, showarrow: false, captureevents: true,
     text: `${e.k === 0 ? '<b>' : ''}${nm(e.s)} ${fmtEnd(e.y)}${e.k === 0 ? '</b>' : ''}`, font: { size: e.k === 0 ? 13 : 12, color: colOf(e.s, e.k) } }));
   if (note) ann.push({ text: note, xref: 'paper', yref: 'paper', x: 0, y: 1.02, xanchor: 'left', yanchor: 'bottom', showarrow: false, font: { size: 11, color: C.muted } });
   const lw = Math.max(60, ...ends.map((e) => (nm(e.s).length + 4) * 7)) + 14;
-  plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: ann,
+  const done = plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: ann,
     xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: years[1] - years[0] <= 6 ? Array.from({ length: years[1] - years[0] + 1 }, (_, k) => years[0] + k) : [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line },
     yaxis: { gridcolor: '#e6eaed', zeroline: false, rangemode: tozero ? 'tozero' : 'normal' },
     shapes: ref100 ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.muted, width: 1, dash: 'dot' } }] : [] }));
+  // hover a name (or a line): that line stays, all other lines, end dots and names fade
+  const focus = (ti) => {
+    const tr = div.querySelectorAll('.scatterlayer .trace');
+    for (let t = 0; t < nLines; t++) if (tr[t]) { tr[t].style.transition = 'opacity .15s'; tr[t].style.opacity = ti == null || t === ti ? 1 : 0.15; }
+    tr[nLines]?.querySelectorAll('.point').forEach((p, e) => { p.style.opacity = ti == null || ends[e]?.ti === ti ? 1 : 0.15; });
+    div.querySelectorAll('.annotation').forEach((a, j) => { if (j < lbl.length) { a.style.transition = 'opacity .15s'; a.style.opacity = ti == null || lbl[j].ti === ti ? 1 : 0.25; } });
+  };
+  Promise.resolve(done).then(() => {
+    div.querySelectorAll('.annotation').forEach((a, j) => {
+      if (j >= lbl.length) return;
+      a.style.cursor = 'default';
+      a.onmouseenter = () => focus(lbl[j].ti); a.onmouseleave = () => focus(null);
+    });
+    if (!div._leanHover) {                    // once per chart div (it is redrawn when a button changes the indicator)
+      div._leanHover = true;
+      div.on('plotly_hover', (ev) => { const c = ev.points?.[0]?.curveNumber; if (c != null && c < div._nLines) div._focus(c); });
+      div.on('plotly_unhover', () => div._focus(null));
+    }
+    div._nLines = nLines; div._focus = focus;
+  });
 }
 /** display name in charts: Kantone as «Kanton XY» */
 const nmOf = (s) => (s.id === 'CH' || s.grp ? nameOf(s) : region(s.id).e === 'KT' ? `Kanton ${region(s.id).kt}` : nameOf(s));
