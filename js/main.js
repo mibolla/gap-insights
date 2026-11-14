@@ -1,11 +1,11 @@
 // Boot, router and top bar.
-import { S, loadAll, mappe } from './store.js?v=20261114142026';
-import * as landing from './landing.js?v=20261114142026';
-import * as gemeinde from './gemeinde.js?v=20261114142026';
-import * as frage from './frage.js?v=20261114142026';
-import * as pages from './pages.js?v=20261114142026';
-import { omnibox } from './search.js?v=20261114142026';
-import { main } from './ui.js?v=20261114142026';
+import { S, loadAll, mappe } from './store.js?v=20261114142704';
+import * as landing from './landing.js?v=20261114142704';
+import * as gemeinde from './gemeinde.js?v=20261114142704';
+import * as frage from './frage.js?v=20261114142704';
+import * as pages from './pages.js?v=20261114142704';
+import { omnibox } from './search.js?v=20261114142704';
+import { main } from './ui.js?v=20261114142704';
 
 function updateMappeCount() {
   const n = mappe().length; const b = document.getElementById('mappeCount');
@@ -32,7 +32,9 @@ async function route() {
     document.title = titleFor(p0, p1);
   } catch (e) {
     console.error(e);
-    main().innerHTML = `<div class="wrap page"><p class="empty">Diese Ansicht konnte nicht geladen werden. <a href="#/">Zur Startseite</a></p></div>`;
+    // a reload fetches a consistent set of files (right after a new version was published, a browser can hold a mix)
+    main().innerHTML = `<div class="wrap page"><p class="empty">Diese Ansicht konnte nicht geladen werden. <a href="#" data-reload>Seite neu laden</a> · <a href="#/">Zur Startseite</a></p></div>`;
+    main().querySelector('[data-reload]').addEventListener('click', (ev) => { ev.preventDefault(); location.reload(); });
   }
 }
 

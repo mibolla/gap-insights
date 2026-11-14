@@ -1,5 +1,5 @@
 // Swiss map: Gemeinden as SVG paths (LV95 projected to a 1000 px wide box), zoom and pan with d3.zoom.
-import { S, region, fmtInt } from './store.js?v=20261114142026';
+import { S, region, fmtInt } from './store.js?v=20261114142704';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];

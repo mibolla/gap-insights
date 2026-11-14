@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114142026';
-import { createMap } from './map.js?v=20261114142026';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114142026';
-import { omnibox } from './search.js?v=20261114142026';
-import { esc, main } from './ui.js?v=20261114142026';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114142026';
-import { openReportDialog } from './report.js?v=20261114142026';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114142704';
+import { createMap } from './map.js?v=20261114142704';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114142704';
+import { omnibox } from './search.js?v=20261114142704';
+import { esc, main } from './ui.js?v=20261114142704';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114142704';
+import { openReportDialog } from './report.js?v=20261114142704';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -251,7 +251,7 @@ function ownBox(r, mode, redraw) {
   if (!box) return;
   if (mode !== 'own') { box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
-  const own = prefs().own || [];
+  const own = (prefs().own || []).filter((x) => S.byId.has(x));   // ignore ids that no longer exist (merged Gemeinden, old links)
   box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">Zum Beispiel die Gemeinden Ihrer Versorgungsregion. Die Auswahl bleibt in diesem Browser gespeichert.</p>
     <div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
       <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || '<span class="muted small">Noch keine Gemeinden gewählt.</span>'}</div><div id="ownSearch"></div></div>`;
