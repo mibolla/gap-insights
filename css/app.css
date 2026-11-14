@@ -304,7 +304,7 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 
 /* ---------- region pages */
 .rhead { background: var(--surface); border-bottom: 1px solid var(--line); }
-.rhead-in { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; padding-block: 22px 18px; align-items: center; }
+.rhead-in { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; padding-block: 22px 18px; align-items: start; }
 .crumbs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: .86rem; color: var(--muted); }
 .crumbs a { color: var(--muted); text-decoration: none; }
 .crumbs a:hover { color: var(--blue); }
@@ -315,7 +315,24 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .keyfacts b { color: var(--ink); font-weight: 600; }
 .mini-map { height: 160px; }
 .mini-map .map { aspect-ratio: auto; height: 100%; }
-@media (max-width: 760px) { .rhead-in { grid-template-columns: minmax(0, 1fr); } .mini-map { display: none; } }
+.rh-side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rh-side:has(.near) .mini-map { height: 132px; }
+/* neighbours / similar size: small and muted so the selected Gemeinde keeps the attention */
+.near { font-size: .8rem; color: var(--muted); }
+.near-tabs { display: flex; gap: 14px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.near-tabs button { border: 0; background: none; padding: 2px 0 4px; font: inherit; font-size: .74rem; letter-spacing: .02em; color: var(--faint); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.near-tabs button[aria-selected="true"] { color: var(--muted); border-bottom-color: var(--line-strong); }
+.near-tabs button:hover { color: var(--ink); }
+.near-list { list-style: none; margin: 0; padding: 0; }
+.near-list a { display: flex; align-items: center; gap: 7px; padding: 2px 4px; margin-inline: -4px; border-radius: 6px; color: var(--muted); text-decoration: none; line-height: 1.35; }
+.near-list a:hover, .near-list a:focus-visible { background: var(--blue-soft); color: var(--ink); }
+.near-list .wappen { height: 15px; max-width: 13px; filter: none; opacity: .85; }
+.near-list a:hover .wappen { opacity: 1; }
+.nr-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nr-kt { font-size: .7rem; color: var(--faint); }
+.nr-p { margin-left: auto; padding-left: 8px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.nr-more { padding: 2px 0 0; font-size: .72rem; color: var(--faint); }
+@media (max-width: 760px) { .rhead-in { grid-template-columns: minmax(0, 1fr); } .mini-map { display: none; } .near-list { columns: 2; column-gap: 18px; } }
 
 /* topic panel: one row per Thema, Überblick tile on the left */
 .topics { background: var(--surface); border-bottom: 1px solid var(--line); }

@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114133456';
-import { createMap } from './map.js?v=20261114133456';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114133456';
-import { omnibox } from './search.js?v=20261114133456';
-import { esc, main } from './ui.js?v=20261114133456';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114133456';
-import { openReportDialog } from './report.js?v=20261114133456';
+  prefs, setPrefs, groupMembers, groupLabel, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114140106';
+import { createMap } from './map.js?v=20261114140106';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114140106';
+import { omnibox } from './search.js?v=20261114140106';
+import { esc, main } from './ui.js?v=20261114140106';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114140106';
+import { openReportDialog } from './report.js?v=20261114140106';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -20,7 +20,7 @@ export async function render(id, sub, p3) {
   setPrefs({ last: id });
   const d = await detail(id);
   main().innerHTML = '';
-  main().appendChild(header(r, d));
+  main().appendChild(header(r, d, sub && sub !== '__ausblick' ? sub : null));
   main().querySelector('[data-report]')?.addEventListener('click', () => openReportDialog(id));
   const panel = topicPanel(r, sub); const bar = compactBar(r, sub);
   main().appendChild(bar); main().appendChild(panel); wireCompact(panel, bar);
@@ -37,7 +37,7 @@ export async function render(id, sub, p3) {
   if (wantReport && r.e === 'GDE') openReportDialog(id);
 }
 
-function header(r, d) {
+function header(r, d, sub) {
   const crumbs = ['CH', ...(r.e === 'GDE' ? [`KT:${r.kt}`, r.bez] : r.e === 'BEZ' ? [`KT:${r.kt}`] : r.e === 'KT' ? [] : [])];
   const ts = d.ts; const n = ts.y.length - 1;
   const g80 = ts.b80[0] ? (ts.b80[n] / ts.b80[0] - 1) * 100 : null;
@@ -51,8 +51,31 @@ function header(r, d) {
         ${d.aph ? `<span><b>${fmtInt(d.aph.heime)}</b> Pflegeheim${d.aph.heime === 1 ? '' : 'e'} · ${fmtInt(d.aph.plaetze)} Plätze</span>` : r.e === 'GDE' ? '<span>kein Pflegeheim</span>' : ''}
         ${d.spitex && d.spitex.length ? `<span><b>${d.spitex.length}</b> Spitex-Organisation${d.spitex.length === 1 ? '' : 'en'} mit Sitz hier</span>` : ''}</div>
       ${r.e === 'GDE' ? `<div class="rh-actions no-print"><button type="button" class="btn small primary" data-report><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8"/></svg>Bericht erstellen</button><span class="muted small">Alle Themen für ${esc(r.n)} als HTML-Bericht</span></div>` : ''}
-    </div><div class="mini-map" id="miniMap" aria-hidden="true"></div></div>`;
+    </div><div class="rh-side"><div class="mini-map" id="miniMap" aria-hidden="true"></div>${r.e === 'GDE' ? nearby(r, sub) : ''}</div></div>`;
+  wireNearby(el);
   return el;
+}
+
+// ------------------------------------------------------------------ discreet list beside the mini map: neighbours / similar size
+const NEAR_N = 4;
+function nearby(r, sub) {
+  const nb = groupMembers('nb', r.id).map(region).filter(Boolean).sort((a, b) => b.pop - a.pop);
+  const sz = groupMembers('size', r.id).map(region).filter(Boolean).slice(0, NEAR_N).sort((a, b) => b.pop - a.pop);
+  if (!nb.length && !sz.length) return '';
+  const tab = prefs().nearTab === 'size' && sz.length ? 'size' : nb.length ? 'nb' : 'size';
+  const row = (x) => `<li><a href="#/gemeinde/${x.id}${sub ? '/' + sub : ''}" title="${esc(x.n)} (${x.kt}) · ${fmtInt(x.pop)} Einwohner">${wappenImg(x.id, 'wappen')}<span class="nr-n">${esc(x.n)}</span>${x.kt !== r.kt ? `<span class="nr-kt">${x.kt}</span>` : ''}<span class="nr-p num">${fmtInt(x.pop)}</span></a></li>`;
+  const list = (k, xs, more) => `<ul class="near-list" data-near="${k}"${k === tab ? '' : ' hidden'}>${xs.slice(0, NEAR_N).map(row).join('')}${more > 0 ? `<li class="nr-more">+ ${more} weitere</li>` : ''}</ul>`;
+  return `<nav class="near no-print" aria-label="Gemeinden in der Nähe und ähnlich grosse Gemeinden">
+    <div class="near-tabs" role="tablist">${[['nb', 'Nachbarn', nb], ['size', 'Ähnliche Grösse', sz]].filter(([, , xs]) => xs.length).map(([k, l]) =>
+      `<button type="button" role="tab" data-tab="${k}" aria-selected="${k === tab}">${l}</button>`).join('')}</div>
+    ${nb.length ? list('nb', nb, nb.length - NEAR_N) : ''}${sz.length ? list('size', sz, 0) : ''}</nav>`;
+}
+function wireNearby(el) {
+  el.querySelectorAll('.near-tabs [data-tab]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.tab; setPrefs({ nearTab: k });
+    el.querySelectorAll('.near-tabs [data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    el.querySelectorAll('.near-list').forEach((u) => { u.hidden = u.dataset.near !== k; });
+  }));
 }
 
 // ------------------------------------------------------------------ topic panel (one row per Thema) + compact sticky bar
