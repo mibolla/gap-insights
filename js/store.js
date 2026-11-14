@@ -44,9 +44,10 @@ export function regionLabel(id, withKt = true) {
 }
 export const shortName = (id) => { const r = region(id); return r.e === 'KT' ? r.n : r.e === 'BEZ' ? `Bezirk ${r.n}` : r.n; };
 export const ebeneLabel = { CH: 'Land', KT: 'Kanton', BEZ: 'Bezirk', GDE: 'Gemeinde' };
-/** coat of arms (PNG, 64 px wide, Wikimedia Commons): the Gemeinde's own, else its Kanton's (also for Bezirke); none for CH */
+/** coat of arms (PNG, 64 px wide, Wikimedia Commons): the Gemeinde's own, else its Kanton's (also for Bezirke); Schweiz: own SVG */
 export function wappen(id) {
-  const r = region(id); if (!r || r.e === 'CH') return null;
+  const r = region(id); if (!r) return null;
+  if (r.e === 'CH') return 'img/wappen_CH.svg';
   return r.e === 'GDE' && r.w ? `wappen/GDE_${id.slice(4)}.png` : `wappen/KT_${r.kt}.png`;
 }
 export const wappenImg = (id, cls = 'wappen') => { const u = wappen(id); return u ? `<img class="${cls}" src="${u}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''; };

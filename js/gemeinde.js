@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114212552';
-import { createMap } from './map.js?v=20261114212552';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114212552';
-import { omnibox } from './search.js?v=20261114212552';
-import { esc, main } from './ui.js?v=20261114212552';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114212552';
-import { openReportDialog } from './report.js?v=20261114212552';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114212820';
+import { createMap } from './map.js?v=20261114212820';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114212820';
+import { omnibox } from './search.js?v=20261114212820';
+import { esc, main } from './ui.js?v=20261114212820';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114212820';
+import { openReportDialog } from './report.js?v=20261114212820';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -45,7 +45,7 @@ export async function render(id, sub, p3) {
 }
 
 function header(r, d, sub) {
-  const crumbs = ['CH', ...(r.e === 'GDE' ? [`KT:${r.kt}`, r.bez] : r.e === 'BEZ' ? [`KT:${r.kt}`] : r.e === 'KT' ? [] : [])];
+  const crumbs = r.e === 'CH' ? [] : ['CH', ...(r.e === 'GDE' ? [`KT:${r.kt}`, r.bez] : r.e === 'BEZ' ? [`KT:${r.kt}`] : [])];
   const ts = d.ts; const n = ts.y.length - 1;
   const g80 = ts.b80[0] ? (ts.b80[n] / ts.b80[0] - 1) * 100 : null;
   const el = document.createElement('section'); el.className = 'rhead';
