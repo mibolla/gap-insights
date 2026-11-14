@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114225850';
-import { createMap } from './map.js?v=20261114225850';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114225850';
-import { omnibox } from './search.js?v=20261114225850';
-import { esc, main } from './ui.js?v=20261114225850';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114225850';
-import { openReportDialog } from './report.js?v=20261114225850';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114230311';
+import { createMap } from './map.js?v=20261114230311';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114230311';
+import { omnibox } from './search.js?v=20261114230311';
+import { esc, main } from './ui.js?v=20261114230311';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114230311';
+import { openReportDialog } from './report.js?v=20261114230311';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -292,6 +292,7 @@ function ownBox(r, mode, redraw) {
   const own = ownList(r.e);   // one list per level; ids that no longer exist are ignored
   const key = ownKey(r.e); const what = { GDE: ['Gemeinden', 'Gemeinde'], BEZ: ['Bezirke', 'Bezirk'], KT: ['Kantone', 'Kanton'] }[r.e];
   box.innerHTML = `<div class="card own-card"><div class="own-head"><h3>Eigene Auswahl</h3><span class="small muted">${r.e === 'GDE' ? 'z. B. die Gemeinden Ihrer Versorgungsregion' : `${what[0]} zum Vergleich`} · bleibt in diesem Browser gespeichert</span></div>
+    ${own.filter((x) => x !== r.id).length > OWN_MAX ? `<p class="own-note">Ab vier Einträgen zeigen die Grafiken den Durchschnitt der Auswahl («Eigene Auswahl (${own.filter((x) => x !== r.id).length})») statt einzelner Linien. Bis drei Einträge erscheint jede Region als eigene Linie.</p>` : ''}
     <div class="own-body"><div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
       <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || `<span class="muted small">Noch keine ${what[0]} gewählt.</span>`}</div><div id="ownSearch"></div></div></div>`;
   box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { setPrefs({ [key]: own.filter((x) => x !== b.dataset.rm) }); redraw(); }));
@@ -340,6 +341,8 @@ function aggregate(ds) {
   return out;
 }
 /** [the region itself, comparison(s)…, Kanton, Schweiz] according to «Vergleichen mit» */
+const OWN_MAX = 3;                                    // Eigene Auswahl: up to this many regions are drawn separately
+const OWN_COLS = ['#2a9d8f', '#8e5bb5', '#b07d12'];  // teal, violet, ochre
 async function compareSeries(r, d, mode) {
   const kt = r.e === 'CH' ? [] : parents(r.id).filter((x) => x !== r.bez);                 // Kanton + Schweiz
   const dk = await Promise.all(kt.map((x) => detail(x)));
@@ -348,6 +351,8 @@ async function compareSeries(r, d, mode) {
   const members = r.e !== 'CH' && mode !== 'kt' ? groupMembers(mode, r.id) : [];
   if (!members.length) return [{ id: r.id, d }, ...refs];
   const ds = await Promise.all(members.map((x) => detail(x)));
+  // «Eigene Auswahl» with up to three regions: one line each, in its own colour; from four on: the group
+  if (mode === 'own' && members.length <= OWN_MAX) return [{ id: r.id, d }, ...members.map((x, i) => ({ id: x, d: ds[i], own: true, col: OWN_COLS[i], name: shortName(x) })), ...refs];
   // «Eigene Auswahl» with a single Gemeinde is shown under its name, with several as the group
   const gname = mode === 'own' && members.length === 1 ? shortName(members[0])
     : `${mode === 'kanton' && r.e === 'BEZ' ? 'Übrige Bezirke im Kanton' : mode === 'kanton' && r.e === 'KT' ? 'Übrige Kantone' : GROUP_NAME[mode]} (${members.length})`;

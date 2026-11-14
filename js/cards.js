@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114225850';
-import { toast, esc } from './ui.js?v=20261114225850';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114225850';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114230311';
+import { toast, esc } from './ui.js?v=20261114230311';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114230311';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -185,7 +185,7 @@ export function chartCard(title, sub, srcKey, wide = true) {
 
 /** series helpers: a series is {id, d} or a comparison group {id: 'GRP', name, grp: true, d} */
 const nameOf = (s) => s.name || shortName(s.id);
-const colOf = (s, k) => (k === 0 ? C.me : s.grp ? C.grp : s.id === 'CH' ? C.ch : (region(s.id) || {}).e === 'BEZ' ? C.bez : C.kt);
+const colOf = (s, k) => (k === 0 ? C.me : s.col ? s.col : s.grp ? C.grp : s.id === 'CH' ? C.ch : (region(s.id) || {}).e === 'BEZ' ? C.bez : C.kt);
 
 /** outline of a pyramid side as a staircase on a numeric y axis: each age group k spans k-0.4 … k+0.4 at value x[k] */
 export function stairs(x) {
@@ -291,7 +291,7 @@ export function histLines(div, series, indId, years) {
   const data = use.map((s) => {
     const k0 = series.indexOf(s); const v = s.d.aph_hist[indId];
     return { type: 'scatter', mode: 'lines+markers', x, y: v, name: nameOf(s), connectgaps: false,
-      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
+      line: { color: colOf(s, k0), width: k0 === 0 || s.grp ? 3 : 2, dash: k0 === 0 || s.grp || s.col ? 'solid' : s.id === 'CH' ? 'dot' : 'dash' }, marker: { size: k0 === 0 ? 6 : 4 },
       customdata: v.map((y) => fmtUnit(y, i)), hovertemplate: `${nameOf(s)} %{x}: %{customdata}<extra></extra>` };
   });
   div._table = { columns: ['Jahr', ...use.map((s) => `${nameOf(s)} (${i.unit})`)], rows: x.map((y, k) => [y, ...use.map((s) => s.d.aph_hist[indId][k])]) };
