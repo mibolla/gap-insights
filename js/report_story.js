@@ -1,9 +1,9 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261114210958';
-import { roundProg, model, pval } from './prog.js?v=20261114210958';
-import { esc } from './ui.js?v=20261114210958';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261114210958';
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261114211752';
+import { roundProg, model, pval } from './prog.js?v=20261114211752';
+import { esc } from './ui.js?v=20261114211752';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261114211752';
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);

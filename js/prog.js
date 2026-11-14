@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord } from './store.js?v=20261114210958';
-import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261114210958';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114210958';
-import { esc } from './ui.js?v=20261114210958';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114211752';
+import { plot, baseLayout, COLORS as C, rnd } from './cards.js?v=20261114211752';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114211752';
+import { esc } from './ui.js?v=20261114211752';
 
 let PV = null;
 export async function loadProg() {
@@ -77,7 +77,7 @@ export function progSourceLine(mid) {
 }
 
 // ------------------------------------------------------------------ forecast card (one indicator, one region)
-export async function progCard(indId, id) {
+export async function progCard(indId, id, mode = 'kt') {
   const P = await loadProg(); const i = S.ind.get(indId); const r = region(id); const { v, j } = progState();
   const base = S.meta.prog.years[0] ? P.years[0] : 2024;
   const val0 = pval(P, indId, id, v, base); const valj = pval(P, indId, id, v, j);
@@ -105,20 +105,28 @@ export async function progCard(indId, id) {
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das berechnet?</summary><p>${esc(i.def)}</p><p>${esc(m.regionalisierung)}</p></details>
     <p class="src-line">${progSourceHTML(i.modell)}</p>`;
-  // bars: change 2024 -> j (counts) or value in j (shares) for region, Bezirk, Kanton, Schweiz
-  const ids = [id, ...parents(id)];
-  const rows = ids.map((x) => {
+  // bars: change 2024 -> j (counts) or value in j (shares) for region, Bezirk, Kanton, Schweiz – or, with «Vergleichen mit»,
+  // a ranking of the region and its comparison group, followed by Kanton and Schweiz
+  const metric = (x) => {
     const a = pval(P, indId, x, v, base); const b = pval(P, indId, x, v, j);
     if (indId === 'p_aph_diff') { const t = today(x); return { x, y: t ? (b / t) * 100 : null }; }   // in % of today's places
     return { x, y: share ? b : pct(b, a) };
-  }).filter((d) => d.y != null);
+  };
+  const members = mode !== 'kt' && r.e !== 'CH' ? groupMembers(mode, id) : [];
+  const refIds = r.e === 'KT' ? ['CH'] : [`KT:${r.kt}`, 'CH'];
+  const ids = members.length ? [id, ...members, ...refIds] : [id, ...parents(id)];
+  const rows = members.length
+    ? [...[id, ...members].map(metric).filter((d) => d.y != null).sort((a, b) => b.y - a.y), ...refIds.map(metric).filter((d) => d.y != null)]
+    : ids.map(metric).filter((d) => d.y != null);
+  const grpCol = (x) => (x === id ? C.me : x === 'CH' ? C.ch : region(x).e === 'KT' && (members.length === 0 || refIds.includes(x)) ? C.kt : members.length ? C.grey : C.bez);
+  const rowH = members.length ? 26 : 46;
   const div = card.querySelector('.chart');
   const lab = share ? `${i.short.replace(' (Prognose)', '')} ${j}` : indId === 'p_aph_diff' ? `Zusätzliche Plätze ${j} in % der heutigen Plätze` : `Veränderung ${base}–${j} in %`;
   requestAnimationFrame(() => {
     plot(div, [{ type: 'bar', orientation: 'h', y: rows.map((d) => (d.x === id ? `<b>${shortName(d.x)}</b>` : shortName(d.x))), x: rows.map((d) => d.y),
-      marker: { color: rows.map((d) => (d.x === id ? C.me : d.x === 'CH' ? C.ch : region(d.x).e === 'KT' ? C.kt : C.bez)) },
+      marker: { color: rows.map((d) => grpCol(d.x)) },
       text: rows.map((d) => (share ? fmtP(d.y, i) : sign(d.y))), textposition: 'outside', cliponaxis: false, hoverinfo: 'skip' }],
-    baseLayout({ height: 46 * rows.length + 46, margin: { l: 8, r: 70, t: 22, b: 4 }, yaxis: { autorange: 'reversed', automargin: true },
+    baseLayout({ height: rowH * rows.length + 46, margin: { l: 8, r: 70, t: 22, b: 4 }, yaxis: { autorange: 'reversed', automargin: true },
       xaxis: { visible: false, rangemode: 'tozero' }, bargap: 0.35,
       annotations: [{ text: lab, xref: 'paper', yref: 'paper', x: 0, y: 1.02, yanchor: 'bottom', xanchor: 'left', showarrow: false, font: { size: 11, color: C.muted } }] }));
     div._table = { columns: ['Region', `${base}`, ...S.meta.prog.variants.map((vv) => `${j} BFS ${vv}`)],
@@ -202,7 +210,7 @@ export function progChartCard(title, sub, mid, draw) {
 }
 
 /** content of a topic's Ausblick view */
-export async function ausblickSection(box, r, d, subId, rerender) {
+export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   if (!d.prog) { box.innerHTML = '<p class="empty">Für diese Region liegt keine Prognose vor.</p>'; return; }
   const { v, j } = progState();
   const mid = subId === 'inanspruchnahme' ? 'aph_dummy' : 'bfs2025';
@@ -215,7 +223,7 @@ export async function ausblickSection(box, r, d, subId, rerender) {
     grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph')));
   }
   const cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards);
-  for (const i of S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick')) cards.appendChild(await progCard(i.id, r.id));
+  for (const i of S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick')) cards.appendChild(await progCard(i.id, r.id, mode));
 }
 
 /** #/ausblick/<id>: all forecasts of a region on one page (time first) */

@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114210958';
-import { createMap } from './map.js?v=20261114210958';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114210958';
-import { omnibox } from './search.js?v=20261114210958';
-import { esc, main } from './ui.js?v=20261114210958';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114210958';
-import { openReportDialog } from './report.js?v=20261114210958';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114211752';
+import { createMap } from './map.js?v=20261114211752';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114211752';
+import { omnibox } from './search.js?v=20261114211752';
+import { esc, main } from './ui.js?v=20261114211752';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114211752';
+import { openReportDialog } from './report.js?v=20261114211752';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -199,11 +199,6 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   if (zeitReq) setPrefs({ zeit });
   const zbar = zs.length > 1 ? `<nav class="zeit no-print" aria-label="Zeitansicht">${zs.map((z) =>
     `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
-  if (zeit === 'ausblick') {
-    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${zbar}<div id="ausblick"></div>`;
-    await ausblickSection(document.getElementById('ausblick'), r, d, subId, rerender);
-    return;
-  }
   let mode = prefs().mode || 'kt';
   const modes = r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt'];
   if (!modes.includes(mode)) mode = 'kt';
@@ -218,6 +213,22 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   // the box for «Eigene Auswahl» follows directly below the comparison row
   const ownEl = document.createElement('div'); ownEl.id = 'ownBox'; ownEl.className = 'own-row no-print';
   (cmp ? cmp.after(ownEl) : null);
+  if (zeit === 'ausblick') {      // forecasts: the same «Vergleichen mit» row; the forecast cards rank the group
+    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${zbar}<div id="ausblick"></div>`;
+    const drawA = async () => {
+      const box = document.getElementById('ausblick'); if (!box) return; const y = window.scrollY;
+      box.style.minHeight = `${box.offsetHeight}px`; box.innerHTML = '';
+      await ausblickSection(box, r, d, subId, rerender, mode);
+      box.style.minHeight = ''; window.scrollTo(0, y); ownBox(r, mode, drawA);
+    };
+    cmp?.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+      mode = b.dataset.m; setPrefs({ mode });
+      cmp.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', x === b));
+      drawA();
+    }));
+    await drawA();
+    return;
+  }
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
     ${zbar}<div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
   const draw = () => {
@@ -253,9 +264,9 @@ function ownBox(r, mode, redraw) {
   box.hidden = false;
   const own = ownList(r.e);   // one list per level; ids that no longer exist are ignored
   const key = ownKey(r.e); const what = { GDE: ['Gemeinden', 'Gemeinde'], BEZ: ['Bezirke', 'Bezirk'], KT: ['Kantone', 'Kanton'] }[r.e];
-  box.innerHTML = `<div class="card"><h3>Eigene Auswahl</h3><p class="small muted">${r.e === 'GDE' ? 'Zum Beispiel die Gemeinden Ihrer Versorgungsregion.' : `${what[0]}, mit denen Sie ${esc(shortName(r.id))} vergleichen möchten.`} Die Auswahl bleibt in diesem Browser gespeichert.</p>
-    <div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
-      <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || `<span class="muted small">Noch keine ${what[0]} gewählt.</span>`}</div><div id="ownSearch"></div></div>`;
+  box.innerHTML = `<div class="card own-card"><div class="own-head"><h3>Eigene Auswahl</h3><span class="small muted">${r.e === 'GDE' ? 'z. B. die Gemeinden Ihrer Versorgungsregion' : `${what[0]} zum Vergleich`} · bleibt in diesem Browser gespeichert</span></div>
+    <div class="own-body"><div class="gcards">${own.map((x) => `<div class="gcard">${wappenImg(x)}<a class="gc-txt" href="#/gemeinde/${x}"><b>${esc(shortName(x))}</b><span>${esc(region(x).kt)}</span></a>
+      <button class="gc-x" type="button" data-rm="${x}" aria-label="${esc(shortName(x))} aus der Auswahl entfernen" title="Entfernen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>`).join('') || `<span class="muted small">Noch keine ${what[0]} gewählt.</span>`}</div><div id="ownSearch"></div></div></div>`;
   box.querySelectorAll('[data-rm]').forEach((b) => b.addEventListener('click', () => { setPrefs({ [key]: own.filter((x) => x !== b.dataset.rm) }); redraw(); }));
   omnibox(document.getElementById('ownSearch'), { id: 'omniOwn', compact: true, placeholder: `${what[1]} hinzufügen …`, filter: (it) => it.go.startsWith(`#/gemeinde/${r.e}:`) && it.go !== `#/gemeinde/${r.id}`,
     onPick: (it) => { const gid = it.go.split('/')[2]; setPrefs({ [key]: [...new Set([...own, gid])] }); redraw(); } });
