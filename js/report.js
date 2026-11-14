@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261114233350';
-import { loadProg, roundProg } from './prog.js?v=20261114233350';
-import { esc, toast } from './ui.js?v=20261114233350';
-import * as story from './report_story.js?v=20261114233350';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261114233350';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261114235847';
+import { loadProg, roundProg } from './prog.js?v=20261114235847';
+import { esc, toast } from './ui.js?v=20261114235847';
+import * as story from './report_story.js?v=20261114235847';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114235847';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -60,7 +60,7 @@ export function openReportDialog(id) {
   dlg.innerHTML = `<form method="dialog" class="rdlg-in">
     <button type="button" class="rdlg-x" data-act="close" aria-label="Schliessen" title="Schliessen (Esc)">×</button>
     <div class="rdlg-head"><span class="eyebrow">${L.art}</span><h2 id="rdlgTitle">Bericht für ${esc(L.name)}${r.e === 'KT' ? '' : ` (${esc(r.kt)})`}</h2>
-      <p class="muted small">Eine HTML-Datei mit allen Themen als zusammenhängende Geschichte – zum Lesen, Weitergeben und Drucken.</p></div>
+      <p class="muted small">Eine HTML-Datei mit allen Themen – zum Lesen, Weitergeben und Drucken.</p></div>
     <fieldset class="rd-level"><legend>Umfang</legend>${Object.entries(R.levels).map(([k, l]) =>
       `<label class="lvl"><input type="radio" name="level" value="${k}" ${k === st.level ? 'checked autofocus' : ''}><span><span><b>${esc(l.label)}</b> · ${esc(l.pages)}</span><span class="muted small">${esc(l.desc)}</span></span></label>`).join('')}</fieldset>
     <fieldset><legend>Ausblick</legend>
@@ -70,9 +70,8 @@ export function openReportDialog(id) {
       <div class="rd-grp"><div class="seg wrap" role="group" aria-label="Vergleichen mit">${reportModes(r).map((m) => `<button type="button" data-m="${m}" aria-pressed="${m === st.mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>
       <p class="muted small rd-own"></p></fieldset>
     <fieldset><legend>Kapitel</legend><div class="rd-chaps">${opt.map((c) =>
-      `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: L.name, j: st.j, L }))}${c.only ? ' <span class="muted small">(nur Ausführlich)</span>' : ''}</label>`).join('')}</div>
-      <p class="muted small">«Auf einen Blick», «Fragen für die Planung» und «Daten und Methode» sind immer enthalten.</p></fieldset>
-    ${r.e !== 'GDE' ? '' : `<p class="small muted rd-ex">Beispiel ansehen: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">Sursee kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">Sursee ausführlich</a></p>`}
+      `<label><input type="checkbox" name="ch" value="${c.id}" ${st.off.has(c.id) ? '' : 'checked'}${c.only ? ` data-only="${c.only}"` : ''}> ${esc(fill(c.title, { name: L.name, j: st.j, L }))}${c.only ? ' <span class="muted small">(ausführlich)</span>' : ''}</label>`).join('')}</div>
+      <p class="muted small rd-ex">Immer dabei: Auf einen Blick, Fragen für die Planung, Daten und Methode.${r.e !== 'GDE' ? '' : ` Beispiel: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">ausführlich</a>`}</p></fieldset>
     <div class="rdlg-foot"><button type="button" class="btn ghost" data-act="close">Abbrechen</button>
       <button type="button" class="btn primary" data-act="download">Bericht herunterladen</button></div></form>`;
   document.body.appendChild(dlg);
