@@ -1,9 +1,9 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261114010945';
-import { roundProg, model, pval } from './prog.js?v=20261114010945';
-import { esc } from './ui.js?v=20261114010945';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261114010945';
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261114012202';
+import { roundProg, model, pval } from './prog.js?v=20261114012202';
+import { esc } from './ui.js?v=20261114012202';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261114012202';
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);
@@ -161,7 +161,8 @@ export function versorgung(ctx) {
       `<tr><td>${esc(s.n)}</td><td class="n">${fmtInt(s.kl)}</td><td class="n">${num(s.vz, 1)}</td></tr>`).join('')}</tbody></table>`;
     body += stats(ctx, ['aph_bel', 'aph_stufe', 'spx_std65', 'aph_kbt']);
     // Heime: indicators of Leistungen / Personal / Kosten, first and last year
-    const h = heimRef(ctx); const H = (S.meta.hist || []).map((x) => S.ind.get(x)).filter((i) => i.src !== 'spitex');   // Heime only (2012–) const y0 = ch.y[0]; const y1 = ch.y[nT];
+    const h = heimRef(ctx); const H = (S.meta.hist || []).map((x) => S.ind.get(x)).filter((i) => i.src !== 'spitex');   // Heime only (2012–)
+    const y0 = ch.y[0]; const y1 = ch.y[nT];
     const cell = (dd, i, k) => { const a = dd && dd.aph_hist && dd.aph_hist[i.id]; return `<td class="n">${a ? fmt(a[k], i) : '–'}</td>`; };
     if (H.length) body += `<table class="tab"><caption>Pflegeheime ${y0} und ${y1}: Leistungen, Personal und Kosten</caption><thead><tr><th>Kennzahl</th><th class="n" colspan="2">${h.id === id ? esc(name) : `Bezirk ${esc(ctx.r.bn)}`}</th><th class="n" colspan="2">Kanton</th><th class="n" colspan="2">Schweiz</th></tr>
       <tr><th></th>${[0, 1, 2].map(() => `<th class="n">${y0}</th><th class="n">${y1}</th>`).join('')}</tr></thead><tbody>${H.map((i) =>

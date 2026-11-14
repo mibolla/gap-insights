@@ -1,10 +1,11 @@
 // Gemeindebericht: small, dependency-free SVG charts. Every function returns an SVG string.
 // Colours come from CSS classes defined in css/report.css (c-me, c-bez, c-kt, c-ch, …), so both themes work.
-import { S } from './store.js?v=20261114010945';
-import { esc } from './ui.js?v=20261114010945';
+import { S } from './store.js?v=20261114012202';
+import { esc } from './ui.js?v=20261114012202';
 
 const nf = (d) => new Intl.NumberFormat('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
-export const num = (v, d = 0) => (v == null || Number.isNaN(v) ? '–' : nf(d).format(v));
+/** values that round to zero are shown as 0, never «-0.0» */
+export const num = (v, d = 0) => { if (v == null || Number.isNaN(v)) return '–'; const s = nf(d).format(v); return /^[-−][0.,'’]*$/.test(s) ? s.slice(1) : s; };
 
 function niceTicks(lo, hi, n = 4) {
   if (lo === hi) { hi = lo + 1; }

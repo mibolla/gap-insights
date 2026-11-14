@@ -52,7 +52,15 @@ export function wappen(id) {
 export const wappenImg = (id, cls = 'wappen') => { const u = wappen(id); return u ? `<img class="${cls}" src="${u}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''; };
 
 // ---------- formatting
-const nf = (d) => new Intl.NumberFormat('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
+const NF = new Map();
+/** number format with d decimals; values that round to zero are shown as 0, never «-0.0» */
+const nf = (d) => {
+  if (!NF.has(d)) {
+    const f = new Intl.NumberFormat('de-CH', { minimumFractionDigits: d, maximumFractionDigits: d });
+    NF.set(d, { format: (v) => { const s = f.format(v); return /^[-−][0.,'’]*$/.test(s) ? s.slice(1) : s; } });
+  }
+  return NF.get(d);
+};
 export function fmt(v, ind) {
   if (v === null || v === undefined || Number.isNaN(v)) return '–';
   const i = typeof ind === 'string' ? S.ind.get(ind) : ind;
