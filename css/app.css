@@ -329,7 +329,7 @@ html, body { overflow-x: clip; }   /* clip, not hidden: hidden would break posit
 .near-list .wappen { height: 15px; max-width: 13px; filter: none; opacity: .85; }
 .near-list a:hover .wappen { opacity: 1; }
 .nr-n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nr-kt { font-size: .7rem; color: var(--faint); }
+.nr-kt { flex: none; font-size: .7rem; color: var(--faint); }
 .nr-p { margin-left: auto; padding-left: 8px; color: var(--faint); font-variant-numeric: tabular-nums; }
 .nr-more { padding: 2px 0 0; font-size: .72rem; color: var(--faint); }
 @media (max-width: 760px) { .rhead-in { grid-template-columns: minmax(0, 1fr); } .mini-map { display: none; } .near-list { columns: 2; column-gap: 18px; } }
