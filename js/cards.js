@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261114012202';
-import { toast, esc } from './ui.js?v=20261114012202';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114012202';
+  groupMembers, groupLabel, inMappe, toggleMappe, detail } from './store.js?v=20261114133456';
+import { toast, esc } from './ui.js?v=20261114133456';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114133456';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -38,14 +38,18 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
   card.className = `card${wide ? ' wide' : ''}`; card.id = `ind-${indId}`;
   const v = val(indId, id);
   const levelOk = i.levels.includes(r.e) || r.e === 'CH';
-  let sent = levelOk ? sentence(indId, id) : null;
+  // indicator only meaningful for Bezirke/Kantone: a Gemeinde shows the value of its Bezirk (sentence and bars)
+  const proxy = !levelOk && r.e === 'GDE' && val(indId, r.bez) != null ? r.bez : null;
+  let sent = levelOk ? sentence(indId, id) : proxy ? sentence(indId, proxy) : null;
   if (indId === 'bev' && r.e !== 'CH') {
     const same = S.regions.filter((x) => x.e === r.e && (r.e === 'KT' || x.kt === r.kt)).sort((a, b) => b.pop - a.pop);
     const what = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirken' : 'Kantonen';
     sent = `${shortName(id)}: <b>${fmtInt(v)}</b> Einwohnerinnen und Einwohner – Rang ${same.findIndex((x) => x.id === id) + 1} von ${same.length} ${what}${r.e === 'KT' ? '' : ' im Kanton'}.`;
   }
   let empty = '';
-  if (!levelOk) {
+  let hint = '';
+  if (proxy) hint = `${esc(r.n)} liegt im ${esc(regionLabel(proxy, false))}. Für einzelne Gemeinden ist dieser Wert nicht sinnvoll – gezeigt wird deshalb der Bezirk.`;
+  else if (!levelOk) {
     const b = r.e === 'GDE' ? r.bez : null;
     empty = `Für einzelne Gemeinden nicht sinnvoll. ${b ? `Wert für den ${regionLabel(b, false)}: <b>${fmtUnit(val(indId, b), i)}</b>.` : ''}`;
   } else if (v == null) {
@@ -64,15 +68,16 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
       </div></div>
     ${sent ? `<p class="key-sentence">${sent}</p>` : ''}
     ${empty ? `<p class="empty">${empty}</p>` : ''}
+    ${hint ? `<p class="proxy-hint">${hint}</p>` : ''}
     <div class="chart" aria-hidden="true"></div>
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das gemessen?</summary><p>${esc(i.def)}</p>
       <p><a href="${S.meta.sources[i.src].url}" target="_blank" rel="noopener">${esc(S.meta.sources[i.src].publisher)} – ${esc(S.meta.sources[i.src].name)} ↗</a> · <a href="#/daten">Methodik</a></p></details>
     <p class="src-line">${sourceHTML(i.src)}</p>`;
   const div = card.querySelector('.chart');
-  const useGroup = mode !== 'kt' && r.e !== 'CH' && r.e !== 'KT';
+  const useGroup = mode !== 'kt' && r.e !== 'CH' && r.e !== 'KT' && !proxy && levelOk;
   if (indId === 'bev' && !useGroup) div.remove();   // absolute size: no benchmark bars
-  else requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, id)));
+  else requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, proxy || id)));
   card.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-act]'); if (!b) return;
     if (b.dataset.act === 'mappe') {
@@ -80,7 +85,7 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
       b.classList.toggle('on', now); b.setAttribute('aria-pressed', now); b.title = now ? 'Aus den Favoriten entfernen' : 'Als Favorit hinzufügen'; b.setAttribute('aria-label', b.title); b.innerHTML = now ? ICON.starOn : ICON.star;
       toast(now ? 'Als Favorit hinzugefügt' : 'Aus den Favoriten entfernt'); document.dispatchEvent(new Event('mappe'));
     } else if (b.dataset.act === 'export') {
-      const item = indicatorItem(indId, id, { mode, div: div.isConnected ? div : null, sentence: sent || empty });
+      const item = indicatorItem(indId, proxy || id, { mode: proxy ? 'kt' : mode, div: div.isConnected ? div : null, sentence: sent || empty });
       exportMenu(b, (f) => exportItems(f, [item]), { formats: item.div ? FORMATS : FORMATS.filter((x) => !x.needsChart) });
     } else if (b.dataset.act === 'link') {
       const url = `${location.origin}${location.pathname}#/gemeinde/${id}/${i.sub}/${indId}`;
