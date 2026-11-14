@@ -1,11 +1,11 @@
 // Workflow B "Frage zuerst": answer for Switzerland (map + Kantone), then "Und bei uns?".
-import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML } from './store.js?v=20261114231442';
-import { createMap, legendHTML } from './map.js?v=20261114231442';
-import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261114231442';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114231442';
-import { omnibox } from './search.js?v=20261114231442';
-import { esc, main } from './ui.js?v=20261114231442';
-import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261114231442';
+import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML } from './store.js?v=20261114232200';
+import { createMap, legendHTML } from './map.js?v=20261114232200';
+import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261114232200';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232200';
+import { omnibox } from './search.js?v=20261114232200';
+import { esc, main } from './ui.js?v=20261114232200';
+import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261114232200';
 
 const DL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>';
 
@@ -36,6 +36,7 @@ export function render(qid, id) {
         <p class="small muted">Klicken Sie auf ${lvl === 'GDE' ? 'eine Gemeinde' : 'einen Bezirk'}, um die Antwort dafür zu sehen.</p>
         <div id="qMap"></div><div class="small">${legendHTML(br, (x) => fmt(x, i), '')}</div>
         ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
+        <details class="how"><summary>Wie wird das gemessen?</summary><p>${esc(i.def)} Farben: fünf gleich grosse Gruppen der ${lvl === 'GDE' ? 'Gemeinden' : 'Bezirke'} (Quintile), hell = tief, dunkel = hoch.</p><p><a href="${S.meta.sources[i.src].url}" target="_blank" rel="noopener">${esc(S.meta.sources[i.src].publisher)} – ${esc(S.meta.sources[i.src].name)} ↗</a> · <a href="#/daten">Methodik</a></p></details>
         <p class="src-line">${sourceHTML(i.src)}</p></article>
       <div style="display:flex;flex-direction:column;gap:18px">
         <section class="us" aria-labelledby="usTitle"><h3 id="usTitle">${r ? `Und bei ${esc(shortName(r.id))}?` : 'Und bei uns?'}</h3>
@@ -43,7 +44,8 @@ export function render(qid, id) {
           ${r ? `<p class="small"><a class="btn small primary" href="#/gemeinde/${r.id}">Alles zu ${esc(shortName(r.id))} →</a> <a class="btn small" href="#/gemeinde/${r.id}/${q.sub}">Thema ${esc(sub.label)} für ${esc(shortName(r.id))}</a></p>` : '<p class="small muted">Gemeinde, Bezirk oder Kanton suchen – oder auf der Karte anklicken.</p>'}
         </section>
         <div id="usCard"></div>
-        <article class="card"><div class="card-head"><h3>Kantone im Vergleich</h3><div class="card-tools no-print"><button class="icon-btn" id="xKt" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV">${DL}</button></div></div><div id="ktChart" class="chart"></div></article>
+        <article class="card"><div class="card-head"><h3>Kantone im Vergleich</h3><div class="card-tools no-print"><button class="icon-btn" id="xKt" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV">${DL}</button></div></div><div id="ktChart" class="chart"></div>
+          <details class="how"><summary>Wie wird das gemessen?</summary><p>${esc(i.def)} Ein Balken pro Kanton, sortiert nach Wert.</p></details></article>
       </div>
     </div>
     <h2 style="font-size:1.4rem">Mehr zu dieser Frage${r ? ` für ${esc(shortName(r.id))}` : ''}</h2>
@@ -116,12 +118,14 @@ async function renderProg(q, id) {
         <p class="small muted">Klicken Sie auf eine Gemeinde, um die Prognose dafür zu sehen.</p>
         <div id="qMap"></div><div class="small">${legendHTML(br, (x) => fmtv(x), '')}</div>
         ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
+        <details class="how"><summary>Wie wird das berechnet?</summary><p>${esc(i.def)}</p><p>${esc(model(i.modell, v).regionalisierung)}</p><p><a href="#/daten/prognosen">Prognosen in Daten und Methodik</a></p></details>
         <p class="src-line">${progSourceHTML(i.modell)}</p></article>
       <div style="display:flex;flex-direction:column;gap:18px">
         <section class="us"><h3>${r ? `Und bei ${esc(shortName(r.id))}?` : 'Und bei uns?'}</h3><div id="usSearch"></div>
           ${r ? `<p class="small"><a class="btn small primary" href="#/ausblick/${r.id}">Alle Prognosen für ${esc(shortName(r.id))} →</a> <a class="btn small" href="#/gemeinde/${r.id}/${q.sub}/ausblick">Im Thema öffnen</a></p>` : '<p class="small muted">Gemeinde, Bezirk oder Kanton suchen – oder auf der Karte anklicken.</p>'}</section>
         <div id="usCard"></div>
-        <article class="card"><h3>Kantone im Vergleich</h3><div id="ktChart" class="chart"></div></article>
+        <article class="card"><h3>Kantone im Vergleich</h3><div id="ktChart" class="chart"></div>
+          <details class="how"><summary>Wie wird das berechnet?</summary><p>${esc(i.def)} Ein Balken pro Kanton, Szenario ${esc(v)}, Zieljahr ${j}.</p></details></article>
       </div>
     </div>
     <h2 style="font-size:1.4rem">Mehr zu dieser Frage${r ? ` für ${esc(shortName(r.id))}` : ''}</h2>

@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114231442';
-import { createMap } from './map.js?v=20261114231442';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114231442';
-import { omnibox } from './search.js?v=20261114231442';
-import { esc, main } from './ui.js?v=20261114231442';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114231442';
-import { openReportDialog } from './report.js?v=20261114231442';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114232200';
+import { createMap } from './map.js?v=20261114232200';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114232200';
+import { omnibox } from './search.js?v=20261114232200';
+import { esc, main } from './ui.js?v=20261114232200';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114232200';
+import { openReportDialog } from './report.js?v=20261114232200';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -367,9 +367,11 @@ async function special(box, r, d, subId, mode = 'kt') {
     const ref = grp && grp.d.pyr ? grp : series[series.length - 1];
     const refName = ref.grp ? ref.name.replace(/ \(\d+\)$/, '') : 'Schweiz';
     const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop');
+    c.setHow(`Ständige Wohnbevölkerung am 31.12. nach 5-Jahres-Altersgruppen und Geschlecht, als Anteil an der gesamten Bevölkerung der Region. Die Anteile machen Regionen unterschiedlicher Grösse vergleichbar.`);
     box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
   } else if (subId === 'entwicklung') {
     const c = chartCard(`Entwicklung ${y0}–${y1}`, '', 'statpop', false);   // half width, lean style like the report
+    c.setHow(`Ständige Wohnbevölkerung am 31.12. jedes Jahres, als Index: ${y0} = 100. 150 heisst 50 % mehr als ${y0}. Alle Jahre auf dem heutigen Gemeindestand (fusionierte Gemeinden zusammengezählt).`);
     const n = d.ts.y.length - 1;
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     const opts = { b80: 'ab 80 Jahren', b65: 'ab 65 Jahren', bev: 'Gesamte Bevölkerung' };
@@ -390,14 +392,12 @@ async function special(box, r, d, subId, mode = 'kt') {
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     seg.innerHTML = Object.entries(APH_TS_OPTS).map(([k, l], j) => `<button type="button" data-k="${k}" aria-pressed="${j === 0}">${l}</button>`).join('');
     c.card.querySelector('.card-head').after(seg);
-    const how = document.createElement('details'); how.className = 'how'; c.card.querySelector('.src-line').before(how);
     const HOWI = { pl80: 'aph_pl80', kl80: 'aph_kl80', pl: 'aph_g_pl' };
     const f0 = (x) => fmt(x, { dec: 0 });
     const drawK = (k) => {
       const me = { d };
-      const hi = S.ind.get(HOWI[k]); const so = S.meta.sources.somed_ts;
-      how.innerHTML = `<summary>Wie wird das gemessen?</summary><p><b>${esc(APH_TS_OPTS[k])}.</b> ${k === 'pl' ? `Langzeitplätze in Alters- und Pflegeheimen am Standort, als Index (${y0} = 100).` : esc(hi.def)} Jahreswerte ${y0}–${y1} aus den BAG-Kennzahlen; Bevölkerung ab 80 aus demselben Jahr.</p>${hi.note ? `<p class="small muted">${esc(hi.note)}</p>` : ''}
-        <p><a href="${so.url}" target="_blank" rel="noopener">${esc(so.publisher)} – ${esc(so.name)} ↗</a> · <a href="#/daten">Methodik</a></p>`;
+      const hi = S.ind.get(HOWI[k]);
+      c.setHow(`<b>${esc(APH_TS_OPTS[k])}.</b> ${k === 'pl' ? `Langzeitplätze in Alters- und Pflegeheimen am Standort, als Index (${y0} = 100).` : esc(hi.def)} Jahreswerte ${y0}–${y1} aus den BAG-Kennzahlen; Bevölkerung ab 80 aus demselben Jahr.${hi.note ? `</p><p class="small muted">${esc(hi.note)}` : ''}`);
       let txt;
       if (!own) txt = `${name} hatte zwischen ${y0} und ${y1} kein eigenes Alters- und Pflegeheim. Die Linien zeigen die Versorgung in der Umgebung.`;
       else if (k === 'pl') {
@@ -422,15 +422,18 @@ async function special(box, r, d, subId, mode = 'kt') {
     histCards(box, r, d, series, (M.hist || []).filter((x) => S.ind.get(x).sub === sub));
   } else if (subId === 'haushalte' && d.hh) {
     const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
+    c.setHow('Privathaushalte nach Anzahl Personen, in Prozent aller Privathaushalte der Region. Kollektivhaushalte wie Alters- und Pflegeheime zählen nicht dazu.');
     box.appendChild(c.card);
     shareBars(c.div, ['1 Person', '2 Personen', '3 Personen', '4 Personen', '5 Personen', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ ...s, values: s.d.hh })));
   } else if (subId === 'bewegungen' && d.bew) {
     const c = chartCard(`Bevölkerungsbewegungen, Durchschnitt ${M.periode[0]}–${M.periode[1]}`, 'Pro Jahr, in Prozent der Bevölkerung.', 'bevnat');
+    c.setHow(`Geburten, Todesfälle, Zu- und Wegzüge (innerhalb der Schweiz und mit dem Ausland) sowie Einbürgerungen, Durchschnitt pro Jahr ${M.periode[0]}–${M.periode[1]}, in Prozent der ständigen Wohnbevölkerung.`);
     box.appendChild(c.card); bewChart(c.div, series.filter((s) => s.d.bew));
   } else if (subId === 'inanspruchnahme' || subId === 'leistungen') {
     if (r.e === 'GDE') box.appendChild(lists(r, d, subId));
     if (subId === 'leistungen' && series.some((s) => s.d.aph && s.d.aph.stufen)) {
       const c = chartCard('Pflegetage nach Pflegestufe', 'Wie viel Pflege brauchen die Bewohnerinnen und Bewohner? Stufe 1 = bis 20 Minuten pro Tag, Stufe 12 = mehr als 220 Minuten.', 'somed');
+      c.setHow(`Pflegetage der Heime am Standort nach KVG-Pflegestufe (je 20 Minuten Pflege pro Tag eine Stufe), in Prozent aller Pflegetage mit Pflegestufe, ${M.jahr}. Die Aufteilung nach Stufe gibt es nur für ${M.jahr}.`);
       box.appendChild(c.card);
       shareBars(c.div, Array.from({ length: 12 }, (_, k) => `${k + 1}`), series.filter((s) => s.d.aph && s.d.aph.stufen && s.d.aph.stufen.length).map((s) => ({ ...s, values: s.d.aph.stufen })));
     }
@@ -438,19 +441,22 @@ async function special(box, r, d, subId, mode = 'kt') {
     const aph = series.filter((s) => s.d.aph && s.d.aph.ertrag);
     if (aph.length) {
       const c = chartCard('Woher das Geld der Pflegeheime kommt', 'Anteile am Gesamtertrag. Pflegetaxen: Krankenversicherer, Bewohnende und Restfinanzierung; Pensionstaxen: Hotellerie und Betreuung.', 'somed', false);
+      c.setHow(`Ertrag der Heime am Standort ${M.jahr} nach Herkunft, in Prozent des Gesamtertrags. Pflegetaxen bezahlen Krankenversicherer, Bewohnende und die Restfinanzierung durch Kanton oder Gemeinden; Pensionstaxen bezahlen die Bewohnenden für Hotellerie und Betreuung.`);
       box.appendChild(c.card);
       stackedMix(c.div, aph.map((s) => ({ ...s, mix: s.d.aph.ertrag })), ['Pflegetaxen', 'Pensionstaxen', 'Subventionen', 'Übrige'], ['#1b67b2', '#7eaed9', '#e8701a', '#c7d0d6']);
     }
     const spx = series.filter((s) => s.d.spx && s.d.spx.einnahmen);
     if (spx.length) {
       const c = chartCard('Wer die Spitex-Pflege bezahlt', 'Einnahmen aus der Langzeitpflege nach Zahler.', 'spitex', false);
+      c.setHow(`Einnahmen der Spitex-Organisationen mit Sitz in der Region aus der Langzeitpflege ${M.jahr}, nach Zahler, in Prozent. Organisationen ohne brauchbare Adresse im Kanton sind nach Einwohnern verteilt.`);
       box.appendChild(c.card);
       stackedMix(c.div, spx.map((s) => ({ ...s, mix: s.d.spx.einnahmen })), ['Krankenversicherer', 'Klientinnen und Klienten', 'Kanton und Gemeinden'], ['#1b67b2', '#7eaed9', '#e8701a']);
     }
   } else if (subId === 'kennzahlen') {
     const lvl = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirke' : 'Kantone';
     const c = chartCard('Heim und Spitex im Vergleich', `Jeder Punkt ist eine Region (${lvl}${r.e === 'KT' || r.e === 'CH' ? '' : ' im Kanton ' + r.kt}). Rechts oben: viel Pflege im Heim und viel Spitex; links unten: wenig von beidem. Grösse = Einwohner. Beide Achsen sind logarithmisch, damit auch kleine Werte gut lesbar sind.`, 'somed');
-    box.appendChild(c.card); peerScatter(c.div, r.id, 'iv_ptage65', 'iv_std65');
+    c.setHow(`${esc(S.ind.get('iv_ptage65').def)} ${esc(S.ind.get('iv_std65').def)} Beide Achsen sind logarithmisch: gleiche Abstände bedeuten gleiche Verhältnisse. Regionen ohne Heim oder ohne Spitex-Stunden fehlen in der Grafik.`);
+    box.appendChild(c.card); peerScatter(c.div, r.id, 'iv_ptage65', 'iv_std65', mode);
   } else if (subId === 'statamb' && r.e === 'GDE') {
     const p = document.createElement('p'); p.className = 'note';
     p.innerHTML = `Dieses Thema wird für Bezirke und Kantone gezeigt. <a href="#/gemeinde/${r.bez}/statamb">Zum ${esc(regionLabel(r.bez, false))} →</a>`;
@@ -480,15 +486,10 @@ function histCards(box, r, d, series, ids) {
       seg.innerHTML = grp.map((id, j) => `<button type="button" data-k="${id}" aria-pressed="${j === 0}">${esc(S.ind.get(id).short)}</button>`).join('');
       c.card.querySelector('.card-head').after(seg);
     }
-    // «Wie wird das gemessen?» for the selected indicator (definition, reading note, link to the source)
-    const how = document.createElement('details'); how.className = 'how';
-    c.card.querySelector('.src-line').before(how);
     box.appendChild(c.card);
     const draw = (id) => {
       const i = S.ind.get(id); const yy = yrs(id); const y1 = yy[yy.length - 1];
-      const so = M.sources[i.src];
-      how.innerHTML = `<summary>Wie wird das gemessen?</summary><p><b>${esc(i.label)}.</b> ${esc(i.def)}</p>${i.note ? `<p class="small muted">${esc(i.note)}</p>` : ''}
-        <p><a href="${so.url}" target="_blank" rel="noopener">${esc(so.publisher)} – ${esc(so.name)} ↗</a> · <a href="#/daten">Methodik</a></p>`;
+      c.setHow(`<b>${esc(i.label)}.</b> ${esc(i.def)}${i.note ? `</p><p class="small muted">${esc(i.note)}` : ''}`);
       const v = d.aph_hist && d.aph_hist[id];
       const k0 = v ? v.findIndex((x) => x != null) : -1; const k1 = v ? v.length - 1 - [...v].reverse().findIndex((x) => x != null) : -1;
       let txt = k0 >= 0 ? `${esc(i.label)} – ${name}: ${yy[k0]} ${fmtUnit(v[k0], i)}, ${yy[k1]} <b>${fmtUnit(v[k1], i)}</b>.` : `${esc(i.label)}: keine Werte für ${name}.`;

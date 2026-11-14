@@ -1,8 +1,8 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114231442';
-import { toast, esc } from './ui.js?v=20261114231442';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114231442';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261114232200';
+import { toast, esc } from './ui.js?v=20261114232200';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232200';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -171,16 +171,22 @@ export function groupChart(div, indId, id, mode) {
 }
 
 // ---------------------------------------------------------------- special charts per Unterthema
+/** body of «Wie wird das gemessen?»: explanation + link to the source and the methodology */
+export function howBody(text, srcKey) {
+  const so = S.meta.sources[srcKey];
+  return `${text ? `<p>${text}</p>` : so ? `<p>Daten: ${esc(so.name)} (${esc(so.year)}).</p>` : ''}${so && so.url ? `<p><a href="${so.url}" target="_blank" rel="noopener">${esc(so.publisher)} – ${esc(so.name)} ↗</a> · <a href="#/daten">Methodik</a></p>` : '<p><a href="#/daten">Methodik</a></p>'}`;
+}
 export function chartCard(title, sub, srcKey, wide = true) {
   const card = document.createElement('article');
   card.className = `card${wide ? ' wide' : ''}`;
   card.innerHTML = `<div class="card-head"><h3>${esc(title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-act="export" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV">${ICON.dl}</button></div></div>
-    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${sourceHTML(srcKey)}</p>`;
+    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div>
+    <details class="how"><summary>Wie wird das gemessen?</summary><div class="how-b">${howBody('', srcKey)}</div></details><p class="src-line">${sourceHTML(srcKey)}</p>`;
   const div = card.querySelector('.chart');
   const btn = card.querySelector('[data-act="export"]');
   btn.onclick = () => exportMenu(btn, (f) => exportItems(f, [{ title: div._title || title, sheet: title, sentence: card.querySelector('.key-sentence')?.innerHTML || '',
     source: sourceLine(srcKey), div, table: div._table || { columns: [], rows: [] } }]));
-  return { card, div, setSub: (h) => { let p = card.querySelector('.key-sentence'); if (!p) { p = document.createElement('p'); p.className = 'key-sentence'; card.querySelector('.card-head').after(p); } p.innerHTML = h; } };
+  return { card, div, setHow: (text, src = srcKey) => { card.querySelector('.how-b').innerHTML = howBody(text, src); }, setSub: (h) => { let p = card.querySelector('.key-sentence'); if (!p) { p = document.createElement('p'); p.className = 'key-sentence'; card.querySelector('.card-head').after(p); } p.innerHTML = h; } };
 }
 
 /** series helpers: a series is {id, d} or a comparison group {id: 'GRP', name, grp: true, d} */
@@ -357,13 +363,17 @@ export function bewChart(div, series) {
     yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', gridcolor: '#eef1f3', title: { text: 'in % der Bevölkerung pro Jahr', font: { size: 11 } } } }));
 }
 
-export function peerScatter(div, id, xInd, yInd) {
+export function peerScatter(div, id, xInd, yInd, mode = 'kt') {
   const r = region(id); const lvl = r.e === 'GDE' ? 'GDE' : r.e === 'BEZ' ? 'BEZ' : 'KT';  // CH: all Kantone, none highlighted
   const pool = S.regions.filter((x) => x.e === lvl && (lvl === 'KT' || x.kt === r.kt));
   const pts = pool.map((x) => ({ x, a: val(xInd, x.id), b: val(yInd, x.id) })).filter((p) => p.a != null && p.b != null);
   // log axes: only positive values can be drawn (all values stay in the exported table)
   const pos = pts.filter((p) => p.a > 0 && p.b > 0);
-  const me = pos.filter((p) => p.x.id === id); const rest = pos.filter((p) => p.x.id !== id);
+  // comparison group («Vergleichen mit»): highlighted in teal, members outside the Kanton added (e.g. an Eigene Auswahl)
+  const gm = mode !== 'kt' && r.e !== 'CH' ? groupMembers(mode, id) : [];
+  const gset = new Set(gm);
+  const gpts = gm.map((g) => region(g)).filter(Boolean).map((x) => ({ x, a: val(xInd, x.id), b: val(yInd, x.id) })).filter((p) => p.a > 0 && p.b > 0);
+  const me = pos.filter((p) => p.x.id === id); const rest = pos.filter((p) => p.x.id !== id && !gset.has(p.x.id));
   const ix = S.ind.get(xInd); const iy = S.ind.get(yInd);
   // Kantone: abbreviation inside large bubbles, above small bubbles; dark text, white only on the orange bubble
   const BIG = 22;
@@ -389,11 +399,15 @@ export function peerScatter(div, id, xInd, yInd) {
     marker: { color: C.chRed, size: lvl === 'KT' ? 26 : 20, line: { color: '#fff', width: 1.5 }, opacity: 0.95 },
     text: lvl === 'KT' ? ['CH'] : undefined, textposition: 'middle center', textfont: { family: FONT.family, size: 11, color: '#ffffff' }, cliponaxis: false,
     hovertemplate: `<b>Schweiz</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` }] : [];
-  plot(div, [tr(rest, '#9fb6c8', sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), tr(me, C.me, (p) => sz(p) + 4, shortName(id)), ...chTrace],
+  const own = mode === 'own' && gpts.length <= 3;     // Eigene Auswahl up to three: each with its name and colour, as in the line charts
+  const OWNC = ['#2a9d8f', '#8e5bb5', '#b07d12'];
+  const grpTr = !gpts.length ? [] : own ? gpts.map((p, k) => ({ ...tr([p], OWNC[k], (q) => sz(q) + 2, shortName(p.x.id)), mode: 'markers+text', text: [shortName(p.x.id)], textposition: 'top center', textfont: { family: FONT.family, size: 11, color: OWNC[k] }, cliponaxis: false }))
+    : [tr(gpts, C.grp, (q) => sz(q) + 1, `${groupLabelFor(mode, r.e)} (${gpts.length})`)];
+  plot(div, [tr(rest, '#9fb6c8', sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), ...grpTr, tr(me, C.me, (p) => sz(p) + 4, shortName(id)), ...chTrace],
     baseLayout({ height: 420, showlegend: true, legend: { orientation: 'h', y: -0.18 }, margin: { l: 56, r: 12, t: 28, b: 60 },
       // both axes logarithmic with readable ticks 1-2-5; shapes use data values, annotations log10 positions
-      xaxis: { type: 'log', title: { text: `${ix.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks(pos.map((p) => p.a).concat(vk[0] > 0 ? [vk[0]] : [], chx > 0 ? [chx] : [])) },
-      yaxis: { type: 'log', title: { text: `${iy.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks(pos.map((p) => p.b).concat(vk[1] > 0 ? [vk[1]] : [], chy > 0 ? [chy] : [])) },
+      xaxis: { type: 'log', title: { text: `${ix.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.a).concat(vk[0] > 0 ? [vk[0]] : [], chx > 0 ? [chx] : [])) },
+      yaxis: { type: 'log', title: { text: `${iy.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.b).concat(vk[1] > 0 ? [vk[1]] : [], chy > 0 ? [chy] : [])) },
       shapes: vk[0] > 0 && vk[1] > 0 ? [
         { type: 'line', x0: vk[0], x1: vk[0], yref: 'paper', y0: 0, y1: 1, line: { color: C.kt, dash: 'dot', width: 1 } },
         { type: 'line', y0: vk[1], y1: vk[1], xref: 'paper', x0: 0, x1: 1, line: { color: C.kt, dash: 'dot', width: 1 } }] : [],

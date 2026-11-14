@@ -1,8 +1,8 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114231442';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114231442';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114231442';
-import { esc } from './ui.js?v=20261114231442';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261114232200';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261114232200';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261114232200';
+import { esc } from './ui.js?v=20261114232200';
 
 let PV = null;
 export async function loadProg() {
@@ -204,7 +204,10 @@ export function pyrCompare(div, id, d) {
 export function progChartCard(title, sub, mid, draw) {
   const card = document.createElement('article'); card.className = 'card wide';
   card.innerHTML = `<div class="card-head"><h3>${esc(title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-act="export" aria-label="Exportieren" aria-haspopup="menu" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg></button></div></div>
-    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div><p class="src-line">${progSourceHTML(mid)}</p>`;
+    ${sub ? `<p class="key-sentence">${sub}</p>` : ''}<div class="chart"></div>
+    <details class="how"><summary>Wie wird das berechnet?</summary>${(() => { const m = model(mid, progState().v);
+      return `<p><b>${esc(m.name)}</b> – ${esc(m.variante)}.</p><p>${esc(m.annahmen)}</p><p><b>Regionalisierung:</b> ${esc(m.regionalisierung)}</p><p><b>Grenzen:</b> ${esc(m.grenzen)}</p><p><a href="#/daten/prognosen">Prognosen in Daten und Methodik</a></p>`; })()}</details>
+    <p class="src-line">${progSourceHTML(mid)}</p>`;
   const div = card.querySelector('.chart');
   requestAnimationFrame(() => draw(div));
   const btn = card.querySelector('[data-act="export"]');
