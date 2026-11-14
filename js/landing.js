@@ -1,9 +1,16 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl } from './store.js?v=20261114213616';
-import { createMap, legendHTML, reduced } from './map.js?v=20261114213616';
-import { omnibox } from './search.js?v=20261114213616';
-import { esc, main } from './ui.js?v=20261114213616';
-import { loadProg, pval, roundProg } from './prog.js?v=20261114213616';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261114215251';
+
+/** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
+const toLevel = (id) => {
+  const r = region(id); const e = prefs().ebene || 'GDE';
+  if (!r || r.e !== 'GDE' || e === 'GDE') return id;
+  return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
+};
+import { createMap, legendHTML, reduced } from './map.js?v=20261114215251';
+import { omnibox } from './search.js?v=20261114215251';
+import { esc, main } from './ui.js?v=20261114215251';
+import { loadProg, pval, roundProg } from './prog.js?v=20261114215251';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -149,7 +156,9 @@ export function render() {
 
   // ---- hero map + click card
   const heroEl = document.getElementById('heroMap');
-  const map = createMap(heroEl, { onClick: (id, pt) => mapCard(heroEl, id, pt, () => pendingQ) });
+  const map = createMap(heroEl, { onClick: (id, pt) => { const t = toLevel(id); map.select(t === 'CH' || t === id ? null : t, { zoomTo: false }); mapCard(heroEl, t, pt, () => pendingQ); } });
+  const onLevel = () => { heroEl.querySelector('.map-card')?.remove(); map.select(null); };
+  document.addEventListener('ebene', onLevel); cleanup.push(() => document.removeEventListener('ebene', onLevel));
   cleanup.push(map.drift());
 
   // ---- rotating facts linked to the map
@@ -198,7 +207,7 @@ export function render() {
 
   // ---- scroll story: sticky map recoloured per chapter
   let storyTip = null;                                    // tooltip of the active chapter (shows its indicator)
-  const smap = createMap(document.getElementById('storyMap'), { onClick: (id) => { location.hash = `#/gemeinde/${id}`; },
+  const smap = createMap(document.getElementById('storyMap'), { onClick: (id) => { location.hash = `#/gemeinde/${toLevel(id)}`; },
     tip: (id) => (storyTip ? storyTip(id) : '') });
   const sLeg = document.getElementById('storyLegend'); const sCap = document.getElementById('storyCap');
   const dots = main().querySelectorAll('.story-dots span'); const cards = main().querySelectorAll('.story-card');
@@ -226,7 +235,7 @@ async function mapCard(container, id, pt, pendingQ) {
   const left = Math.min(Math.max(8, pt.x - 150), container.clientWidth - 308); const top = Math.min(pt.y + 12, container.clientHeight - 190);
   card.style.left = `${left}px`; card.style.top = `${Math.max(8, top)}px`;
   card.innerHTML = `<button class="close" type="button" aria-label="Schliessen">×</button>
-    <h4>${esc(r.n)} <span class="muted small">(${r.kt})</span></h4>
+    <h4>${esc(r.e === 'GDE' ? r.n : regionLabel(id, false))}${r.kt && r.e !== 'KT' ? ` <span class="muted small">(${r.kt})</span>` : ''}</h4>
     <p class="small num">${fmtInt(r.pop)} Einwohner · über 80: ${fmtInt(b1)} <span class="muted">(${plusMinus(b0 ? (b1 / b0 - 1) * 100 : 0)} % seit ${d.ts.y[0]})</span></p>
     <div class="actions"><a class="btn small primary" href="#/gemeinde/${id}">Portrait öffnen →</a></div>
     <div class="small"><span class="muted">Fragen zu ${esc(r.n)}:</span><br>

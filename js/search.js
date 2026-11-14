@@ -1,5 +1,5 @@
 // Omnibox: one field for Gemeinde, Bezirk, Kanton, Thema and Frage.
-import { S, fmtInt, wappenImg } from './store.js?v=20261114213616';
+import { S, fmtInt, wappenImg, prefs } from './store.js?v=20261114215251';
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ');
 
@@ -8,7 +8,7 @@ function index() {
   if (INDEX) return INDEX;
   const items = [];
   for (const r of S.regions) {
-    if (r.e === 'CH') continue;
+    if (r.e === 'CH') { items.push({ kind: 'Land', label: 'Schweiz', meta: `${fmtInt(r.pop)} Einw.`, key: norm('schweiz suisse svizzera land ch'), go: '#/gemeinde/CH', rid: 'CH', pop: r.pop, rank: 3 }); continue; }
     const kind = r.e === 'GDE' ? 'Gemeinden' : r.e === 'BEZ' ? 'Bezirke' : 'Kantone';
     const label = r.e === 'GDE' ? r.n : r.e === 'BEZ' ? `Bezirk ${r.n}` : `Kanton ${r.n}`;
     items.push({ kind, label, meta: `${r.e === 'KT' ? '' : r.kt + ' · '}${fmtInt(r.pop)} Einw.`, key: norm(`${r.n} ${r.kt}`), go: `#/gemeinde/${r.id}`, rid: r.id, pop: r.pop, rank: r.e === 'GDE' ? 0 : r.e === 'BEZ' ? 1 : 2 });
@@ -31,8 +31,11 @@ function search(q) {
     hits.push({ ...it, score: (starts ? 0 : 1) + it.rank * 0.1 - (it.pop ? Math.log10(it.pop) * 0.01 : 0) });
   }
   hits.sort((a, b) => a.score - b.score);
-  const groups = { Gemeinden: [], Fragen: [], Themen: [], Bezirke: [], Kantone: [] };
-  for (const h of hits) if (groups[h.kind].length < (h.kind === 'Gemeinden' ? 6 : 3)) groups[h.kind].push(h);
+  // the preferred level («Ebene» in the top bar) comes first and gets more suggestions
+  const pk = { GDE: 'Gemeinden', BEZ: 'Bezirke', KT: 'Kantone', CH: 'Land' }[prefs().ebene || 'GDE'];
+  const order = [pk, ...['Gemeinden', 'Fragen', 'Themen', 'Bezirke', 'Kantone', 'Land'].filter((k) => k !== pk)];
+  const groups = Object.fromEntries(order.map((k) => [k, []]));
+  for (const h of hits) if (groups[h.kind].length < (h.kind === pk ? 6 : h.kind === 'Gemeinden' ? 4 : 3)) groups[h.kind].push(h);
   return Object.entries(groups).filter(([, v]) => v.length);
 }
 

@@ -1,11 +1,11 @@
 // Boot, router and top bar.
-import { S, loadAll, mappe } from './store.js?v=20261114213616';
-import * as landing from './landing.js?v=20261114213616';
-import * as gemeinde from './gemeinde.js?v=20261114213616';
-import * as frage from './frage.js?v=20261114213616';
-import * as pages from './pages.js?v=20261114213616';
-import { omnibox } from './search.js?v=20261114213616';
-import { main } from './ui.js?v=20261114213616';
+import { S, loadAll, mappe } from './store.js?v=20261114215251';
+import * as landing from './landing.js?v=20261114215251';
+import * as gemeinde from './gemeinde.js?v=20261114215251';
+import * as frage from './frage.js?v=20261114215251';
+import * as pages from './pages.js?v=20261114215251';
+import { omnibox } from './search.js?v=20261114215251';
+import { main } from './ui.js?v=20261114215251';
 
 function updateMappeCount() {
   const n = mappe().length; const b = document.getElementById('mappeCount');
@@ -15,6 +15,8 @@ function updateMappeCount() {
 async function route() {
   const parts = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/').filter(Boolean);
   landing.teardown(); gemeinde.teardown();
+  const lv = document.getElementById('lvlSlot'); if (lv) { lv.hidden = true; lv.innerHTML = ''; }
+  if (parts[0] !== 'gemeinde' && parts[0] !== 'ausblick') gemeinde.levelChooser();
   const slot = document.getElementById('topSearchSlot');
   slot.style.visibility = parts.length ? 'visible' : 'hidden';
   const [p0, p1, p2, p3] = parts;
