@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114143808';
-import { loadProg, roundProg } from './prog.js?v=20261114143808';
-import { esc, toast } from './ui.js?v=20261114143808';
-import * as story from './report_story.js?v=20261114143808';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261114143808';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen } from './store.js?v=20261114175000';
+import { loadProg, roundProg } from './prog.js?v=20261114175000';
+import { esc, toast } from './ui.js?v=20261114175000';
+import * as story from './report_story.js?v=20261114175000';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261114175000';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -48,8 +48,7 @@ export function openReportDialog(id) {
       <p class="muted small">«Auf einen Blick», «Fragen für die Planung» und «Daten und Methode» sind immer enthalten.</p></fieldset>
     <p class="small muted rd-ex">Beispiel ansehen: <a href="beispiele/GAP-Insights_Bericht_Sursee_kompakt.html" target="_blank" rel="noopener">Sursee kompakt</a> · <a href="beispiele/GAP-Insights_Bericht_Sursee_ausfuehrlich.html" target="_blank" rel="noopener">Sursee ausführlich</a></p>
     <div class="rdlg-foot"><button type="button" class="btn ghost" data-act="close">Abbrechen</button>
-      <button type="button" class="btn" data-act="preview">Vorschau im neuen Tab</button>
-      <button type="button" class="btn primary" data-act="download">HTML herunterladen</button></div></form>`;
+      <button type="button" class="btn primary" data-act="download">Bericht herunterladen</button></div></form>`;
   document.body.appendChild(dlg);
   const sync = () => {
     dlg.querySelectorAll('[data-only]').forEach((c) => { c.disabled = c.dataset.only !== st.level; c.closest('label').classList.toggle('dis', c.disabled); });
