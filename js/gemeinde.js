@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114220136';
-import { createMap } from './map.js?v=20261114220136';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114220136';
-import { omnibox } from './search.js?v=20261114220136';
-import { esc, main } from './ui.js?v=20261114220136';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114220136';
-import { openReportDialog } from './report.js?v=20261114220136';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261114220522';
+import { createMap } from './map.js?v=20261114220522';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261114220522';
+import { omnibox } from './search.js?v=20261114220522';
+import { esc, main } from './ui.js?v=20261114220522';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261114220522';
+import { openReportDialog } from './report.js?v=20261114220522';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -39,10 +39,7 @@ export async function render(id, sub, p3) {
   if (!sub) await portrait(page, r, d);
   else if (sub === '__ausblick') await ausblickPage(page, r, d, rerender);
   else await topic(page, r, d, sub, zeit, rerender);
-  if (!sub || sub === '__ausblick') {   // pages without comparison charts: the row only stores the choice for the topics
-    const keep = () => ownBox(r, curMode(r), keep);
-    wireCmp(r, keep); keep();
-  }
+
   if (focusInd) requestAnimationFrame(() => document.getElementById(`ind-${focusInd}`)?.scrollIntoView({ block: 'start' }));
   else window.scrollTo(0, 0);
   if (wantReport && r.e === 'GDE') openReportDialog(id);
@@ -113,26 +110,26 @@ function topicPanel(r, sub) {
       <div class="trow t-${t.color}${cur && cur.thema.id === t.id ? ' active' : ''}">
         <span class="tlabel">${esc(t.label)}</span>
         <div class="tchips">${t.sub.map((s) => chip(t, s, base, sub)).join('')}</div>
-      </div>`).join('')}${cmpRow(r)}</div>
-    <div class="own-row no-print" id="ownBox" hidden></div></div>`;
+      </div>`).join('')}</div></div>`;
   return el;
 }
 
 // ------------------------------------------------------------------ «Vergleichen mit»: a fixed row of the topic panel
 const modesFor = (r) => (r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt']);
 const curMode = (r) => { const m = prefs().mode || 'kt'; return modesFor(r).includes(m) ? m : 'kt'; };
-function cmpRow(r) {
+/** «Vergleichen mit» as a view setting beside the time switch (and small in the sticky bar); both selects stay in sync */
+function cmpSelect(r, small = false) {
   const modes = modesFor(r); if (modes.length < 2) return '';
   const mode = curMode(r);
-  return `<div class="trow t-cmp no-print" id="cmpRow" role="group" aria-label="Vergleichen mit"><span class="tlabel">Vergleichen mit</span>
-    <div class="tchips">${modes.map((m) => `<button type="button" class="chip cmp-chip${m === mode ? ' on' : ''}" data-m="${m}" aria-pressed="${m === mode}">${esc(groupLabelFor(m, r.e))}</button>`).join('')}</div></div>`;
+  return `<label class="cmpsel no-print${small ? ' sm' : ''}${mode !== 'kt' ? ' grp' : ''}"><span class="cs-l">${small ? 'Vergleich' : 'Vergleichen mit'}</span>
+    <select class="cmp-select" aria-label="Vergleichen mit">${modes.map((m) => `<option value="${m}"${m === mode ? ' selected' : ''}>${esc(groupLabelFor(m, r.e))}</option>`).join('')}</select></label>`;
 }
-/** wire the comparison row; onChange(mode) redraws what depends on it */
+/** wire the selects; onChange(mode) redraws what depends on it */
 function wireCmp(r, onChange) {
-  const row = document.getElementById('cmpRow'); if (!row) return;
-  row.querySelectorAll('.cmp-chip').forEach((b) => { b.onclick = () => {
-    const m = b.dataset.m; setPrefs({ mode: m });
-    row.querySelectorAll('.cmp-chip').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); });
+  const sels = [...document.querySelectorAll('.cmp-select')];
+  sels.forEach((s) => { s.onchange = () => {
+    const m = s.value; setPrefs({ mode: m });
+    sels.forEach((x) => { x.value = m; x.closest('.cmpsel').classList.toggle('grp', m !== 'kt'); });
     onChange(m);
   }; });
 }
@@ -146,6 +143,7 @@ function compactBar(r, sub) {
     ${cur ? `<span class="tc-where t-${cur.thema.color}"><span class="tc-stripe"></span>${esc(cur.thema.label)}</span>
       <div class="tc-chips">${cur.thema.sub.map((s) => chip(cur.thema, s, base, sub)).join('')}</div>`
       : `<span class="tc-where"><span class="tc-stripe"></span>${esc(shortName(r.id))} · Überblick</span><div class="tc-chips"></div>`}
+    ${cur ? cmpSelect(r, true) : ''}
     <button class="btn small tc-all" type="button">Alle Themen ▾</button></div>`;
   el.querySelector('.tc-all').addEventListener('click', () => {
     document.getElementById('topics')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
@@ -249,7 +247,8 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
   let mode = curMode(r);
   if (zeit === 'ausblick') {      // forecasts: the same «Vergleichen mit» row; the forecast cards rank the group
-    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${zbar}<div id="ausblick"></div>`;
+    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
+      <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div><div id="ausblick"></div>`;
     const drawA = async () => {
       const box = document.getElementById('ausblick'); if (!box) return; const y = window.scrollY;
       box.style.minHeight = `${box.offsetHeight}px`; box.innerHTML = '';
@@ -261,7 +260,8 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     return;
   }
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
-    ${zbar}<div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
+    <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div>
+    <div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
