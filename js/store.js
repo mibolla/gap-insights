@@ -17,7 +17,11 @@ export async function loadAll() {
 
 export async function detail(id) {
   if (!S.detailCache.has(id)) {
-    S.detailCache.set(id, fetch(`data/detail/${id.replace(':', '_')}.json${V}`).then((r) => r.json()));
+    // a failed load is retried once and never cached (right after a new version is published a file can be missing briefly)
+    const get = (bust) => fetch(`data/detail/${id.replace(':', '_')}.json${bust ? `?r=${Date.now()}` : V}`).then((r) => { if (!r.ok) throw new Error(`detail ${id}: ${r.status}`); return r.json(); });
+    const p = get(false).catch(() => new Promise((res) => setTimeout(res, 1200)).then(() => get(true)));
+    p.catch(() => S.detailCache.delete(id));
+    S.detailCache.set(id, p);
   }
   return S.detailCache.get(id);
 }
