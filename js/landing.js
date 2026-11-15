@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115113750';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115120752';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,11 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115113750';
-import { omnibox } from './search.js?v=20261115113750';
-import { esc, main } from './ui.js?v=20261115113750';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115113750';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115120752';
+import { omnibox } from './search.js?v=20261115120752';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115120752';
+import { esc, main } from './ui.js?v=20261115120752';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115120752';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -47,17 +48,29 @@ export function render() {
       <span>${esc(s.name)} · <span class="num">${esc(s.year)}</span><br><span class="use">${esc(s.use)}</span></span>
       <a href="${s.url}" target="_blank" rel="noopener" aria-label="${esc(s.name)} (öffnet neues Fenster)">↗</a></div>`).join('');
 
-  const chapters = [
-    { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
-      src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
-    { n: '', title: 'Die Schweiz wird älter', big: '<span class="age-year" data-age="year">2012</span>',
-      text: 'Drei Jahre pro Sekunde: Jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80 – bis 2024 beobachtet, danach das mittlere BFS-Szenario. Je dunkler, desto älter.',
+  // scroll-driven chapters: each step is its own card; scrolling to it calls ctl.go(step)
+  const ageCh = { n: '', title: 'Die Schweiz wird älter', big: '<span class="age-year" data-age="year">2012</span>',
+      text: 'Drei Jahre pro Sekunde: Jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80 – bis 2024 beobachtet, danach das mittlere BFS-Szenario. Je dunkler, desto älter. Weiter scrollen: die Kantone im Rennen.',
       extra: `<p class="age-beat" data-age="beat"></p>
         <div data-age="ktblock" hidden><div class="age-counters"><div><b class="num" data-age="chv">–</b><span>Anteil ab 80 in der Schweiz</span></div><div><b class="num" data-age="grow">–</b><span>Zunahme seit 2012, in Prozentpunkten</span></div></div></div>
         <div data-age="gdeblock"><div class="age-counters"><div><b class="num" data-age="n">–</b><span>Gemeinden mit mindestens 10 % ab 80</span></div><div><b class="num" data-age="med">–</b><span>Anteil ab 80 in der mittleren Gemeinde</span></div></div>
         <div class="age-mini"><span class="small muted">Gemeinden mit mindestens 10 % ab 80</span><div data-age="chart"></div></div></div>`,
-      src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', map: (m, t, alive) => ageChapter(m, t, alive, { scope: document.getElementById('story') }),
-      thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' },
+      src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', steps: [{ title: 'Die Kantone im Rennen', text: 'Die Kantone fliegen aus der Karte in ein Balkenrennen 2012 → 2055 – sortiert nach dem Anteil der Menschen ab 80, mit Spuren alle fünf Jahre. Die violette Linie ist die Schweiz: Start 2012, Marke 2024, Ziel 2055.' }], ctl: {},
+      thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' };
+  ageCh.map = (m, t, alive) => ageChapter(m, t, alive, { scope: document.getElementById('story'), stepMode: true, ctl: ageCh.ctl, initStep: () => ageCh.s || 0 });
+  const tagCh = { id: 'tag', title: 'Ein Tag Pflege', big: '<span data-tp="visits">0</span>',
+    text: `Spitex-Besuche bisher heute. Ein Durchschnittstag im Zeitraffer: Die Pflegeheime leuchten nach ihrem Dienstplan, die Spitex fährt von ihren Standorten zu den Menschen in ihrem Bezirk – jeder Funke ist ein Besuch. Die Kurven zeigen, wie viele Menschen gerade im Dienst sind.`,
+    extra: `<div class="tp-clock" data-tp="clock"></div><div class="tp-duty"><span class="small muted">Im Dienst über 24 Stunden (Personen)</span><div data-tp="duty"></div></div>
+      <div class="tp-ctrl"><button class="btn small" type="button" data-tp="play">Pause</button><select data-tp="speed" aria-label="Geschwindigkeit"><option value="48">½ Stunde pro Sekunde</option><option value="24">1 Stunde pro Sekunde</option><option value="12" selected>2 Stunden pro Sekunde</option><option value="6">4 Stunden pro Sekunde</option></select></div>
+      <p class="small muted" data-tp="tot"></p>`,
+    src: `BAG Kennzahlen Pflegeheime und Spitex ${M.jahr} · BFS Spitex-Statistik 2012–${M.jahr} · BFS STATPOP · Tagesverlauf, Dienstpläne und Wege modelliert`,
+    thema: 'inanspruchnahme', q: 'spitex', steps: tagpflegeSteps(), ctl: {}, cap: 'Ein Tag Pflege' };
+  tagCh.map = (m, t, alive) => tagpflegeChapter(m, t, alive, { scope: main().querySelector('.story-card[data-ch="tag"]'), setCap: (x) => { const c = document.getElementById('storyCap'); if (c) c.textContent = x; }, ctl: tagCh.ctl, initStep: () => tagCh.s || 0 });
+  const chapters = [
+    { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
+      src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
+    ageCh,
+    tagCh,
     { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
       src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
     { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
@@ -114,17 +127,22 @@ export function render() {
   </section>
 
   <section class="story wrap" id="story" aria-labelledby="storyTitle">
-    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">${['Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht', 'Neun'][chapters.length - 3] || chapters.length} Blicke auf das Älterwerden in der Schweiz</h2></div>
+    <div class="story-head"><div><span class="eyebrow">Was die Daten zeigen</span><h2 id="storyTitle">${['Drei', 'Vier', 'Fünf', 'Sechs', 'Sieben', 'Acht', 'Neun', 'Zehn', 'Elf'][chapters.length - 3] || chapters.length} Blicke auf das Älterwerden in der Schweiz</h2></div>
       <a class="btn small" href="#choice">Story überspringen →</a></div>
     <div class="story-grid">
       <div class="story-cards">${chapters.map((c, k) => `
-        <article class="story-card${k === 0 ? ' active' : ''}" data-k="${k}">
-          <span class="n">Kapitel ${k + 1} von ${chapters.length}</span><h3>${c.title}</h3>
+        <article class="story-card${k === 0 ? ' active' : ''}${c.steps ? ' has-steps' : ''}" data-k="${k}" data-s="0"${c.id ? ` data-ch="${c.id}"` : ''}>
+          <span class="n">Kapitel ${k + 1} von ${chapters.length}${c.steps ? ` · Schritt 1 von ${c.steps.length + 1}` : ''}</span><h3>${c.title}</h3>
           <span class="big num">${c.big}</span><p>${c.text}</p>${c.extra || ''}
+          ${c.steps ? `<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen – dieses Kapitel hat ${c.steps.length + 1} Schritte</p>` : ''}
           <span class="src">Quelle: ${c.src}</span>
           <div class="exits">${c.thema ? `<a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
           <button class="btn small primary" type="button" data-us="${c.q}">Und bei uns?</button>` : `<a class="btn small" href="${c.ext}" target="_blank" rel="noopener">${esc(c.extLabel)} ↗</a>`}</div>
-        </article>`).join('')}
+        </article>${(c.steps || []).map((st, i) => `
+        <article class="story-card step" data-k="${k}" data-s="${i + 1}">
+          <span class="n">Kapitel ${k + 1} · Schritt ${i + 2} von ${c.steps.length + 1}</span><h3>${st.title}</h3><p>${st.text}</p>
+          ${i < c.steps.length - 1 ? '<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen</p>' : '<p class="small muted">Ende des Kapitels – weiter mit dem nächsten Kapitel.</p>'}
+        </article>`).join('')}`).join('')}
       </div>
       <div class="story-map"><div class="story-dots" aria-hidden="true">${chapters.map((_, k) => `<span class="${k === 0 ? 'on' : ''}"></span>`).join('')}</div>
         <p class="cap" id="storyCap">${chapters[0].cap}</p><div id="storyMap"></div><div id="storyLegend" class="small"></div></div>
@@ -254,7 +272,7 @@ export function render() {
   const activate = (k) => {
     if (k === shown) return;
     const my = ++gen;
-    cards.forEach((c, j) => c.classList.toggle('active', j === k)); dots.forEach((d, j) => d.classList.toggle('on', j === k));
+    dots.forEach((d, j) => d.classList.toggle('on', j === k));
     sCap.textContent = chapters[k].cap;
     storyTip = null; shown = k;
     const leg = chapters[k].map(smap, (f) => { if (shown === k) storyTip = f; }, () => my === gen && !dead);
@@ -263,7 +281,13 @@ export function render() {
   };
   let shown = -1;
   activate(0);
-  const io = new IntersectionObserver((ents) => ents.forEach((e) => { if (e.isIntersecting) activate(+e.target.dataset.k); }), { rootMargin: '-45% 0px -45% 0px' });
+  const onCard = (el) => {   // a card reached the middle of the screen: its chapter, and in scroll-driven chapters its step
+    const k = +el.dataset.k, st = +(el.dataset.s || 0);
+    cards.forEach((c) => c.classList.toggle('active', c === el));
+    if (k !== shown) activate(k);
+    const c = chapters[k]; c.s = st; c.ctl?.go?.(st);
+  };
+  const io = new IntersectionObserver((ents) => ents.forEach((e) => { if (e.isIntersecting) onCard(e.target); }), { rootMargin: '-45% 0px -45% 0px' });
   cards.forEach((c) => io.observe(c)); cleanup.push(() => io.disconnect());
 }
 
@@ -566,13 +590,13 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
     if (!alive()) { fx.remove(); ov.remove(); box.classList.remove('age-barmode'); box.style.height = ''; blocks(false); return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (phase === 'map') {
-      if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; toBars(); } } else y = Math.min(Y1, y + dt * SPEED); }   // 3 years per second
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; if (opts.stepMode) { y = Y0; prevY = null; } else toBars(); } } else y = Math.min(Y1, y + dt * SPEED); }   // 3 years per second
       const k = y >= Y1 ? -1 : Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }   // the last step always draws 2055
     } else if (phase === 'pre') { pt += dt; if (pt > 0.7) fly(); }                       // zoom back to the whole Schweiz first
     else if (phase === 'fly') { pt += dt; if (pt > 2.2) { phase = 'rewind'; pt = 0; ov.classList.add('landed'); y = Y0; rerank(y); drawBars(y, true); } }
     else if (phase === 'rewind') { pt += dt; if (pt > 1.1) { phase = 'bars'; pt = 0; } }
     else if (phase === 'bars') {
-      if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; if (opts.onDone) { run = false; opts.onDone(); } else toMap(); } } else y = Math.min(Y1, y + dt * SPEED); }
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; if (opts.onDone) { run = false; opts.onDone(); } else if (opts.stepMode) { phase = 'rewind'; pt = 0; y = Y0; rerank(y); drawBars(y, true); } else toMap(); } } else y = Math.min(Y1, y + dt * SPEED); }
       const k = y >= Y1 ? -1 : Math.round(y * 20); if (k !== shownY) { shownY = k; const r = Math.floor(y); if (r !== lastRank) { lastRank = r; rerank(y); } drawBars(y);
         set('year', Math.floor(y)); set('mode', Math.floor(y) <= A.obs_to ? 'beobachtet' : 'Szenario'); const sc = q('scrub'); if (sc && document.activeElement !== sc) sc.value = y; }
     } else if (phase === 'back') { pt += dt; if (pt > 0.7) { ov.innerHTML = ''; phase = 'map'; y = Y0; prevY = null; shownY = null; opts.onPhase?.('map'); } }
@@ -593,6 +617,8 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
     opts.ctl.toMap = () => { if (phase !== 'map' && phase !== 'back') { hold = 0; toMap(); } };
     opts.ctl.play = () => { run = true; const b = q('play'); if (b) b.textContent = 'Pause'; };
     opts.ctl.phase = () => phase;
+    opts.ctl.go = (st) => (st ? opts.ctl.toBars() : opts.ctl.toMap());
+    if (opts.initStep && opts.initStep()) setTimeout(() => opts.ctl.go(opts.initStep()), 0);
   }
   const steps = AGE_COL.map((c) => `<span style="background:${c}"></span>`).join('');
   const labs = AGE_COL.map((_, k) => `<span>${k ? AGE_BR[k - 1] / 10 : ''}</span>`).join('');
