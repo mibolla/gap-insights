@@ -801,3 +801,10 @@ details.how p { margin-top: 6px; }
 .km-k { font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
 .km-map { position: relative; } .km-map svg { cursor: grab; touch-action: none; } .km-map svg:active { cursor: grabbing; }
 .km-map .map-ctrl { right: 0; top: 0; } .km-map .map-ctrl button { width: 30px; height: 30px; font-size: 1rem; }
+/* bars + map are one entry: a shared panel with a thin accent frame, the map as its right half */
+.km-pair { gap: 0; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow), 0 0 0 1.5px color-mix(in srgb, var(--blue) 55%, transparent); will-change: transform; }
+.km-pair > .card { background: none; box-shadow: none; }
+.km-pair > .card.kmap { border-left: 1px solid var(--line); border-radius: 0 var(--radius) var(--radius) 0; }
+@media (max-width: 900px) { .km-pair > .card.kmap { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); } }
+.km-title { display: flex; flex-direction: column; gap: 3px; } .km-title .eyebrow { color: var(--blue); font-size: .7rem; }
+.km-pair { position: relative; z-index: 2; }

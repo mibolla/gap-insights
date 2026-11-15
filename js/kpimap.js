@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115170210';
-import { esc } from './ui.js?v=20261115170210';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115171904';
+import { esc } from './ui.js?v=20261115171904';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -36,7 +36,7 @@ export function kpiMapCard(opts) {
   if (r.e === 'CH') level = 'KT';
   const want = { ...(prefs().mapExts || {}) };   // remembered extent per granularity
   const extOf = () => { const xs = extsFor(r, level); return xs.includes(want[level]) ? want[level] : xs[xs.length > 1 && level === 'GDE' ? 1 : 0]; };
-  card.innerHTML = `<div class="card-head"><h3>${esc(opts.title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-close title="Karte schliessen" aria-label="Karte schliessen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
+  card.innerHTML = `<div class="card-head"><div class="km-title"><span class="eyebrow">Auf der Karte</span><h3>${esc(opts.title.replace(/^Karte: /, ''))}</h3></div><div class="card-tools no-print"><button class="icon-btn" data-close title="Karte schliessen" aria-label="Karte schliessen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
     <div class="km-ctrl no-print"><div class="km-grp"><span class="km-k">Granularität</span><div class="seg" role="group" aria-label="Granularität">${['GDE', 'BEZ', 'KT'].map((l) => `<button type="button" data-l="${l}"${can(l) ? '' : ' disabled title="Für diese Ebene nicht verfügbar"'}>${LVL[l]}</button>`).join('')}</div></div>
       <div class="km-grp"><span class="km-k">Ausschnitt</span><div class="seg km-ext" role="group" aria-label="Ausschnitt"></div></div></div>
     <div class="km-map"><svg role="img"></svg><div class="map-ctrl no-print"><button type="button" data-z="in" aria-label="Hineinzoomen">+</button><button type="button" data-z="out" aria-label="Herauszoomen">−</button><button type="button" data-z="all" aria-label="Ganze Karte">⤢</button></div></div>
@@ -136,14 +136,41 @@ export function attachMap(card, after, opts) {
   const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn small km-toggle no-print';
   let mapCard = null; let pair = null;
   const label = () => { btn.innerHTML = `${MAP_ICON}<span>${mapCard ? 'Karte schliessen' : 'Auf Karte zeigen'}</span>`; btn.setAttribute('aria-expanded', String(!!mapCard)); };
-  const close = () => { if (!mapCard) return; if (pair.isConnected) pair.before(card); pair.remove(); pair = null; mapCard = null; card.classList.remove('has-map'); label(); };
+  // ---- transition: the bar card slides to the left of its new row and the map unfolds to its right (one shared panel);
+  // the other cards glide to their new places (FLIP). No motion with prefers-reduced-motion.
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches || !card.animate;
+  const EASE = 'cubic-bezier(.2,.75,.2,1)';
+  const others = () => { const grid = (pair || card).closest('.cards'); return grid ? [...grid.querySelectorAll('.card, .km-pair')].filter((e) => e !== pair && e !== card && e !== mapCard && !e.parentElement.classList.contains('km-pair')) : []; };
+  const snap = (els) => new Map(els.map((e) => [e, e.getBoundingClientRect()]));
+  const glide = (before, ms) => before.forEach((b, e) => { if (!e.isConnected) return; const a = e.getBoundingClientRect(); const dx = b.left - a.left; const dy = b.top - a.top;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) e.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ms, easing: EASE }); });
+  const close = () => {
+    if (!mapCard) return;
+    const anim = !still() && pair.isConnected; const before = anim ? snap([...others(), card]) : null;
+    if (pair.isConnected) pair.before(card); pair.remove(); pair = null; mapCard = null; card.classList.remove('has-map'); label();
+    if (anim) glide(before, 380);
+  };
   const open = () => {
     if (mapCard || !card.parentElement) return;
+    const anim = !still(); const from = card.getBoundingClientRect(); const before = anim ? snap(others()) : null;
     // bars and map share one full-width row, so the map is always to the right of its own bar card
     pair = document.createElement('div'); pair.className = 'km-pair'; card.before(pair);
     mapCard = kpiMapCard(opts); card.classList.add('has-map'); pair.append(card, mapCard);
     mapCard.querySelector('[data-close]').addEventListener('click', close); label();
     mapCard._relabel?.();
+    // keep the extended entry in view (measured before the animation moves it)
+    const r = pair.getBoundingClientRect(); const top = (document.querySelector('.topics-compact.show')?.getBoundingClientRect().bottom || document.getElementById('topbar')?.getBoundingClientRect().bottom || 0) + 12;
+    if (r.top < top || r.bottom > innerHeight) window.scrollTo({ top: window.scrollY + r.top - top, behavior: anim ? 'smooth' : 'auto' });
+    if (anim) {
+      const to = pair.getBoundingClientRect(); const dx = from.left - to.left; const dy = from.top - to.top;
+      const side = to.width - from.width > 40;   // two columns: unfold to the right; one column (phone): unfold downwards
+      const hide = side ? `inset(0 ${Math.max(0, to.width - from.width)}px 0 0 round 10px)` : `inset(0 0 ${Math.max(0, to.height - from.height)}px 0 round 10px)`;
+      const moved = Math.abs(dx) > 1 || Math.abs(dy) > 1; const cut = moved ? 0.48 : 0.02; const ms = moved ? 820 : 520;
+      // phase 1: the entry travels to its new place (map still folded); phase 2: the map unfolds
+      pair.animate([{ transform: `translate(${dx}px, ${dy}px)`, clipPath: hide, easing: EASE }, { transform: 'none', clipPath: hide, offset: cut, easing: EASE }, { transform: 'none', clipPath: 'inset(0 0 0 0 round 10px)' }], { duration: ms });
+      mapCard.animate([{ opacity: 0, transform: side ? 'translateX(-36px)' : 'translateY(-24px)' }, { opacity: 0, transform: side ? 'translateX(-36px)' : 'translateY(-24px)', offset: cut, easing: EASE }, { opacity: 1, transform: 'none' }], { duration: ms });
+      glide(before, 520);
+    }
   };
   btn.addEventListener('click', () => (mapCard ? close() : open()));
   label(); after.after(btn);
