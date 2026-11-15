@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115172516';
-import { esc } from './ui.js?v=20261115172516';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115174328';
+import { esc } from './ui.js?v=20261115174328';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -34,6 +34,8 @@ export function kpiMapCard(opts) {
   const can = (l) => opts.levels.includes(l);
   let level = can(r.e) ? r.e : can('BEZ') ? 'BEZ' : 'KT';
   if (r.e === 'CH') level = 'KT';
+  if (opts.level && can(opts.level)) level = opts.level;   // reopened after a redraw: keep the Granularität
+  card._level = () => level;
   const want = { ...(prefs().mapExts || {}) };   // remembered extent per granularity
   const extOf = () => { const xs = extsFor(r, level); return xs.includes(want[level]) ? want[level] : xs[xs.length > 1 && level === 'GDE' ? 1 : 0]; };
   card.innerHTML = `<div class="card-head"><div class="km-title"><span class="eyebrow">Auf der Karte</span><h3>${esc(opts.title.replace(/^Karte: /, ''))}</h3></div><div class="card-tools no-print"><button class="icon-btn" data-close title="Karte schliessen" aria-label="Karte schliessen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
@@ -64,7 +66,7 @@ export function kpiMapCard(opts) {
     });
   } else card.querySelector('.map-ctrl').hidden = true;
   const draw = () => {
-    const ext = extOf();
+    const ext = extOf(); opts.onLevel?.(level);
     const regs = regionsFor(r, level, ext).map((x) => ({ x, d: pathOf(x), v: opts.value(x.id) })).filter((o) => o.d);
     const vals = regs.map((o) => o.v).filter((v) => v != null && Number.isFinite(v)).sort((a, b) => a - b);
     // quintile breaks (fewer classes when there are few distinct values)
@@ -166,23 +168,24 @@ export function attachMap(card, after, opts) {
   const snap = (els) => new Map(els.map((e) => [e, e.getBoundingClientRect()]));
   const glide = (before, ms) => before.forEach((b, e) => { if (!e.isConnected) return; const a = e.getBoundingClientRect(); const dx = b.left - a.left; const dy = b.top - a.top;
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) e.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration: ms, easing: EASE }); });
-  const close = () => {
+  // quiet: no motion and no scrolling – used when the entry is only redrawn (another indicator, year, comparison)
+  const close = ({ quiet = false } = {}) => {
     if (!mapCard) return;
-    const anim = !still() && pair.isConnected; const before = anim ? snap([...others(), card]) : null;
+    const anim = !quiet && !still() && pair.isConnected; const before = anim ? snap([...others(), card]) : null;
     if (pair.isConnected) pair.before(card); pair.remove(); pair = null; mapCard = null; card.classList.remove('has-map'); label();
     if (anim) glide(before, 380);
   };
-  const open = () => {
+  const open = ({ quiet = false, level = null } = {}) => {
     if (mapCard || !card.parentElement) return;
-    const anim = !still(); const from = card.getBoundingClientRect(); const before = anim ? snap(others()) : null;
+    const anim = !quiet && !still(); const from = card.getBoundingClientRect(); const before = anim ? snap(others()) : null;
     // bars and map share one full-width row, so the map is always to the right of its own bar card
     pair = document.createElement('div'); pair.className = 'km-pair'; card.before(pair);
-    mapCard = kpiMapCard(opts); card.classList.add('has-map'); pair.append(card, mapCard);
-    mapCard.querySelector('[data-close]').addEventListener('click', close); label();
+    mapCard = kpiMapCard(level ? { ...opts, level } : opts); card.classList.add('has-map'); pair.append(card, mapCard);
+    mapCard.querySelector('[data-close]').addEventListener('click', () => { close(); opts.onToggle?.(false); }); label();
     mapCard._relabel?.();
     // keep the extended entry in view (measured before the animation moves it)
     const r = pair.getBoundingClientRect(); const top = (document.querySelector('.topics-compact.show')?.getBoundingClientRect().bottom || document.getElementById('topbar')?.getBoundingClientRect().bottom || 0) + 12;
-    if (r.top < top || r.bottom > innerHeight) window.scrollTo({ top: window.scrollY + r.top - top, behavior: anim ? 'smooth' : 'auto' });
+    if (!quiet && (r.top < top || r.bottom > innerHeight)) window.scrollTo({ top: window.scrollY + r.top - top, behavior: anim ? 'smooth' : 'auto' });
     if (anim) {
       const to = pair.getBoundingClientRect(); const dx = from.left - to.left; const dy = from.top - to.top;
       const side = to.width - from.width > 40;   // two columns: unfold to the right; one column (phone): unfold downwards
@@ -194,7 +197,7 @@ export function attachMap(card, after, opts) {
       glide(before, 520);
     }
   };
-  btn.addEventListener('click', () => (mapCard ? close() : open()));
+  btn.addEventListener('click', () => { if (mapCard) close(); else open(); opts.onToggle?.(!!mapCard); });
   label(); after.after(btn);
-  card._map = { open, close, isOpen: () => !!mapCard };
+  card._map = { open, close, isOpen: () => !!mapCard, level: () => (mapCard ? mapCard._level() : null) };
 }

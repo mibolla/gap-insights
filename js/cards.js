@@ -1,10 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115172516';
-import { whyHTML } from './context.js?v=20261115172516';
-import { attachMap } from './kpimap.js?v=20261115172516';
-import { toast, esc } from './ui.js?v=20261115172516';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115172516';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115174328';
+import { whyHTML } from './context.js?v=20261115174328';
+import { attachMap } from './kpimap.js?v=20261115174328';
+import { toast, esc } from './ui.js?v=20261115174328';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115174328';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -121,7 +121,7 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
     requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, proxy || id)));
     // Experte: the same indicator on a map, to the right of the bars
     if (isPro() && (v != null || proxy)) attachMap(card, div, { id, title: `Karte: ${i.short}`, label: `${i.short}${i.unit && i.unit !== 'Personen' ? ` (${i.unit === 'pro 1000' ? 'von 1000' : i.unit})` : ''}`,
-      value: (x) => val(indId, x), fmt: (x) => `${fmt(x, i)}${i.unit === '%' ? ' %' : ''}`, levels: i.levels, href: (x) => `#/gemeinde/${x}/${i.sub}` });
+      value: (x) => val(indId, x), fmt: (x) => `${fmt(x, i)}${i.unit === '%' ? ' %' : ''}`, levels: i.levels });
   }
   card.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-act]'); if (!b) return;

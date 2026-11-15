@@ -1,6 +1,6 @@
 // Basis mode: which topics and indicators are shown, and the plain-language context beside the results.
 // The Experte mode shows everything and leaves the context texts out.
-import { isPro } from './store.js?v=20261115172516';
+import { isPro } from './store.js?v=20261115174328';
 
 /** topics only shown in the Experte mode */
 export const PRO_SUBS = new Set(['bewegungen', 'kosten', 'finanzierung', 'kennzahlen', 'statamb']);

@@ -1,10 +1,10 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261115172516';
-import { whyHTML, lean } from './context.js?v=20261115172516';
-import { attachMap } from './kpimap.js?v=20261115172516';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261115172516';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115172516';
-import { esc } from './ui.js?v=20261115172516';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261115174328';
+import { whyHTML, lean } from './context.js?v=20261115174328';
+import { attachMap } from './kpimap.js?v=20261115174328';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261115174328';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115174328';
+import { esc } from './ui.js?v=20261115174328';
 
 let PV = null;
 export async function loadProg() {
@@ -80,7 +80,7 @@ export function progSourceLine(mid) {
 }
 
 // ------------------------------------------------------------------ forecast card (one indicator, one region)
-export async function progCard(indId, id, mode = 'kt') {
+export async function progCard(indId, id, mode = 'kt', onMap = null, onLevel = null) {
   const P = await loadProg(); const i = S.ind.get(indId); const r = region(id); const { v, j } = progState();
   const base = S.meta.prog.years[0] ? P.years[0] : 2024;
   const val0 = pval(P, indId, id, v, base); const valj = pval(P, indId, id, v, j);
@@ -140,7 +140,7 @@ export async function progCard(indId, id, mode = 'kt') {
       rows: ids.map((x) => [x === 'CH' ? 'Schweiz' : shortName(x), rnd(pval(P, indId, x, 'mittel', base), 2), ...S.meta.prog.variants.map((vv) => rnd(pval(P, indId, x, vv, j), 2))]) };
   });
   if (isPro() && valj != null) attachMap(card, div, { id, title: `Karte: ${what} ${j}`, label: lab, value: (x) => metric(x).y,
-    fmt: (x) => (share ? fmtP(x, i) : sign(x)), levels: i.levels, href: (x) => `#/gemeinde/${x}/${i.sub}/ausblick` });
+    fmt: (x) => (share ? fmtP(x, i) : sign(x)), levels: i.levels, onToggle: onMap, onLevel });
   const btn = card.querySelector('[data-act="export"]');
   btn.onclick = () => exportMenu(btn, (f) => exportItems(f, [{ title: `${i.label} – ${r.e === 'CH' ? 'Schweiz' : shortName(id)} – ${j} (${ph ? 'Platzhalter, ' : ''}BFS ${v})`, sheet: i.short,
     sentence: sent, source: progSourceLine(i.modell), definition: `${i.def} Modell: ${m.name}; Variante: ${m.variante}; Regionalisierung: ${m.regionalisierung} Grenzen: ${m.grenzen}`,
@@ -260,6 +260,7 @@ function animateBars(div, prev) {
   requestAnimationFrame(run);
 }
 
+const KEEP = { key: null, cur: null, map: false, level: null };
 /** content of a topic's Ausblick view */
 export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   if (!d.prog) { box.innerHTML = '<p class="empty">Für diese Region liegt keine Prognose vor.</p>'; return; }
@@ -291,11 +292,16 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   const inds = lean(S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick'), (x) => x.id);
   const LAB = { p_bev: 'Bevölkerung', p_b65: 'ab 65', p_b80: 'ab 80', p_a80: 'Anteil 80+', p_aq: 'Altersquotient', p_aph: 'Benötigte Plätze', p_aph_diff: 'Zusätzliche Plätze' };
   let slot = null;
-  let cur = inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
+  // a redraw of the same view (other Zieljahr, Variante or comparison) keeps the indicator and an open map
+  const key = `${r.id}|${subId}`;
+  if (KEEP.key !== key) Object.assign(KEEP, { key, cur: null, map: false, level: null });
+  const prevCard = document.querySelector('#ausblick .card.has-map'); if (prevCard?._map?.isOpen()) { KEEP.map = true; KEEP.level = prevCard._map.level(); }
+  let cur = inds.find((i) => i.id === KEEP.cur) ? KEEP.cur : inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
   const show = async (iid) => {
     const prev = barState(slot?.querySelector('.chart'));
-    const mapOpen = slot?._map?.isOpen(); slot?._map?.close();   // an open map follows the indicator
-    cur = iid; const card = await progCard(iid, r.id, mode);
+    // an open map follows the indicator – swapped in place, without the opening animation
+    const mapOpen = slot?._map?.isOpen(); const mapLevel = slot?._map?.level(); slot?._map?.close({ quiet: true });
+    cur = iid; KEEP.cur = iid; const card = await progCard(iid, r.id, mode, (on) => { KEEP.map = on; }, (l) => { KEEP.level = l; });
     if (inds.length > 1) {
       const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
       seg.innerHTML = inds.map((i) => `<button type="button" data-k="${i.id}" aria-pressed="${i.id === iid}">${esc(LAB[i.id] || i.short)}</button>`).join('');
@@ -304,10 +310,11 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
     }
     if (slot) slot.replaceWith(card); else cards.appendChild(card);
     slot = card;
-    if (mapOpen) card._map?.open();
+    if (mapOpen) card._map?.open({ quiet: true, level: mapLevel });
     if (prev) animateBars(card.querySelector('.chart'), prev);
   };
   if (cur) await show(cur);
+  if (KEEP.map && slot?._map && !slot._map.isOpen()) slot._map.open({ quiet: true, level: KEEP.level });
 }
 
 /** #/ausblick/<id>: all forecasts of a region on one page (time first) */

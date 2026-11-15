@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115172516';
-import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115172516';
-import { createMap } from './map.js?v=20261115172516';
-import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115172516';
-import { omnibox } from './search.js?v=20261115172516';
-import { esc, main } from './ui.js?v=20261115172516';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115172516';
-import { openReportDialog } from './report.js?v=20261115172516';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115174328';
+import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115174328';
+import { createMap } from './map.js?v=20261115174328';
+import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115174328';
+import { omnibox } from './search.js?v=20261115174328';
+import { esc, main } from './ui.js?v=20261115174328';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115174328';
+import { openReportDialog } from './report.js?v=20261115174328';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -284,10 +284,14 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div>
     <div class="cards" id="topicGrid"><div id="special" class="sub-grid"></div><div id="indCards" class="sub-grid"></div></div>`;   // one grid: half-width topic charts sit beside the indicator cards
   const draw = () => {
-    const box = document.getElementById('indCards'); box.innerHTML = '';
+    const box = document.getElementById('indCards');
+    // maps that are open stay open when the cards are redrawn (other comparison): reopened in place, without animation
+    const openMaps = [...box.querySelectorAll('.card.has-map')].filter((c) => c._map?.isOpen()).map((c) => [c.id, c._map.level()]);
+    box.innerHTML = '';
     const all = S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit);
     const shown = lean(all, (i) => i.id);
     shown.forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
+    openMaps.forEach(([cid, level]) => document.getElementById(cid)?._map?.open({ quiet: true, level }));
     if (!isPro() && all.length) box.appendChild(moreCard(all.filter((i) => !shown.includes(i)).map((i) => i.short)));
     ownBox(r, mode, () => { draw(); drawSpecial(); });
   };

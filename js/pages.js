@@ -1,9 +1,9 @@
 // Themen overview, one Thema (list of questions + Swiss values), Favoriten, Daten & Methodik.
-import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261115172516';
-import { indicatorCard, indicatorItem } from './cards.js?v=20261115172516';
-import { exportItems } from './export.js?v=20261115172516';
-import { omnibox } from './search.js?v=20261115172516';
-import { esc, main, toast } from './ui.js?v=20261115172516';
+import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261115174328';
+import { indicatorCard, indicatorItem } from './cards.js?v=20261115174328';
+import { exportItems } from './export.js?v=20261115174328';
+import { omnibox } from './search.js?v=20261115174328';
+import { esc, main, toast } from './ui.js?v=20261115174328';
 
 export function themen() {
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Frage zuerst</span><h2>Themen und Fragen</h2></div></div>
