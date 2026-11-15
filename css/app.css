@@ -769,7 +769,9 @@ details.how p { margin-top: 6px; }
 /* Experte: «Auf Karte zeigen» – the map card sits to the right of its bar card */
 .km-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
 .km-toggle[aria-expanded="true"] { border-color: var(--blue); color: var(--blue); }
-@media (min-width: 901px) { .cards:has(.has-map) { grid-auto-flow: row dense; } .card.has-map { grid-column: 1; } .card.kmap { grid-column: 2; } }
+.km-pair { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.cards:has(.km-pair) { grid-auto-flow: row dense; }
+@media (max-width: 900px) { .km-pair { grid-template-columns: minmax(0, 1fr); } }
 .card.kmap { gap: 10px; }
 .km-ctrl { display: flex; flex-wrap: wrap; gap: 8px; }
 .km-ctrl .seg button { padding: 4px 10px; font-size: .82rem; }
@@ -794,3 +796,6 @@ details.how p { margin-top: 6px; }
 .own-note { color: var(--ink); background: var(--orange-soft); }
 .km-val text { text-anchor: middle; dominant-baseline: central; font-family: var(--font-body); font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
 .km-val .on-dark { fill: #ffffff; } .km-val .on-light { fill: #17232c; }
+.km-ctrl { gap: 8px 18px; }
+.km-grp { display: flex; flex-direction: column; gap: 3px; }
+.km-k { font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }

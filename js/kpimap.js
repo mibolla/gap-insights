@@ -1,20 +1,27 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115162533';
-import { esc } from './ui.js?v=20261115162533';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115162929';
+import { esc } from './ui.js?v=20261115162929';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
 const LVL = { GDE: 'Gemeinden', BEZ: 'Bezirke', KT: 'Kantone' };
 const MAP_ICON = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 6.5z"/><path d="M9 4v13M15 6.5v13"/></svg>';
 
-/** the regions drawn for a level; ext: 'BEZ' | 'KT' (Gemeinden only) */
+/** extents offered for a granularity: Gemeinden in Bezirk | Kanton, Bezirke in Kanton | Schweiz, Kantone in der Schweiz */
+const EXT = { BEZ: 'im Bezirk', KT: 'im Kanton', CH: 'in der Schweiz' };
+function extsFor(r, level) {
+  if (level === 'KT' || r.e === 'CH') return ['CH'];
+  if (level === 'BEZ') return ['KT', 'CH'];
+  return r.e === 'KT' ? ['KT'] : ['BEZ', 'KT'];
+}
+/** the regions drawn: granularity `level` within the extent `ext` around the region r */
 function regionsFor(r, level, ext) {
-  if (level === 'KT') return S.regions.filter((x) => x.e === 'KT');
-  if (r.e === 'CH') return S.regions.filter((x) => x.e === level);
-  if (level === 'BEZ') return S.regions.filter((x) => x.e === 'BEZ' && x.kt === r.kt);
-  const bez = r.e === 'GDE' ? r.bez : r.e === 'BEZ' ? r.id : null;
-  return S.regions.filter((x) => x.e === 'GDE' && (ext === 'BEZ' && bez ? x.bez === bez : x.kt === r.kt));
+  const all = S.regions.filter((x) => x.e === level);
+  if (ext === 'CH') return all;
+  if (ext === 'KT') return all.filter((x) => x.kt === r.kt);
+  const bez = r.e === 'GDE' ? r.bez : r.id;
+  return all.filter((x) => x.bez === bez);
 }
 const pathOf = (x) => (x.e === 'GDE' ? S.geo.gde[x.id.slice(4)] : x.e === 'BEZ' ? S.geo.bez[x.id.slice(4)] : S.geo.kt[x.kt]);
 /** the region itself, or the Bezirk / Kanton it belongs to at a coarser level */
@@ -27,15 +34,17 @@ export function kpiMapCard(opts) {
   const can = (l) => opts.levels.includes(l);
   let level = can(r.e) ? r.e : can('BEZ') ? 'BEZ' : 'KT';
   if (r.e === 'CH') level = 'KT';
-  let ext = prefs().mapExt === 'BEZ' ? 'BEZ' : 'KT';
+  const want = { ...(prefs().mapExts || {}) };   // remembered extent per granularity
+  const extOf = () => { const xs = extsFor(r, level); return xs.includes(want[level]) ? want[level] : xs[xs.length > 1 && level === 'GDE' ? 1 : 0]; };
   card.innerHTML = `<div class="card-head"><h3>${esc(opts.title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-close title="Karte schliessen" aria-label="Karte schliessen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
-    <div class="km-ctrl no-print"><div class="seg" role="group" aria-label="Ebene">${['GDE', 'BEZ', 'KT'].map((l) => `<button type="button" data-l="${l}"${can(l) ? '' : ' disabled title="Für diese Ebene nicht verfügbar"'}>${LVL[l]}</button>`).join('')}</div>
-      <div class="seg km-ext" role="group" aria-label="Ausschnitt"><button type="button" data-x="BEZ">im Bezirk</button><button type="button" data-x="KT">im Kanton</button></div></div>
+    <div class="km-ctrl no-print"><div class="km-grp"><span class="km-k">Granularität</span><div class="seg" role="group" aria-label="Granularität">${['GDE', 'BEZ', 'KT'].map((l) => `<button type="button" data-l="${l}"${can(l) ? '' : ' disabled title="Für diese Ebene nicht verfügbar"'}>${LVL[l]}</button>`).join('')}</div></div>
+      <div class="km-grp"><span class="km-k">Ausschnitt</span><div class="seg km-ext" role="group" aria-label="Ausschnitt"></div></div></div>
     <div class="km-map"><svg role="img"></svg></div>
     <p class="km-read num" aria-live="polite"></p>
     <div class="km-leg num"></div>`;
   const svg = card.querySelector('.km-map svg'); const read = card.querySelector('.km-read'); const leg = card.querySelector('.km-leg');
   const draw = () => {
+    const ext = extOf();
     const regs = regionsFor(r, level, ext).map((x) => ({ x, d: pathOf(x), v: opts.value(x.id) })).filter((o) => o.d);
     const vals = regs.map((o) => o.v).filter((v) => v != null && Number.isFinite(v)).sort((a, b) => a - b);
     // quintile breaks (fewer classes when there are few distinct values)
@@ -82,19 +91,19 @@ export function kpiMapCard(opts) {
     card._relabel = labels;
     if (card.isConnected) fit(); else requestAnimationFrame(fit);
     svg.setAttribute('aria-label', `Karte: ${opts.label}, ${LVL[level]}`);
-    const scope = level === 'KT' ? 'alle Kantone' : r.e === 'CH' ? `alle ${LVL[level]}` : level === 'BEZ' ? `Bezirke im Kanton ${r.kt}` : ext === 'BEZ' && r.e !== 'KT' ? `Gemeinden im ${regionLabel(r.e === 'GDE' ? r.bez : r.id, false)}` : `Gemeinden im Kanton ${r.kt}`;
+    const scope = `${LVL[level]} ${ext === 'CH' ? 'der Schweiz' : ext === 'KT' ? `im Kanton ${r.kt}` : `im ${regionLabel(r.e === 'GDE' ? r.bez : r.id, false)}`}`;
     const meV = me ? opts.value(me) : null;
     const base = me && meV != null ? `<b>${esc(shortName(me))}</b> ${esc(opts.fmt(meV))}` : `${regs.length} ${LVL[level]}`;
     read.innerHTML = base; svg.onmouseleave = () => { read.innerHTML = base; };
     leg.innerHTML = vals.length ? `<span class="km-lab">${esc(opts.label)} · ${esc(scope)}</span><span class="km-ramp"><span>${esc(opts.fmt(vals[0]))}</span>${RAMP.map((c) => `<i style="background:${c}"></i>`).join('')}<span>${esc(opts.fmt(vals[vals.length - 1]))}</span></span>`
       : `<span class="km-lab">Für diese Ebene liegen keine Werte vor.</span>`;
     card.querySelectorAll('[data-l]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.l === level)));
-    const extBox = card.querySelector('.km-ext'); extBox.hidden = !(level === 'GDE' && (r.e === 'GDE' || r.e === 'BEZ'));
-    extBox.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.x === ext)));
+    // the extents on the right follow the granularity
+    card.querySelector('.km-ext').innerHTML = extsFor(r, level).map((x) => `<button type="button" data-x="${x}" aria-pressed="${x === ext}">${EXT[x]}</button>`).join('');
   };
   card.querySelector('.km-ctrl').addEventListener('click', (ev) => {
     const b = ev.target.closest('button'); if (!b || b.disabled) return;
-    if (b.dataset.l) level = b.dataset.l; else { ext = b.dataset.x; setPrefs({ mapExt: ext }); }
+    if (b.dataset.l) level = b.dataset.l; else { want[level] = b.dataset.x; setPrefs({ mapExts: want }); }
     draw();
   });
   draw();
@@ -105,13 +114,16 @@ export function kpiMapCard(opts) {
 /** adds the «Auf Karte zeigen» button under `after` and opens the map card to the right of `card` */
 export function attachMap(card, after, opts) {
   const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn small km-toggle no-print';
-  let mapCard = null;
+  let mapCard = null; let pair = null;
   const label = () => { btn.innerHTML = `${MAP_ICON}<span>${mapCard ? 'Karte schliessen' : 'Auf Karte zeigen'}</span>`; btn.setAttribute('aria-expanded', String(!!mapCard)); };
-  const close = () => { if (!mapCard) return; mapCard.remove(); mapCard = null; card.classList.remove('has-map'); label(); };
+  const close = () => { if (!mapCard) return; if (pair.isConnected) pair.before(card); pair.remove(); pair = null; mapCard = null; card.classList.remove('has-map'); label(); };
   const open = () => {
     if (mapCard || !card.parentElement) return;
-    mapCard = kpiMapCard(opts); card.classList.add('has-map'); card.after(mapCard);
+    // bars and map share one full-width row, so the map is always to the right of its own bar card
+    pair = document.createElement('div'); pair.className = 'km-pair'; card.before(pair);
+    mapCard = kpiMapCard(opts); card.classList.add('has-map'); pair.append(card, mapCard);
     mapCard.querySelector('[data-close]').addEventListener('click', close); label();
+    mapCard._relabel?.();
   };
   btn.addEventListener('click', () => (mapCard ? close() : open()));
   label(); after.after(btn);
