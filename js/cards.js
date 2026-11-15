@@ -1,10 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115164535';
-import { whyHTML } from './context.js?v=20261115164535';
-import { attachMap } from './kpimap.js?v=20261115164535';
-import { toast, esc } from './ui.js?v=20261115164535';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115164535';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115165333';
+import { whyHTML } from './context.js?v=20261115165333';
+import { attachMap } from './kpimap.js?v=20261115165333';
+import { toast, esc } from './ui.js?v=20261115165333';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115165333';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');

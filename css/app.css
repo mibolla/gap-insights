@@ -799,3 +799,5 @@ details.how p { margin-top: 6px; }
 .km-ctrl { gap: 8px 18px; }
 .km-grp { display: flex; flex-direction: column; gap: 3px; }
 .km-k { font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+.km-map { position: relative; } .km-map svg { cursor: grab; touch-action: none; } .km-map svg:active { cursor: grabbing; }
+.km-map .map-ctrl { right: 0; top: 0; } .km-map .map-ctrl button { width: 30px; height: 30px; font-size: 1rem; }

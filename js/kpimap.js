@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115164535';
-import { esc } from './ui.js?v=20261115164535';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115165333';
+import { esc } from './ui.js?v=20261115165333';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -39,10 +39,23 @@ export function kpiMapCard(opts) {
   card.innerHTML = `<div class="card-head"><h3>${esc(opts.title)}</h3><div class="card-tools no-print"><button class="icon-btn" data-close title="Karte schliessen" aria-label="Karte schliessen"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div></div>
     <div class="km-ctrl no-print"><div class="km-grp"><span class="km-k">Granularität</span><div class="seg" role="group" aria-label="Granularität">${['GDE', 'BEZ', 'KT'].map((l) => `<button type="button" data-l="${l}"${can(l) ? '' : ' disabled title="Für diese Ebene nicht verfügbar"'}>${LVL[l]}</button>`).join('')}</div></div>
       <div class="km-grp"><span class="km-k">Ausschnitt</span><div class="seg km-ext" role="group" aria-label="Ausschnitt"></div></div></div>
-    <div class="km-map"><svg role="img"></svg></div>
+    <div class="km-map"><svg role="img"></svg><div class="map-ctrl no-print"><button type="button" data-z="in" aria-label="Hineinzoomen">+</button><button type="button" data-z="out" aria-label="Herauszoomen">−</button><button type="button" data-z="all" aria-label="Ganze Karte">⤢</button></div></div>
     <p class="km-read num" aria-live="polite"></p>
     <div class="km-leg num"></div>`;
   const svg = card.querySelector('.km-map svg'); const read = card.querySelector('.km-read'); const leg = card.querySelector('.km-leg');
+  // zoom and pan like the large maps (wheel, drag, pinch, buttons); the numbers are re-fitted after each move
+  let zk = 1; let zoom = null; let root = null;
+  const sel = () => d3.select(svg);
+  if (window.d3) {
+    zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', (ev) => { zk = ev.transform.k; root?.setAttribute('transform', ev.transform); })
+      .on('end', () => card._relabel && card._relabel());
+    sel().call(zoom).on('dblclick.zoom', null);
+    card.querySelector('.map-ctrl').addEventListener('click', (ev) => {
+      const z = ev.target.closest('button')?.dataset.z; if (!z) return;
+      if (z === 'all') sel().transition().duration(350).call(zoom.transform, d3.zoomIdentity);
+      else sel().transition().duration(250).call(zoom.scaleBy, z === 'in' ? 1.6 : 1 / 1.6);
+    });
+  } else card.querySelector('.map-ctrl').hidden = true;
   const draw = () => {
     const ext = extOf();
     const regs = regionsFor(r, level, ext).map((x) => ({ x, d: pathOf(x), v: opts.value(x.id) })).filter((o) => o.d);
@@ -53,7 +66,8 @@ export function kpiMapCard(opts) {
     const cls = (v) => { let k = 0; while (k < brk.length && v >= brk[k]) k++; return Math.round((k / Math.max(1, brk.length)) * (RAMP.length - 1)); };
     const me = selfAt(r, level);
     svg.innerHTML = '';
-    const g = document.createElementNS(NS, 'g'); svg.appendChild(g);
+    root = document.createElementNS(NS, 'g'); svg.appendChild(root);
+    const g = document.createElementNS(NS, 'g'); root.appendChild(g);
     let top = null; const items = [];
     regs.forEach((o) => {
       const p = document.createElementNS(NS, 'path'); p.setAttribute('d', o.d);
@@ -69,12 +83,12 @@ export function kpiMapCard(opts) {
       if (ok) items.push({ p, o, k: cls(o.v) });
     });
     if (top) g.appendChild(top);   // the own region on top, so its outline is complete
-    const lab = document.createElementNS(NS, 'g'); lab.setAttribute('class', 'km-val'); svg.appendChild(lab);
+    const lab = document.createElementNS(NS, 'g'); lab.setAttribute('class', 'km-val'); root.appendChild(lab);
     // values written into the regions that are large enough (font 10.5 px on screen, whatever the zoom of the viewBox)
     const labels = () => {
       lab.innerHTML = ''; const vb = svg.viewBox.baseVal; const w = svg.clientWidth; const h = svg.clientHeight;
       if (!vb || !vb.width || !w) return;
-      const sc = Math.min(w / vb.width, h / vb.height); const fs = 10.5 / sc; const pt = svg.createSVGPoint();
+      const sc = Math.min(w / vb.width, h / vb.height) * zk; const fs = 10.5 / sc; const pt = svg.createSVGPoint();
       items.forEach(({ p, o, k }) => {
         const t = opts.fmt(o.v).replace(/\s*%$/, ''); const b = p.getBBox();
         const tw = t.length * 0.6 * fs; const c = o.x.e === 'GDE' && S.geo.c && S.geo.c[o.x.id.slice(4)];
@@ -87,7 +101,9 @@ export function kpiMapCard(opts) {
         e.setAttribute('class', k >= 3 ? 'on-dark' : 'on-light'); e.textContent = t; lab.appendChild(e);
       });
     };
-    const fit = () => { const b = g.getBBox(); if (!b.width) return; const m = Math.max(b.width, b.height) * 0.02; svg.setAttribute('viewBox', `${b.x - m} ${b.y - m} ${b.width + 2 * m} ${b.height + 2 * m}`); labels(); };
+    const fit = () => { const b = g.getBBox(); if (!b.width) return; const m = Math.max(b.width, b.height) * 0.02; svg.setAttribute('viewBox', `${b.x - m} ${b.y - m} ${b.width + 2 * m} ${b.height + 2 * m}`);
+      if (zoom) { zoom.translateExtent([[b.x - m, b.y - m], [b.x + b.width + m, b.y + b.height + m]]); zk = 1; sel().call(zoom.transform, d3.zoomIdentity); }   // a new level or extent starts unzoomed
+      labels(); };
     card._relabel = labels;
     if (card.isConnected) fit(); else requestAnimationFrame(fit);
     svg.setAttribute('aria-label', `Karte: ${opts.label}, ${LVL[level]}`);
