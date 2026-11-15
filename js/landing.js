@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115164008';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115164535';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,11 +7,11 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115164008';
-import { omnibox } from './search.js?v=20261115164008';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115164008';
-import { esc, main } from './ui.js?v=20261115164008';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115164008';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115164535';
+import { omnibox } from './search.js?v=20261115164535';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115164535';
+import { esc, main } from './ui.js?v=20261115164535';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115164535';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -59,7 +59,7 @@ export function render() {
       thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' };
   ageCh.map = (m, t, alive) => ageChapter(m, t, alive, { scope: document.getElementById('story'), stepMode: true, ctl: ageCh.ctl, initStep: () => ageCh.s || 0 });
   const tagCh = { id: 'tag', title: 'Ein Tag Pflege', big: '<span data-tp="visits">0</span>',
-    text: `Spitex-Besuche bisher heute. Ein Durchschnittstag im Zeitraffer: Die Pflegeheime leuchten nach ihrem Dienstplan, die Spitex fährt von ihren Standorten zu den Menschen in ihrem Bezirk – jeder Funke ist ein Besuch. Die Kurven zeigen, wie viele Menschen gerade im Dienst sind.`,
+    text: `Spitex-Besuche bisher heute. Ein Durchschnittstag im Zeitraffer: Die Pflegeheime leuchten nach ihrem Dienstplan, die Spitex fährt von ihren Standorten zu den Menschen in ihrem Bezirk – und in Nachbarbezirke ohne eigene Spitex – jeder Funke ist ein Besuch. Die Kurven zeigen, wie viele Menschen gerade im Dienst sind.`,
     extra: `<div class="tp-clock" data-tp="clock"></div><div class="tp-duty"><span class="small muted">Im Dienst über 24 Stunden (Personen)</span><div data-tp="duty"></div></div>
       <div class="tp-ctrl"><button class="btn small" type="button" data-tp="play">Pause</button><select data-tp="speed" aria-label="Geschwindigkeit"><option value="48">½ Stunde pro Sekunde</option><option value="24">1 Stunde pro Sekunde</option><option value="12" selected>2 Stunden pro Sekunde</option><option value="6">4 Stunden pro Sekunde</option></select></div>
       <p class="small muted" data-tp="tot"></p>`,

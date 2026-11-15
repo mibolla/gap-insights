@@ -3,8 +3,8 @@
 // Step 1/2: staff per Bezirk (Heim | Spitex) → the Kantone fly into a scatter and become Wappen
 // Step 3/4: services per Bezirk → scatter with Wappen · Step 5: time travel of the services 2012 → reporting year
 // Data: data/tagpflege.json (cop/s8_tagpflege.py), heime.json, spitex.json, geo.json; daily rosters and visit routes are modelled.
-import { S, dataUrl, region, wappen } from './store.js?v=20261115164008';
-import { reduced } from './map.js?v=20261115164008';
+import { S, dataUrl, region, wappen } from './store.js?v=20261115164535';
+import { reduced } from './map.js?v=20261115164535';
 
 let TP = null, HE = null, SX = null;
 const load = () => Promise.all([
@@ -71,8 +71,9 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
     o.strokeStyle = 'rgba(147,166,182,.45)'; o.lineWidth = 1.2; o.stroke(chP);
     return off;
   };
-  // ---- the day: Spitex visits from the organisation to a point in a Gemeinde of its Bezirk (∝ people 65+)
-  const BZ = T.bz, BZW = {}; Object.entries(BZ).forEach(([k, gs]) => { let t = 0; BZW[k] = gs.map((g) => (t += T.p65[g] + 1)); });
+  // ---- the day: Spitex visits from the organisation to a point in a Gemeinde of its Bezirk (∝ people 65+);
+  // a Bezirk without a Spitex seat is served from its neighbouring Bezirke in the same Kanton (T.ext)
+  const BZ = { ...T.bz }, BZW = {}; Object.entries(T.ext || {}).forEach(([k, us]) => { if (BZ[k]) BZ[k] = BZ[k].concat(...us.map((u) => T.bz[u] || [])); }); Object.entries(BZ).forEach(([k, gs]) => { let t = 0; BZW[k] = gs.map((g) => (t += T.p65[g] + 1)); });
   const O = Sx.x.map((x, i) => [x, Sx.y[i], Sx.c[i], T.obz[i], Sx.v[i] || 1]).filter((o) => o[3] && BZ[o[3]]);
   const oc = []; let tot = 0; O.forEach((o) => { tot += o[2]; oc.push(tot); });
   const bs = (arr, r) => { let lo = 0, hi = arr.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < r) lo = m + 1; else hi = m; } return lo; };
