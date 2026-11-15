@@ -1,10 +1,10 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261115175354';
-import { roundProg, model, pval } from './prog.js?v=20261115175354';
-import { esc } from './ui.js?v=20261115175354';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261115175354';
-const REPORT_SKIP = new Set(['aph_schwer4', 'aph_schwer9']);   // the report keeps its set of indicators for now
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261115180224';
+import { roundProg, model, pval } from './prog.js?v=20261115180224';
+import { esc } from './ui.js?v=20261115180224';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261115180224';
+const REPORT_SKIP = new Set(['aph_stufe3', 'aph_schwer4', 'aph_mittel48', 'aph_schwer9']);   // the report keeps its set of indicators for now
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);

@@ -1,6 +1,6 @@
 // Basis mode: which topics and indicators are shown, and the plain-language context beside the results.
 // The Experte mode shows everything and leaves the context texts out.
-import { isPro } from './store.js?v=20261115175354';
+import { isPro } from './store.js?v=20261115180224';
 
 /** topics only shown in the Experte mode */
 export const PRO_SUBS = new Set(['bewegungen', 'kosten', 'finanzierung', 'kennzahlen', 'statamb']);
@@ -49,7 +49,7 @@ export const whyHTML = (id) => (!isPro() && WHY[id] ? `<p class="ctx"><b>Warum d
 
 /** indicators shown together in one card, switched with buttons (order and button labels as given) */
 export const IND_GROUPS = [
-  { ids: ['aph_leicht2', 'aph_leicht3', 'aph_schwer4', 'aph_stufe', 'aph_schwer9'], label: 'Pflegestufen im Heim',
-    btn: { aph_leicht2: 'Stufe 0–2', aph_leicht3: '0–3', aph_schwer4: '4–12', aph_stufe: 'Durchschnitt', aph_schwer9: '9–12' } },
+  { ids: ['aph_stufe', 'aph_leicht2', 'aph_leicht3', 'aph_stufe3', 'aph_schwer4', 'aph_mittel48', 'aph_schwer9'], label: 'Pflegestufen im Heim',
+    btn: { aph_stufe: 'Durchschnitt', aph_leicht2: 'Stufe 0–2', aph_leicht3: '0–3', aph_stufe3: '3', aph_schwer4: '4–12', aph_mittel48: '4–8', aph_schwer9: '9–12' } },
 ];
 export const groupOf = (id) => IND_GROUPS.find((g) => g.ids.includes(id)) || null;
