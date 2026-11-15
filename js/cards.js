@@ -1,9 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115155532';
-import { whyHTML } from './context.js?v=20261115155532';
-import { toast, esc } from './ui.js?v=20261115155532';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115155532';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115161705';
+import { whyHTML } from './context.js?v=20261115161705';
+import { attachMap } from './kpimap.js?v=20261115161705';
+import { toast, esc } from './ui.js?v=20261115161705';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115161705';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -116,7 +117,12 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
   const div = card.querySelector('.chart');
   const useGroup = mode !== 'kt' && r.e !== 'CH' && !proxy && levelOk;
   if (indId === 'bev' && !useGroup) div.remove();   // absolute size: no benchmark bars
-  else requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, proxy || id)));
+  else {
+    requestAnimationFrame(() => (useGroup ? groupChart(div, indId, id, mode) : benchmarkChart(div, indId, proxy || id)));
+    // Experte: the same indicator on a map, to the right of the bars
+    if (isPro() && (v != null || proxy)) attachMap(card, div, { id, title: `Karte: ${i.short}`, label: `${i.short}${i.unit && i.unit !== 'Personen' ? ` (${i.unit === 'pro 1000' ? 'von 1000' : i.unit})` : ''}`,
+      value: (x) => val(indId, x), fmt: (x) => `${fmt(x, i)}${i.unit === '%' ? ' %' : ''}`, levels: i.levels, href: (x) => `#/gemeinde/${x}/${i.sub}` });
+  }
   card.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-act]'); if (!b) return;
     if (b.dataset.act === 'mappe') {
@@ -353,16 +359,17 @@ export function histLines(div, series, indId, years) {
     { note: i.unit, fmtEnd: (v) => fmt(v, i) });
 }
 
-export function shareBars(div, cats, series, unitLabel = '%') {
+export function shareBars(div, cats, series, unitLabel = '%', xTitle = '') {
   // series: [{id, values(abs)}] → shares in %
   const data = series.map((s, k) => {
     const { values } = s; const tot = values.reduce((a, b) => a + (b || 0), 0);
     return { type: 'bar', x: cats, y: values.map((v) => (tot ? ((v || 0) / tot) * 100 : null)), name: nameOf(s),
-      marker: { color: colOf(s, k) }, hovertemplate: `${nameOf(s)} · %{x}: %{y:.1f} ${unitLabel}<extra></extra>` };
+      marker: { color: colOf(s, k) }, hovertemplate: `${nameOf(s)} · ${xTitle ? xTitle + ' ' : ''}%{x}: %{y:.1f} ${unitLabel}<extra></extra>` };
   });
   div._table = { columns: ['Kategorie', ...series.flatMap((s) => [`${nameOf(s)} (Anzahl)`, `${nameOf(s)} (%)`])],
     rows: cats.map((c, k) => [c, ...series.flatMap(({ values }, j) => [values[k] == null ? null : rnd(values[k], 0), rnd(data[j].y[k], 2)])]) };
-  plot(div, data, baseLayout({ height: 320, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: -0.2 }, margin: { l: 40, r: 10, t: 10, b: 60 },
+  plot(div, data, baseLayout({ height: 320, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: xTitle ? -0.3 : -0.2 }, margin: { l: 40, r: 10, t: 10, b: 60 },
+    xaxis: { type: 'category', title: xTitle ? { text: xTitle, font: { size: 11, color: C.muted }, standoff: 6 } : undefined },
     yaxis: { ticksuffix: ' %', gridcolor: C.grid } }));
 }
 

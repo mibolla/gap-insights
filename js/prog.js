@@ -1,9 +1,10 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261115155532';
-import { whyHTML, lean } from './context.js?v=20261115155532';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261115155532';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115155532';
-import { esc } from './ui.js?v=20261115155532';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261115161705';
+import { whyHTML, lean } from './context.js?v=20261115161705';
+import { attachMap } from './kpimap.js?v=20261115161705';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261115161705';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115161705';
+import { esc } from './ui.js?v=20261115161705';
 
 let PV = null;
 export async function loadProg() {
@@ -138,6 +139,8 @@ export async function progCard(indId, id, mode = 'kt') {
     div._table = { columns: ['Region', `${base}`, ...S.meta.prog.variants.map((vv) => `${j} BFS ${vv}`)],
       rows: ids.map((x) => [x === 'CH' ? 'Schweiz' : shortName(x), rnd(pval(P, indId, x, 'mittel', base), 2), ...S.meta.prog.variants.map((vv) => rnd(pval(P, indId, x, vv, j), 2))]) };
   });
+  if (isPro() && valj != null) attachMap(card, div, { id, title: `Karte: ${what} ${j}`, label: lab, value: (x) => metric(x).y,
+    fmt: (x) => (share ? fmtP(x, i) : sign(x)), levels: i.levels, href: (x) => `#/gemeinde/${x}/${i.sub}/ausblick` });
   const btn = card.querySelector('[data-act="export"]');
   btn.onclick = () => exportMenu(btn, (f) => exportItems(f, [{ title: `${i.label} – ${r.e === 'CH' ? 'Schweiz' : shortName(id)} – ${j} (${ph ? 'Platzhalter, ' : ''}BFS ${v})`, sheet: i.short,
     sentence: sent, source: progSourceLine(i.modell), definition: `${i.def} Modell: ${m.name}; Variante: ${m.variante}; Regionalisierung: ${m.regionalisierung} Grenzen: ${m.grenzen}`,
@@ -291,6 +294,7 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   let cur = inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
   const show = async (iid) => {
     const prev = barState(slot?.querySelector('.chart'));
+    const mapOpen = slot?._map?.isOpen(); slot?._map?.close();   // an open map follows the indicator
     cur = iid; const card = await progCard(iid, r.id, mode);
     if (inds.length > 1) {
       const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
@@ -300,6 +304,7 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
     }
     if (slot) slot.replaceWith(card); else cards.appendChild(card);
     slot = card;
+    if (mapOpen) card._map?.open();
     if (prev) animateBars(card.querySelector('.chart'), prev);
   };
   if (cur) await show(cur);

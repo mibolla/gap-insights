@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115155532';
-import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115155532';
-import { createMap } from './map.js?v=20261115155532';
-import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115155532';
-import { omnibox } from './search.js?v=20261115155532';
-import { esc, main } from './ui.js?v=20261115155532';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115155532';
-import { openReportDialog } from './report.js?v=20261115155532';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115161705';
+import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115161705';
+import { createMap } from './map.js?v=20261115161705';
+import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115161705';
+import { omnibox } from './search.js?v=20261115161705';
+import { esc, main } from './ui.js?v=20261115161705';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115161705';
+import { openReportDialog } from './report.js?v=20261115161705';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -445,10 +445,10 @@ async function special(box, r, d, subId, mode = 'kt') {
     const sub = subId.slice(5);
     histCards(box, r, d, series, (M.hist || []).filter((x) => S.ind.get(x).sub === sub));
   } else if (subId === 'haushalte' && d.hh) {
-    const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte');
+    const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte', false);   // half width
     c.setHow('Privathaushalte nach Anzahl Personen, in Prozent aller Privathaushalte der Region. Kollektivhaushalte wie Alters- und Pflegeheime zählen nicht dazu.');
     box.appendChild(c.card);
-    shareBars(c.div, ['1 Person', '2 Personen', '3 Personen', '4 Personen', '5 Personen', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ ...s, values: s.d.hh })));
+    shareBars(c.div, ['1', '2', '3', '4', '5', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ ...s, values: s.d.hh })), '%', 'Personen im Haushalt');
   } else if (subId === 'bewegungen' && d.bew) {
     const c = chartCard(`Bevölkerungsbewegungen, Durchschnitt ${M.periode[0]}–${M.periode[1]}`, 'Pro Jahr, in Prozent der Bevölkerung.', 'bevnat');
     c.setHow(`Geburten, Todesfälle, Zu- und Wegzüge (innerhalb der Schweiz und mit dem Ausland) sowie Einbürgerungen, Durchschnitt pro Jahr ${M.periode[0]}–${M.periode[1]}, in Prozent der ständigen Wohnbevölkerung.`);
