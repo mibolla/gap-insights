@@ -682,3 +682,5 @@ details.how p { margin-top: 6px; }
 .age-bars .pin.pl.final rect { fill: #ff9f0a; animation: agePillPop .7s ease; }
 .age-bars .pin.pl.final text { fill: #2a1b00; }
 @keyframes agePillPop { 0% { filter: drop-shadow(0 0 0 rgba(255,159,10,0)); } 50% { filter: drop-shadow(0 0 10px rgba(255,159,10,.9)); } 100% { filter: drop-shadow(0 1px 3px rgba(64,42,120,.35)); } }
+.ftag.anim { background: var(--a1); color: var(--a6); border: 1px solid var(--a4); }
+.fact-text .age-y { color: var(--a5); font-variant-numeric: tabular-nums; }
