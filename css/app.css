@@ -785,3 +785,10 @@ details.how p { margin-top: 6px; }
 /* one spacing between result blocks: 18 px between cards and labels, 22 px between page sections */
 .cards + .cards, .plabel + .cards { margin-top: 18px; }
 .aus-sec .plabel + .cards, .aus-sec .cards + .cards { margin-top: 0; }
+/* «Vergleichen mit» is an Experte feature: one orange accent like the mode switch, the same for every option */
+.cmpsel, .cmpsel.grp { border-color: var(--orange); }
+.cmpsel .cs-l { color: var(--orange); font-weight: 600; }
+.cmpsel select, .cmpsel.grp select { background-color: var(--orange-soft); color: var(--ink); }
+.cmpsel select:focus-visible { outline-color: var(--orange); }
+.viewbar + .own-row .card { border-color: var(--orange); background: var(--surface); }
+.own-note { color: var(--ink); background: var(--orange-soft); }
