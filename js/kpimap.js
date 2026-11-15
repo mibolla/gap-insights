@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115161844';
-import { esc } from './ui.js?v=20261115161844';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115162533';
+import { esc } from './ui.js?v=20261115162533';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -45,7 +45,7 @@ export function kpiMapCard(opts) {
     const me = selfAt(r, level);
     svg.innerHTML = '';
     const g = document.createElementNS(NS, 'g'); svg.appendChild(g);
-    let top = null;
+    let top = null; const items = [];
     regs.forEach((o) => {
       const p = document.createElementNS(NS, 'path'); p.setAttribute('d', o.d);
       const ok = o.v != null && Number.isFinite(o.v);
@@ -57,9 +57,29 @@ export function kpiMapCard(opts) {
       p.addEventListener('click', () => { location.hash = opts.href(o.x.id); });
       const t = document.createElementNS(NS, 'title'); t.textContent = txt; p.appendChild(t);
       g.appendChild(p);
+      if (ok) items.push({ p, o, k: cls(o.v) });
     });
     if (top) g.appendChild(top);   // the own region on top, so its outline is complete
-    const fit = () => { const b = g.getBBox(); if (!b.width) return; const m = Math.max(b.width, b.height) * 0.02; svg.setAttribute('viewBox', `${b.x - m} ${b.y - m} ${b.width + 2 * m} ${b.height + 2 * m}`); };
+    const lab = document.createElementNS(NS, 'g'); lab.setAttribute('class', 'km-val'); svg.appendChild(lab);
+    // values written into the regions that are large enough (font 10.5 px on screen, whatever the zoom of the viewBox)
+    const labels = () => {
+      lab.innerHTML = ''; const vb = svg.viewBox.baseVal; const w = svg.clientWidth; const h = svg.clientHeight;
+      if (!vb || !vb.width || !w) return;
+      const sc = Math.min(w / vb.width, h / vb.height); const fs = 10.5 / sc; const pt = svg.createSVGPoint();
+      items.forEach(({ p, o, k }) => {
+        const t = opts.fmt(o.v).replace(/\s*%$/, ''); const b = p.getBBox();
+        const tw = t.length * 0.6 * fs; const c = o.x.e === 'GDE' && S.geo.c && S.geo.c[o.x.id.slice(4)];
+        const cx = c ? c[0] : b.x + b.width / 2; const cy = c ? c[1] : b.y + b.height / 2;
+        if (b.width < tw * 1.25 || b.height < fs * 1.9) return;
+        // the whole text box, with a little air, must lie inside the shape
+        const inside = [[-0.56, 0], [0, 0], [0.56, 0], [0, -0.65], [0, 0.65]].every(([dx, dy]) => { pt.x = cx + dx * tw; pt.y = cy + dy * fs; return p.isPointInFill(pt); });
+        if (!inside) return;
+        const e = document.createElementNS(NS, 'text'); e.setAttribute('x', cx); e.setAttribute('y', cy); e.setAttribute('font-size', fs);
+        e.setAttribute('class', k >= 3 ? 'on-dark' : 'on-light'); e.textContent = t; lab.appendChild(e);
+      });
+    };
+    const fit = () => { const b = g.getBBox(); if (!b.width) return; const m = Math.max(b.width, b.height) * 0.02; svg.setAttribute('viewBox', `${b.x - m} ${b.y - m} ${b.width + 2 * m} ${b.height + 2 * m}`); labels(); };
+    card._relabel = labels;
     if (card.isConnected) fit(); else requestAnimationFrame(fit);
     svg.setAttribute('aria-label', `Karte: ${opts.label}, ${LVL[level]}`);
     const scope = level === 'KT' ? 'alle Kantone' : r.e === 'CH' ? `alle ${LVL[level]}` : level === 'BEZ' ? `Bezirke im Kanton ${r.kt}` : ext === 'BEZ' && r.e !== 'KT' ? `Gemeinden im ${regionLabel(r.e === 'GDE' ? r.bez : r.id, false)}` : `Gemeinden im Kanton ${r.kt}`;
@@ -78,6 +98,7 @@ export function kpiMapCard(opts) {
     draw();
   });
   draw();
+  if (window.ResizeObserver) new ResizeObserver(() => card._relabel && card._relabel()).observe(svg);
   return card;
 }
 

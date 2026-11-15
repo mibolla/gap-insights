@@ -792,3 +792,5 @@ details.how p { margin-top: 6px; }
 .cmpsel select:focus-visible { outline-color: var(--orange); }
 .viewbar + .own-row .card { border-color: var(--orange); background: var(--surface); }
 .own-note { color: var(--ink); background: var(--orange-soft); }
+.km-val text { text-anchor: middle; dominant-baseline: central; font-family: var(--font-body); font-weight: 600; font-variant-numeric: tabular-nums; pointer-events: none; }
+.km-val .on-dark { fill: #ffffff; } .km-val .on-light { fill: #17232c; }
