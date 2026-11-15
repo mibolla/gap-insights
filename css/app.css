@@ -641,7 +641,30 @@ details.how p { margin-top: 6px; }
 .map .age-fx { pointer-events: none; }
 .map .age-flash { transform-box: fill-box; transform-origin: center; fill: #ffd54a; stroke: #ff9f0a; stroke-width: 1.4; vector-effect: non-scaling-stroke; animation: ageFlash 1.2s ease-out forwards; }
 .map .age-ring { transform-box: fill-box; transform-origin: center; fill: none; stroke: #ff9f0a; stroke-width: 1.6; vector-effect: non-scaling-stroke; animation: ageRing 1.2s ease-out forwards; }
-@keyframes ageFlash { 0% { transform: scale(.2); opacity: 1; } 40% { transform: scale(1); opacity: .95; } 100% { transform: scale(2.2); opacity: 0; } }
+@keyframes ageFlash { 0% { transform: scale(.2); opacity: 1; } 40% { transform: scale(1); opacity: .9; } 100% { transform: scale(1.7); opacity: 0; } }
 @keyframes ageRing { 0% { transform: scale(.1); opacity: .9; } 100% { transform: scale(1); opacity: 0; } }
 .age-key { display: inline-flex; align-items: center; gap: 6px; }
 .age-key i { width: 12px; height: 12px; border-radius: 50%; background: radial-gradient(circle, #ffd54a 0 45%, transparent 50%); box-shadow: 0 0 0 1.5px #ff9f0a; }
+/* «Die Schweiz wird älter»: bar chart of the Kantone after the map */
+.map .age-bars { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity .6s ease; overflow: visible; }
+.map.age-barmode .age-bars { opacity: 1; pointer-events: auto; }
+.map.age-barmode > svg:first-of-type { opacity: .1; transition: opacity .9s ease; }
+.map > svg:first-of-type { transition: opacity .6s ease; }
+.map.age-barmode .map-ctrl { display: none; }
+.age-bars .sil path { transform-origin: 0 0; stroke: var(--surface); stroke-width: .6px; vector-effect: non-scaling-stroke; transition: transform 1.3s cubic-bezier(.65,0,.35,1), fill 1.3s ease; }
+.age-bars .row { transition: transform .3s ease; }
+.age-bars.landed .sil path { transition: transform .3s ease, fill .4s; transition-delay: 0s !important; }
+.age-bars .row .bar { transform-box: fill-box; transform-origin: left center; }
+.age-bars .row .ab { font-weight: 600; fill: var(--ink, #1f2a33); }
+.age-bars .row .val { fill: var(--faint); font-variant-numeric: tabular-nums; }
+.age-bars .row, .age-bars .chl { opacity: 0; }
+.map.age-barmode .age-bars .row, .map.age-barmode .age-bars .chl { animation: ageRowIn .5s ease 1.4s forwards; }
+@keyframes ageRowIn { to { opacity: 1; } }
+.age-bars .tr line { stroke: #fff; stroke-width: 1.3px; opacity: .8; }
+.age-bars .chl line { stroke: var(--faint); stroke-dasharray: 3 3; }
+.age-bars .chl text, .age-bars .hd { font-size: 11px; fill: var(--faint); }
+.age-bars .hd { font-weight: 600; }
+.age-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.age-seg button { font: inherit; font-size: .8rem; border: 0; background: transparent; padding: 4px 10px; cursor: pointer; color: inherit; }
+.age-seg button:hover { background: var(--line); }
+@media (prefers-reduced-motion: reduce) { .age-bars .sil path, .age-bars .row, .map > svg:first-of-type { transition: none; } .map.age-barmode .age-bars .row, .map.age-barmode .age-bars .chl { animation: none; opacity: 1; } }

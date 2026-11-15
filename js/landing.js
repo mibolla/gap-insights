@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115011100';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115013424';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,10 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115011100';
-import { omnibox } from './search.js?v=20261115011100';
-import { esc, main } from './ui.js?v=20261115011100';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115011100';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115013424';
+import { omnibox } from './search.js?v=20261115013424';
+import { esc, main } from './ui.js?v=20261115013424';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115013424';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -424,24 +424,112 @@ async function ageChapter(map, setTip = null, alive = () => true) {
   const at = new Map(A.ids.map((id, i) => [id, i]));
   if (setTip) setTip((id) => { const r = region(id); const i = at.get(id); if (!r || i === undefined) return ''; const v = valAt(y, i);
     return `${tipName(r)} · ab 80: ${v < 0 ? '–' : `${fmt(v / 10, { dec: 1 })} %`} (${Math.floor(y)}${Math.floor(y) > A.obs_to ? ', Szenario' : ''})`; });
+  // ---- after the map: the Kantone fly out of the map and become an animated bar chart (2012 → 2055) with traces
+  const K = A.kt, nk = K.ids.length;
+  const kAt = (yy, j) => { if (yy <= Y0) return K.a[0][j]; for (let k = 1; k < Y.length; k++) if (yy <= Y[k]) { const a = K.a[k - 1][j], b = K.a[k][j]; return a + (b - a) * (yy - Y[k - 1]) / (Y[k] - Y[k - 1]); } return K.a[Y.length - 1][j]; };
+  const chAt = (yy) => { if (yy <= Y0) return A.ch[0]; for (let k = 1; k < Y.length; k++) if (yy <= Y[k]) return A.ch[k - 1] + (A.ch[k] - A.ch[k - 1]) * (yy - Y[k - 1]) / (Y[k] - Y[k - 1]); return A.ch[Y.length - 1]; };
+  const TRACE = [Y0, 2015, 2020, 2025, 2030, 2035, 2040, 2045, 2050, Y1];
+  const VMAX = Math.ceil(Math.max(...K.a[Y.length - 1]) / 10) * 10 + 10;
+  const box = map.container; const ov = document.createElementNS(NS, 'svg'); ov.setAttribute('class', 'age-bars');
+  ov.setAttribute('aria-label', `Anteil der Menschen ab 80 nach Kanton, ${Y0} bis ${Y1}`); ov.setAttribute('role', 'img');
+  box.appendChild(ov);
+  let L = null;   // layout in px of the overlay
+  const ktName = (j) => region(K.ids[j])?.n || K.ids[j].slice(3);
+  const buildBars = () => {
+    if (box.clientWidth < 560) box.style.height = `${Math.max(box.clientHeight, nk * 13 + 54)}px`;   // phones: room for 26 readable rows
+    const w = box.clientWidth, h = box.clientHeight; ov.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const top = 30, rowH = (h - top - 8) / nk, icon = Math.min(30, rowH * 1.9), x0 = icon + 40, x1 = w - 48;
+    L = { w, h, top, rowH, icon, x0, x1, sx: (v) => x0 + Math.max(0, v) / VMAX * (x1 - x0) };
+    const fs = Math.max(9.5, Math.min(12.5, rowH * 0.72));
+    ov.innerHTML = `<text class="hd" x="${x0}" y="17">Anteil ab 80 nach Kanton</text><text class="hd yr" x="${x1 + 44}" y="17" text-anchor="end"></text>
+      <g class="chl"><line y1="${top - 6}" y2="${h - 6}"/><text y="${top - 9}" text-anchor="middle">CH</text></g>
+      <g class="rows">${K.ids.map((id, j) => `<g class="row" data-j="${j}"><title></title>
+        <text class="ab" x="${icon + 8}" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px">${id.slice(3)}</text>
+        <rect class="bar" x="${x0}" y="${rowH * 0.14}" height="${rowH * 0.72}" width="${x1 - x0}" rx="2"/>
+        <g class="tr">${TRACE.map((t) => `<line data-t="${t}" y1="${rowH * 0.14}" y2="${rowH * 0.86}" hidden/>`).join('')}</g>
+        <text class="val" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px"></text></g>`).join('')}</g><g class="sil"></g>`;
+  };
+  let rank = []; const rowY = (r) => L.top + r * L.rowH;
+  const slot = (p, r) => {   // matrix that puts a Kanton silhouette into the icon slot of rank r
+    const b = p.getBBox(); const s = Math.min(L.icon / b.width, (L.rowH * 0.92) / b.height);
+    return `matrix(${s},0,0,${s},${4 + L.icon / 2 - s * (b.x + b.width / 2)},${rowY(r) + L.rowH / 2 - s * (b.y + b.height / 2)})`;
+  };
+  const rerank = (yy) => {
+    rank = K.ids.map((_, j) => j).sort((a, b) => kAt(yy, b) - kAt(yy, a));
+    rank.forEach((j, r) => {
+      const g = ov.querySelector(`.row[data-j="${j}"]`); g.style.transform = `translate(0px, ${rowY(r)}px)`;
+      const p = ov.querySelector(`.sil path[data-j="${j}"]`); if (p && p.dataset.landed) p.style.transform = slot(p, r);
+    });
+  };
+  const drawBars = (yy, grow = false) => {
+    const yi = Math.floor(yy);
+    ov.querySelector('.yr').textContent = `${yi}${yi > A.obs_to ? ' · Szenario' : ''}`;
+    const cx = L.sx(chAt(yy)); ov.querySelector('.chl').style.transform = `translate(${cx}px, 0px)`;
+    ov.querySelectorAll('.row').forEach((g) => {
+      const j = +g.dataset.j, v = kAt(yy, j), c = AGE_COL[ageCls(v)];
+      const bar = g.querySelector('.bar'); bar.style.transition = grow ? 'transform .8s ease, fill .8s' : 'none';
+      bar.style.transform = `scaleX(${(L.sx(v) - L.x0) / (L.x1 - L.x0)})`; bar.style.fill = c;
+      const vt = g.querySelector('.val'); vt.setAttribute('x', L.sx(v) + 5); vt.textContent = `${fmt(v / 10, { dec: 1 })} %`;
+      g.querySelector('title').textContent = `Kanton ${ktName(j)}: ${fmt(v / 10, { dec: 1 })} % ab 80 (${yi}${yi > A.obs_to ? ', Szenario' : ''})`;
+      g.querySelectorAll('.tr line').forEach((l) => { const t = +l.dataset.t; const on = t <= yy + 1e-6 && t > Y0 - 1; l.toggleAttribute('hidden', !on); if (on) { const x = L.sx(kAt(t, j)); l.setAttribute('x1', x); l.setAttribute('x2', x); } });
+    });
+    const top = rank[0], bot = rank[rank.length - 1];
+    if (top != null) set('beat', `Kantone ${yi}: am ältesten ist ${ktName(top)} (${fmt(kAt(yy, top) / 10, { dec: 1 })} %), am jüngsten ${ktName(bot)} (${fmt(kAt(yy, bot) / 10, { dec: 1 })} %). Schweiz: ${fmt(chAt(yy) / 10, { dec: 1 })} %. Die Striche zeigen die Spur alle fünf Jahre.`);
+  };
+  const set = (k, v) => { const e = q(k); if (e) e.textContent = v; };
+  let phase = 'map', pt = 0, lastRank = null;   // phases: map → pre → fly → rewind → bars → back → map
+  const toBars = () => {
+    map.reset(); phase = 'pre'; pt = 0; fx.innerHTML = '';
+  };
+  const fly = () => {
+    buildBars();
+    const rootCTM = root.getScreenCTM(), ob = ov.getBoundingClientRect();
+    const m0 = `matrix(${rootCTM.a},${rootCTM.b},${rootCTM.c},${rootCTM.d},${rootCTM.e - ob.left},${rootCTM.f - ob.top})`;
+    rank = K.ids.map((_, j) => j).sort((a, b) => kAt(y, b) - kAt(y, a));
+    const sil = ov.querySelector('.sil');
+    K.ids.forEach((id, j) => {
+      const p = document.createElementNS(NS, 'path'); p.setAttribute('d', S.geo.kt[id.slice(3)] || ''); p.dataset.j = j;
+      p.style.fill = AGE_COL[ageCls(kAt(y, j))]; p.style.transform = m0; sil.appendChild(p);
+    });
+    rerank(y); drawBars(y);
+    box.classList.add('age-barmode');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      rank.forEach((j, r) => { const p = sil.querySelector(`path[data-j="${j}"]`); p.style.transitionDelay = `${(r * 0.025).toFixed(3)}s`; p.style.transform = slot(p, r); p.style.fill = 'var(--a5)'; p.dataset.landed = 1; });
+    }));
+    phase = 'fly'; pt = 0;
+  };
+  const toMap = () => {
+    box.classList.remove('age-barmode'); ov.classList.remove('landed'); box.style.height = ''; phase = 'back'; pt = 0;
+  };
   const tick = (now) => {
-    if (!alive()) { fx.remove(); return; }
+    if (!alive()) { fx.remove(); ov.remove(); box.classList.remove('age-barmode'); box.style.height = ''; return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    if (run) { if (y >= Y1) { hold += dt; if (hold > 2.5) { y = Y0; hold = 0; } } else y = Math.min(Y1, y + dt * 3); }   // 3 years per second
-    const k = Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }
+    if (phase === 'map') {
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; toBars(); } } else y = Math.min(Y1, y + dt * 3); }   // 3 years per second
+      const k = Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }
+    } else if (phase === 'pre') { pt += dt; if (pt > 0.7) fly(); }                       // zoom back to the whole Schweiz first
+    else if (phase === 'fly') { pt += dt; if (pt > 2.2) { phase = 'rewind'; pt = 0; ov.classList.add('landed'); y = Y0; rerank(y); drawBars(y, true); } }
+    else if (phase === 'rewind') { pt += dt; if (pt > 1.1) { phase = 'bars'; pt = 0; } }
+    else if (phase === 'bars') {
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; toMap(); } } else y = Math.min(Y1, y + dt * 3); }
+      const k = Math.round(y * 20); if (k !== shownY) { shownY = k; const r = Math.floor(y); if (r !== lastRank) { lastRank = r; rerank(y); } drawBars(y);
+        set('year', Math.floor(y)); set('mode', Math.floor(y) <= A.obs_to ? 'beobachtet' : 'Szenario'); const sc = q('scrub'); if (sc && document.activeElement !== sc) sc.value = y; }
+    } else if (phase === 'back') { pt += dt; if (pt > 0.7) { ov.innerHTML = ''; phase = 'map'; y = Y0; prevY = null; shownY = null; } }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
   // controls live in the legend (wired once the legend is in the page)
   setTimeout(() => {
-    const b = q('play'), sc = q('scrub'); if (!b || !sc) return;
+    const b = q('play'), sc = q('scrub'), bm = q('toMap'), bb = q('toBars'); if (!b || !sc) return;
     b.textContent = run ? 'Pause' : 'Abspielen';
     b.onclick = () => { run = !run; if (run && y >= Y1) { y = Y0; hold = 0; } b.textContent = run ? 'Pause' : 'Abspielen'; };
-    sc.oninput = () => { y = +sc.value; hold = 0; shownY = null; };
+    sc.oninput = () => { y = +sc.value; hold = 0; shownY = null; prevY = null; if (phase === 'bars') { rerank(y); drawBars(y); } };
+    if (bb) bb.onclick = () => { if (phase === 'map') { hold = 0; toBars(); } };
+    if (bm) bm.onclick = () => { if (phase !== 'map' && phase !== 'back') { hold = 0; toMap(); } };
   }, 0);
   const steps = AGE_COL.map((c) => `<span style="background:${c}"></span>`).join('');
   const labs = AGE_COL.map((_, k) => `<span>${k ? AGE_BR[k - 1] / 10 : ''}</span>`).join('');
   return `<div class="legend age-leg"><span>Anteil ab 80 (%)</span><span class="age-steps"><span class="sw">${steps}</span><span class="tk">${labs}</span></span><span class="age-key"><i></i> Lichtsignal: Gemeinde erreicht 10 %</span></div>
-    <div class="age-ctrl"><button class="btn small" type="button" data-age="play">Pause</button><span class="num" data-age="mode">beobachtet</span>
+    <div class="age-ctrl"><button class="btn small" type="button" data-age="play">Pause</button><span class="age-seg"><button type="button" data-age="toMap">Karte</button><button type="button" data-age="toBars">Kantone</button></span><span class="num" data-age="mode">beobachtet</span>
       <input type="range" data-age="scrub" min="${Y0}" max="${Y1}" step="0.1" value="${y}" aria-label="Jahr"></div>`;
 }
