@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115101702';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115102540';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,10 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115101702';
-import { omnibox } from './search.js?v=20261115101702';
-import { esc, main } from './ui.js?v=20261115101702';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115101702';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115102540';
+import { omnibox } from './search.js?v=20261115102540';
+import { esc, main } from './ui.js?v=20261115102540';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115102540';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -56,7 +56,7 @@ export function render() {
         <div data-age="ktblock" hidden><div class="age-counters"><div><b class="num" data-age="chv">–</b><span>Anteil ab 80 in der Schweiz</span></div><div><b class="num" data-age="grow">–</b><span>Zunahme seit 2012, in Prozentpunkten</span></div></div></div>
         <div data-age="gdeblock"><div class="age-counters"><div><b class="num" data-age="n">–</b><span>Gemeinden mit mindestens 10 % ab 80</span></div><div><b class="num" data-age="med">–</b><span>Anteil ab 80 in der mittleren Gemeinde</span></div></div>
         <div class="age-mini"><span class="small muted">Gemeinden mit mindestens 10 % ab 80</span><div data-age="chart"></div></div></div>`,
-      src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', map: (m, t, alive) => ageChapter(m, t, alive),
+      src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', map: (m, t, alive) => ageChapter(m, t, alive, { scope: document.getElementById('story') }),
       thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' },
     { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
       src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
@@ -167,7 +167,10 @@ export function render() {
   const map = createMap(heroEl, { onClick: (id, pt) => { const t = toLevel(id); map.select(t === 'CH' || t === id ? null : t, { zoomTo: false }); mapCard(heroEl, t, pt, () => pendingQ); } });
   const onLevel = () => { heroEl.querySelector('.map-card')?.remove(); map.select(null); };
   document.addEventListener('ebene', onLevel); cleanup.push(() => document.removeEventListener('ebene', onLevel));
-  const stopDrift = map.drift(); cleanup.push(stopDrift);
+  // slow ambient drift; paused while the animated entries run, resumed afterwards unless the user has touched the map
+  let stopDrift = map.drift(), touched = false;
+  ['pointerdown', 'wheel', 'touchstart', 'keydown'].forEach((ev) => heroEl.addEventListener(ev, () => { touched = true; }, { passive: true }));
+  cleanup.push(() => stopDrift());
 
   // ---- rotating facts linked to the map
   // entries 2 and 3: the animated story «Die Schweiz wird älter» (Gemeinden 2012 → 2055, then the Kanton race) on the hero map
@@ -179,8 +182,8 @@ export function render() {
   let fi = 0; let paused = false;
   const heroSec = main().querySelector('.hero');
   let ageRun = null;                                         // the running hero animation: { alive, ctl }
-  const killAge = () => { if (ageRun) { ageRun.alive = false; ageRun = null; } };
-  cleanup.push(killAge);
+  const killAge = () => { if (ageRun) { ageRun.alive = false; ageRun = null; if (!touched) { map.reset(); stopDrift = map.drift(); } } };
+  cleanup.push(() => { if (ageRun) { ageRun.alive = false; ageRun = null; } });
   const isAge = (f) => f.mode === 'age' || f.mode === 'agebars';
   const renderText = (f) => {
     const tag = f.tag || { heute: 'Heute', rueckblick: 'Rückblick', ausblick: 'Prognose' }[f.zeit] || '';
@@ -193,7 +196,7 @@ export function render() {
     if (ageRun) { if (bars) ageRun.ctl.toBars?.(); else ageRun.ctl.toMap?.(); return; }
     stopDrift(); map.reset(); heroEl.querySelector('.map-card')?.remove(); map.select(null); lEl.innerHTML = '';
     const run = ageRun = { alive: true, ctl: {} };
-    ageChapter(map, null, () => run.alive, { scope: heroSec, rowMin: 11, ctl: run.ctl,
+    ageChapter(map, null, () => run.alive, { scope: heroSec, rowMin: 11, speed: 5, ctl: run.ctl,
       onPhase: (ph) => { if (ageRun !== run) return; const want = ph === 'bars' ? 'agebars' : 'age'; if (facts[fi].mode !== want) showText(facts.findIndex((x) => x.mode === want)); },
       onDone: () => { if (ageRun === run) show(fi + 1); } })
       .then((h) => { if (ageRun !== run) return; lEl.innerHTML = h; if (bars) setTimeout(() => run.ctl.toBars?.(), 60); });
@@ -383,9 +386,10 @@ const AGE_BR = [40, 60, 80, 100, 120, 150];                 // class breaks in p
 const AGE_COL = [0, 1, 2, 3, 4, 5, 6].map((k) => `var(--a${k})`);
 const ageCls = (v) => (v < 0 ? -1 : AGE_BR.filter((b) => v >= b).length);
 let AGE_UID = 0;
-/** opts: scope (element holding the data-age controls), rowMin (bar row height), onPhase('map'|'bars'), onDone (after the race instead of looping), ctl (receives toMap/toBars) */
+/** opts: speed (years per second), scope (element holding the data-age controls), rowMin (bar row height), onPhase('map'|'bars'), onDone (after the race instead of looping), ctl (receives toMap/toBars) */
 async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
   const uid = ++AGE_UID;
+  const SPEED = opts.speed || 3;   // years per second (story chapter 3, hero entries 5)
   const A = await loadAlterung();
   if (!alive()) return '';
   const Y = A.years, n = A.ids.length, Y0 = Y[0], Y1 = Y[Y.length - 1];
@@ -561,13 +565,13 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
     if (!alive()) { fx.remove(); ov.remove(); box.classList.remove('age-barmode'); box.style.height = ''; blocks(false); return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (phase === 'map') {
-      if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; toBars(); } } else y = Math.min(Y1, y + dt * 3); }   // 3 years per second
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; toBars(); } } else y = Math.min(Y1, y + dt * SPEED); }   // 3 years per second
       const k = y >= Y1 ? -1 : Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }   // the last step always draws 2055
     } else if (phase === 'pre') { pt += dt; if (pt > 0.7) fly(); }                       // zoom back to the whole Schweiz first
     else if (phase === 'fly') { pt += dt; if (pt > 2.2) { phase = 'rewind'; pt = 0; ov.classList.add('landed'); y = Y0; rerank(y); drawBars(y, true); } }
     else if (phase === 'rewind') { pt += dt; if (pt > 1.1) { phase = 'bars'; pt = 0; } }
     else if (phase === 'bars') {
-      if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; if (opts.onDone) { run = false; opts.onDone(); } else toMap(); } } else y = Math.min(Y1, y + dt * 3); }
+      if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; if (opts.onDone) { run = false; opts.onDone(); } else toMap(); } } else y = Math.min(Y1, y + dt * SPEED); }
       const k = y >= Y1 ? -1 : Math.round(y * 20); if (k !== shownY) { shownY = k; const r = Math.floor(y); if (r !== lastRank) { lastRank = r; rerank(y); } drawBars(y);
         set('year', Math.floor(y)); set('mode', Math.floor(y) <= A.obs_to ? 'beobachtet' : 'Szenario'); const sc = q('scrub'); if (sc && document.activeElement !== sc) sc.value = y; }
     } else if (phase === 'back') { pt += dt; if (pt > 0.7) { ov.innerHTML = ''; phase = 'map'; y = Y0; prevY = null; shownY = null; opts.onPhase?.('map'); } }
