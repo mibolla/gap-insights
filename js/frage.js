@@ -1,11 +1,11 @@
 // Workflow B "Frage zuerst": answer for Switzerland (map + Kantone), then "Und bei uns?".
-import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML, cmpMode } from './store.js?v=20261115213248';
-import { createMap, legendHTML } from './map.js?v=20261115213248';
-import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261115213248';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115213248';
-import { omnibox } from './search.js?v=20261115213248';
-import { esc, main } from './ui.js?v=20261115213248';
-import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261115213248';
+import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML, cmpMode } from './store.js?v=20261115214001';
+import { createMap, legendHTML } from './map.js?v=20261115214001';
+import { indicatorCard, plot, baseLayout, COLORS, rnd, scrollRows } from './cards.js?v=20261115214001';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115214001';
+import { omnibox } from './search.js?v=20261115214001';
+import { esc, main } from './ui.js?v=20261115214001';
+import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261115214001';
 
 const DL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>';
 
@@ -68,6 +68,8 @@ export function render(qid, id) {
   baseLayout({ height: 26 * kts.length + 40, margin: { l: 8, r: 50, t: 20, b: 4 }, yaxis: { autorange: 'reversed', automargin: true, tickfont: { size: 11 } }, xaxis: { visible: false },
     shapes: [{ type: 'line', x0: val(i.id, 'CH'), x1: val(i.id, 'CH'), yref: 'paper', y0: 0, y1: 1, line: { color: COLORS.ch, dash: 'dot', width: 1.5 } }],
     annotations: [{ x: val(i.id, 'CH'), yref: 'paper', y: 1, text: 'Schweiz', showarrow: false, font: { size: 11, color: COLORS.ch }, yanchor: 'bottom' }] }));
+  // ten rows visible, the rest scrolls; the list opens at the own Kanton
+  scrollRows(document.getElementById('ktChart'), kts.length, 26, 20, Math.max(0, kts.findIndex((d) => d.x.kt === myKt)));
   // exports
   const unit = i.unit === 'pro 1000' ? 'von 1000' : i.unit;
   const src = `Quelle: ${S.meta.sources[i.src].publisher}, ${S.meta.sources[i.src].name} · ${S.meta.sources[i.src].year}`;
@@ -146,6 +148,7 @@ async function renderProg(q, id) {
     marker: { color: kts.map((d) => (d.x.kt === myKt ? COLORS.me : COLORS.grey)) }, text: kts.map((d) => fmtv(d.v)), textposition: 'outside', cliponaxis: false,
     customdata: kts.map((d) => d.x.n), hovertemplate: '%{customdata}: %{text}<extra></extra>' }],
   baseLayout({ height: 26 * kts.length + 30, margin: { l: 8, r: 60, t: 8, b: 4 }, yaxis: { autorange: 'reversed', automargin: true, tickfont: { size: 11 } }, xaxis: { visible: false } }));
+  scrollRows(document.getElementById('ktChart'), kts.length, 26, 8, Math.max(0, kts.findIndex((d) => d.x.kt === myKt)));
   const more = document.getElementById('moreCards');
   for (const k of q.more) more.appendChild(await progCard(k, r ? r.id : 'CH'));
   window.scrollTo(0, 0);
