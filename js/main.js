@@ -1,12 +1,12 @@
 // Boot, router and top bar.
-import { S, loadAll, isPro, setMode, applyMode } from './store.js?v=20261115185210';
-import { chartTheme } from './cards.js?v=20261115185210';
-import * as landing from './landing.js?v=20261115185210';
-import * as gemeinde from './gemeinde.js?v=20261115185210';
-import * as frage from './frage.js?v=20261115185210';
-import * as pages from './pages.js?v=20261115185210';
-import { omnibox } from './search.js?v=20261115185210';
-import { main } from './ui.js?v=20261115185210';
+import { S, loadAll, isPro, setMode, applyMode } from './store.js?v=20261115213248';
+import { chartTheme } from './cards.js?v=20261115213248';
+import * as landing from './landing.js?v=20261115213248';
+import * as gemeinde from './gemeinde.js?v=20261115213248';
+import * as frage from './frage.js?v=20261115213248';
+import * as pages from './pages.js?v=20261115213248';
+import { omnibox } from './search.js?v=20261115213248';
+import { main } from './ui.js?v=20261115213248';
 
 /** Basis | Experte switch in the top bar: theme, chart colours, then the current view is drawn again */
 function wireMode() {
@@ -21,7 +21,8 @@ async function route() {
   const parts = decodeURIComponent(location.hash.replace(/^#\/?/, '')).split('/').filter(Boolean);
   landing.teardown(); gemeinde.teardown();
   const lv = document.getElementById('lvlSlot'); if (lv) { lv.hidden = true; lv.innerHTML = ''; }
-  if (parts[0] !== 'gemeinde' && parts[0] !== 'ausblick') gemeinde.levelChooser();
+  // the level control only where results are shown: region pages set it themselves, question pages get the chooser
+  if (parts[0] === 'frage') gemeinde.levelChooser();
   const slot = document.getElementById('topSearchSlot');
   slot.style.visibility = parts.length ? 'visible' : 'hidden';
   const [p0, p1, p2, p3] = parts;
