@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115165744';
-import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115165744';
-import { createMap } from './map.js?v=20261115165744';
-import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115165744';
-import { omnibox } from './search.js?v=20261115165744';
-import { esc, main } from './ui.js?v=20261115165744';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115165744';
-import { openReportDialog } from './report.js?v=20261115165744';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115170210';
+import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115170210';
+import { createMap } from './map.js?v=20261115170210';
+import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115170210';
+import { omnibox } from './search.js?v=20261115170210';
+import { esc, main } from './ui.js?v=20261115170210';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115170210';
+import { openReportDialog } from './report.js?v=20261115170210';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 

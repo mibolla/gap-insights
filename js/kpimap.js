@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115165744';
-import { esc } from './ui.js?v=20261115165744';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115170210';
+import { esc } from './ui.js?v=20261115170210';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -44,13 +44,13 @@ export function kpiMapCard(opts) {
     <div class="km-leg num"></div>`;
   const svg = card.querySelector('.km-map svg'); const read = card.querySelector('.km-read'); const leg = card.querySelector('.km-leg');
   // zoom and pan like the large maps (wheel, drag, pinch, buttons); the numbers are re-fitted after each move
-  let zk = 1; let zoom = null; let root = null;
+  let zk = 1; let zx = 0; let zy = 0; let zoom = null; let root = null;
   const sel = () => d3.select(svg);
   if (window.d3) {
     zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', (ev) => {
-      zk = ev.transform.k; root?.setAttribute('transform', ev.transform);
-      // the numbers keep their size on screen while the map zooms
-      if (card._sc0) { const fs = 10.5 / (card._sc0 * zk); svg.querySelectorAll('.km-val text').forEach((t) => t.setAttribute('font-size', fs)); }
+      zk = ev.transform.k; zx = ev.transform.x; zy = ev.transform.y; root?.setAttribute('transform', ev.transform);
+      // the numbers are not part of the zoomed layer: they only move, their size on screen never changes
+      svg.querySelectorAll('.km-val text').forEach((t) => { t.setAttribute('x', zx + zk * t._cx); t.setAttribute('y', zy + zk * t._cy); });
     })
       .on('end', () => card._relabel && card._relabel());
     sel().call(zoom).on('dblclick.zoom', null);
@@ -87,7 +87,7 @@ export function kpiMapCard(opts) {
       if (ok) items.push({ p, o, k: cls(o.v) });
     });
     if (top) g.appendChild(top);   // the own region on top, so its outline is complete
-    const lab = document.createElementNS(NS, 'g'); lab.setAttribute('class', 'km-val'); root.appendChild(lab);
+    const lab = document.createElementNS(NS, 'g'); lab.setAttribute('class', 'km-val'); svg.appendChild(lab);
     // values written into the regions that are large enough (font 10.5 px on screen, whatever the zoom of the viewBox)
     const labels = () => {
       lab.innerHTML = ''; const vb = svg.viewBox.baseVal; const w = svg.clientWidth; const h = svg.clientHeight;
@@ -101,12 +101,12 @@ export function kpiMapCard(opts) {
         // the whole text box, with a little air, must lie inside the shape
         const inside = [[-0.56, 0], [0, 0], [0.56, 0], [0, -0.65], [0, 0.65]].every(([dx, dy]) => { pt.x = cx + dx * tw; pt.y = cy + dy * fs; return p.isPointInFill(pt); });
         if (!inside) return;
-        const e = document.createElementNS(NS, 'text'); e.setAttribute('x', cx); e.setAttribute('y', cy); e.setAttribute('font-size', fs);
+        const e = document.createElementNS(NS, 'text'); e._cx = cx; e._cy = cy; e.setAttribute('x', zx + zk * cx); e.setAttribute('y', zy + zk * cy); e.setAttribute('font-size', 10.5 / card._sc0);
         e.setAttribute('class', k >= 3 ? 'on-dark' : 'on-light'); e.textContent = t; lab.appendChild(e);
       });
     };
     const fit = () => { const b = g.getBBox(); if (!b.width) return; const m = Math.max(b.width, b.height) * 0.02; svg.setAttribute('viewBox', `${b.x - m} ${b.y - m} ${b.width + 2 * m} ${b.height + 2 * m}`);
-      if (zoom) { zoom.translateExtent([[b.x - m, b.y - m], [b.x + b.width + m, b.y + b.height + m]]); zk = 1; sel().call(zoom.transform, d3.zoomIdentity); }   // a new level or extent starts unzoomed
+      if (zoom) { zoom.translateExtent([[b.x - m, b.y - m], [b.x + b.width + m, b.y + b.height + m]]); zk = 1; zx = 0; zy = 0; sel().call(zoom.transform, d3.zoomIdentity); }   // a new level or extent starts unzoomed
       labels(); };
     card._relabel = labels;
     if (card.isConnected) fit(); else requestAnimationFrame(fit);
