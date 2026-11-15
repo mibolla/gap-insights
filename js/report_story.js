@@ -1,10 +1,9 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261115181623';
-import { roundProg, model, pval } from './prog.js?v=20261115181623';
-import { esc } from './ui.js?v=20261115181623';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261115181623';
-const REPORT_SKIP = new Set(['aph_stufe3', 'aph_schwer4', 'aph_mittel48', 'aph_schwer9', 'spx_versstd', 'spx_klstd', 'spx_ktgemant', 'aph_frauen', 'aph_ausserkt', 'aph_fluk', 'aph_klheim']);   // the report keeps its set of indicators for now
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261115185210';
+import { roundProg, model, pval } from './prog.js?v=20261115185210';
+import { esc } from './ui.js?v=20261115185210';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261115185210';
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);
@@ -319,7 +318,7 @@ export function methode(ctx, usedSrc) {
   body += `<h3>Begriffe</h3><dl class="defs">${R.definitions.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>`;
   body += `<h3>Rundung und Raumbezug</h3><p>${esc(R.rounding)} Gemeinden nach dem Stand des amtlichen Gemeindeverzeichnisses; Bezirk und Kanton nach der heutigen Einteilung. Pflegeheime und Spitex-Organisationen zählen in der Gemeinde ihres Standorts.</p>`;
   if (full) {
-    const rows = S.meta.themen.flatMap((t) => t.sub.flatMap((sub) => S.meta.indicators.filter((i) => i.sub === sub.id && i.src !== 'bfs_szen' && i.src !== 'aph_dummy' && !REPORT_SKIP.has(i.id))
+    const rows = S.meta.themen.flatMap((t) => t.sub.flatMap((sub) => S.meta.indicators.filter((i) => i.sub === sub.id && i.src !== 'bfs_szen' && i.src !== 'aph_dummy' && i.report !== false)   // indicators added later stay out of the annex for now
       .map((i) => ({ t: `${t.label} › ${sub.label}`, i }))));
     let last = '';
     body += `<h3 class="annex">Anhang: alle Kennzahlen für ${esc(name)}</h3><table class="tab annex-tab"><thead><tr><th>Kennzahl</th><th class="n">${esc(name)}</th>${ctx.L.mid ? '<th class="n">Bezirk</th>' : ''}${KT_LEVEL(ctx) ? '' : '<th class="n">Kanton</th>'}<th class="n">Schweiz</th></tr></thead><tbody>${rows.map(({ t, i }) => {

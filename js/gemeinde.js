@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115181623';
-import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115181623';
-import { createMap } from './map.js?v=20261115181623';
-import { inkWord, indicatorCard, indicatorGroupCard, groupOf, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115181623';
-import { omnibox } from './search.js?v=20261115181623';
-import { esc, main } from './ui.js?v=20261115181623';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115181623';
-import { openReportDialog } from './report.js?v=20261115181623';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115185210';
+import { PRO_SUBS, INTRO, lean, IND_GROUPS, CARD_LOGIC_SUBS, cardLogic } from './context.js?v=20261115185210';
+import { createMap } from './map.js?v=20261115185210';
+import { inkWord, indicatorCard, indicatorGroupCard, groupOf, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115185210';
+import { omnibox } from './search.js?v=20261115185210';
+import { esc, main } from './ui.js?v=20261115185210';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115185210';
+import { openReportDialog } from './report.js?v=20261115185210';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -282,6 +282,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   }
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${intro}
     <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div>
+    ${CARD_LOGIC_SUBS.has(subId) && zeit !== 'ausblick' ? `<p class="logic-note no-print">${cardLogic(zeit, isPro()).replaceAll('{J}', S.meta.jahr)}</p>` : ''}
     <div class="cards" id="topicGrid"><div id="special" class="sub-grid"></div><div id="indCards" class="sub-grid"></div></div>`;   // one grid: half-width topic charts sit beside the indicator cards
   const draw = () => {
     const box = document.getElementById('indCards');
@@ -510,19 +511,33 @@ function histCards(box, r, d, series, ids) {
   const aph = lean(ids.filter((x) => !isSpx(x))); const spx = lean(ids.filter(isSpx));
   const has = (id) => d.aph_hist && d.aph_hist[id] && d.aph_hist[id].some((v) => v != null);
   if (aph.length && !aph.some(has)) notes.push(`${name} hatte zwischen ${yrs(aph[0])[0]} und ${M.jahr} kein eigenes Alters- und Pflegeheim. Die Heim-Grafiken zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
-  if (spx.length) notes.push(`Spitex-Kennzahlen veröffentlicht das BAG seit ${yrs(spx[0])[0]}. Organisationen ohne Adresse im Kanton sind nach Einwohnern auf seine Gemeinden verteilt.`);
+  if (spx.length) notes.push('Spitex: Organisationen ohne Adresse im Kanton sind nach Einwohnern auf seine Gemeinden verteilt.');
   if (notes.length) { const p = document.createElement('p'); p.className = 'note wide'; p.style.gridColumn = '1 / -1'; p.innerHTML = notes.join(' '); box.appendChild(p); }
-  // one card per source (Pflegeheime / Spitex); buttons switch the indicator
+  // the same groups as «Heute» (IND_GROUPS), each with the indicators that have a time series; the rest one card per source
   const SUBN = { leistungen: 'Leistungen', personal: 'Personal', kosten: 'Kosten', finanzierung: 'Finanzierung', inanspruchnahme: 'Inanspruchnahme' };
-  [[aph, 'somed_ts', 'Alters- und Pflegeheime'], [spx, 'spitex_ts', 'Spitex']].forEach(([grp, src, lab]) => {
-    if (!grp.length) return;
-    const y = yrs(grp[0]); const c = chartCard(`${lab}: ${SUBN[S.ind.get(grp[0]).sub] || ''} ${y[0]}–${y[y.length - 1]}`, '', src, false);
+  const rest = new Set(lean(ids));
+  const cards = [];
+  IND_GROUPS.forEach((g) => {
+    const has = g.ids.filter((k) => rest.has(k)); if (!has.length) return;
+    has.forEach((k) => rest.delete(k));
+    const only24 = isPro() ? g.ids.filter((k) => !has.includes(k) && S.ind.get(k)) : [];
+    cards.push([has, g.label, g]);
+    if (only24.length) cards[cards.length - 1].push(only24);
+  });
+  [[[...rest].filter((x) => !isSpx(x)), 'Alters- und Pflegeheime'], [[...rest].filter(isSpx), 'Spitex']].forEach(([grp, lab]) => {
+    if (grp.length) cards.push([grp, `${lab}: ${SUBN[S.ind.get(grp[0]).sub] || ''}`, null]);
+  });
+  cards.forEach(([grp, title, g, only24]) => {
+    const src = isSpx(grp[0]) ? 'spitex_ts' : 'somed_ts';
+    const y = yrs(grp[0]); const c = chartCard(`${title} ${y[0]}–${y[y.length - 1]}`, '', src, false);
     let seg = null;
     if (grp.length > 1) {
       seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
-      seg.innerHTML = grp.map((id, j) => `<button type="button" data-k="${id}" aria-pressed="${j === 0}">${esc(S.ind.get(id).short)}</button>`).join('');
+      seg.innerHTML = grp.map((id, j) => `<button type="button" data-k="${id}" aria-pressed="${j === 0}">${esc((g && g.btn[id]) || S.ind.get(id).short)}</button>`).join('');
       c.card.querySelector('.card-head').after(seg);
+      const ks = document.createElement('p'); ks.className = 'key-sentence'; seg.after(ks);   // buttons above the sentence, as in «Heute»
     }
+    if (only24) { const p = document.createElement('p'); p.className = 'small muted'; p.textContent = `Nur ${M.jahr} (Ansicht «Heute»): ${only24.map((k) => (g.btn[k] || S.ind.get(k).short)).join(', ')} – die Aufteilung nach Pflegestufe gibt es erst seit ${M.jahr}.`; c.card.querySelector('.chart').before(p); }
     box.appendChild(c.card);
     const draw = (id) => {
       const i = S.ind.get(id); const yy = yrs(id); const y1 = yy[yy.length - 1];

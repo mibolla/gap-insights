@@ -1,10 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115181623';
-import { whyHTML, groupOf } from './context.js?v=20261115181623';
-import { attachMap } from './kpimap.js?v=20261115181623';
-import { toast, esc } from './ui.js?v=20261115181623';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115181623';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115185210';
+import { whyHTML, groupOf } from './context.js?v=20261115185210';
+import { attachMap } from './kpimap.js?v=20261115185210';
+import { toast, esc } from './ui.js?v=20261115185210';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115185210';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -477,9 +477,13 @@ export { C as COLORS, fmtInt, rnd };
 
 /** several indicators in one card (IND_GROUPS): buttons switch the indicator in place; an open map stays open, without animation */
 export function indicatorGroupCard(grp, id, { mode = 'kt', start = null } = {}) {
+  if (grp.ids.length < 2) return indicatorCard(grp.ids[0], id, { mode });   // a single indicator needs no buttons
   const make = (indId) => {
     const card = indicatorCard(indId, id, { mode });
     card.dataset.group = grp.ids.join(' ');
+    // the group name above the changing title: the card stays recognisable while the indicator changes
+    const h = card.querySelector('.card-head h3'); const ey = document.createElement('span'); ey.className = 'eyebrow grp-ey'; ey.textContent = grp.label;
+    const box = document.createElement('div'); box.className = 'grp-title'; h.before(box); box.append(ey, h);
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', grp.label);
     seg.innerHTML = grp.ids.map((k) => `<button type="button" data-k="${k}" aria-pressed="${k === indId}">${esc(grp.btn[k] || S.ind.get(k).short)}</button>`).join('');
     card.querySelector('.card-head').after(seg);
