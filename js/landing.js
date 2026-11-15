@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115102540';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115113750';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,10 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115102540';
-import { omnibox } from './search.js?v=20261115102540';
-import { esc, main } from './ui.js?v=20261115102540';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115102540';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115113750';
+import { omnibox } from './search.js?v=20261115113750';
+import { esc, main } from './ui.js?v=20261115113750';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115113750';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -489,6 +489,7 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
     ov.innerHTML = `<defs><linearGradient id="ageBand${uid}" x1="0" x2="1"><stop offset="0" style="stop-color:var(--a3);stop-opacity:.06"/><stop offset="1" style="stop-color:var(--a6);stop-opacity:.3"/></linearGradient></defs>
       <text class="hd" x="${x0}" y="14">Anteil ab 80 nach Kanton</text><text class="hd yr" x="${x1 + 44}" y="14" text-anchor="end"></text>
       <g class="rows">${K.ids.map((id, j) => `<g class="row" data-j="${j}"><title></title>
+        <image class="wap" href="${wappen(id)}" x="4" y="${rowH * 0.04}" width="${icon}" height="${rowH * 0.92}" preserveAspectRatio="xMidYMid meet"/>
         <text class="ab" x="${icon + 8}" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px">${id.slice(3)}</text>
         <rect class="bar" x="${x0}" y="${rowH * 0.14}" height="${rowH * 0.72}" width="${x1 - x0}" rx="2"/>
         <g class="tr">${TRACE.map((t) => `<line data-t="${t}" y1="${rowH * 0.14}" y2="${rowH * 0.86}" hidden/>`).join('')}</g>

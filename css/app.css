@@ -653,7 +653,10 @@ details.how p { margin-top: 6px; }
 .map.age-barmode .map-ctrl { display: none; }
 .age-bars .sil path { transform-origin: 0 0; stroke: var(--surface); stroke-width: .6px; vector-effect: non-scaling-stroke; transition: transform 1.3s cubic-bezier(.65,0,.35,1), fill 1.3s ease; }
 .age-bars .row { transition: transform .3s ease; }
-.age-bars.landed .sil path { transition: transform .3s ease, fill .4s; transition-delay: 0s !important; }
+.age-bars.landed .sil path { transition: transform .3s ease, fill .4s, opacity 1.6s ease .2s; transition-delay: 0s, 0s, .2s !important; opacity: 0; }
+/* after landing the silhouettes slowly turn into the Kanton Wappen (the Wappen ride with their row) */
+.age-bars .row .wap { opacity: 0; transition: opacity 1.6s ease .2s; }
+.age-bars.landed .row .wap { opacity: 1; }
 .age-bars .row .bar { transform-box: fill-box; transform-origin: left center; }
 .age-bars .row .ab { font-weight: 600; fill: var(--ink, #1f2a33); }
 .age-bars .row .val { fill: var(--faint); font-variant-numeric: tabular-nums; }
