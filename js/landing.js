@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115122634';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115123616';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,11 +7,11 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115122634';
-import { omnibox } from './search.js?v=20261115122634';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115122634';
-import { esc, main } from './ui.js?v=20261115122634';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115122634';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115123616';
+import { omnibox } from './search.js?v=20261115123616';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115123616';
+import { esc, main } from './ui.js?v=20261115123616';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115123616';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -196,6 +196,7 @@ export function render() {
   const facts = [M.facts[0],
     { mode: 'age', tag: 'Zeitreise', src: AGE_SRC, html: 'Die Schweiz wird älter: <b class="age-y" data-age="year">2012</b> – jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80. Erreicht eine Gemeinde 10 %, leuchtet sie auf.' },
     { mode: 'agebars', tag: 'Zeitreise', src: AGE_SRC, html: 'Die Kantone im Rennen: <b class="age-y" data-age="year">2012</b> – wo leben anteilmässig am meisten Menschen ab 80? Die violette Linie ist die Schweiz.' },
+    { mode: 'day', tag: 'Ein Tag Pflege', src: `BAG Kennzahlen Pflegeheime und Spitex ${M.jahr} · Tagesverlauf und Wege modelliert`, html: 'Ein Tag Pflege im Zeitraffer: Die Pflegeheime leuchten nach ihrem Dienstplan, die Spitex fährt von ihren Standorten zu den Menschen in ihrem Bezirk – jeder Funke ist ein Besuch, rund 116’000 an einem Tag.' },
     { mode: 'staff', tag: 'Personal', src: `BAG Kennzahlen Pflegeheime und Spitex ${M.jahr} · BFS STATPOP`, html: 'Wie viel Pflegepersonal gibt es pro 1000 Menschen ab 80? Links die Pflegeheime, rechts die Spitex, je Bezirk – dann fliegen die Kantone in den Vergleich und werden zu ihren Wappen.' },
     ...M.facts.slice(1)];
   let fi = 0; let paused = false;
@@ -207,6 +208,15 @@ export function render() {
   let staffRun = null;                                       // hero entry «Personal»: staff maps → Kanton scatter (js/tagpflege.js)
   const killStaff = () => { if (staffRun) { staffRun.alive = false; staffRun = null; if (!touched) { map.reset(); stopDrift = map.drift(); } } };
   cleanup.push(() => { if (staffRun) { staffRun.alive = false; staffRun = null; } });
+  let dayRun = null;                                         // hero entry «Ein Tag Pflege»: the day over the interactive map (drift and zoom keep working)
+  const killDay = () => { if (dayRun) { dayRun.alive = false; dayRun = null; } };
+  cleanup.push(killDay);
+  const startDay = () => {
+    if (dayRun) return;
+    map.clear(); map.setLevel('gde'); heroEl.querySelector('.map-card')?.remove(); lEl.innerHTML = '';
+    const run = dayRun = { alive: true };
+    tagpflegeChapter(map, null, () => run.alive, { overlay: true, legendEl: lEl, onDone: () => { if (dayRun === run) show(fi + 1); } });
+  };
   const startStaff = () => {
     if (staffRun) return;
     stopDrift(); map.reset(); heroEl.querySelector('.map-card')?.remove(); map.select(null); lEl.innerHTML = '';
@@ -234,11 +244,13 @@ export function render() {
     fi = (k + facts.length) % facts.length; const f = facts[fi];
     if (!isAge(f)) killAge();
     if (f.mode !== 'staff') killStaff();
+    if (f.mode !== 'day') killDay();
     tEl.classList.add('fade');
     setTimeout(() => {
       renderText(f); tEl.classList.remove('fade');
       if (isAge(f)) startAge(f.mode === 'agebars');
       else if (f.mode === 'staff') startStaff();
+      else if (f.mode === 'day') startDay();
       else if (f.mode === 'set') {
         map.clear(); map.setLevel('gde'); map.highlight(f.set, { prog: !!f.prog });
         lEl.innerHTML = `<div class="legend"><span class="dot ${f.prog ? 'prog' : 'blue'}"></span> ${fmtInt(f.set.length)} Gemeinden hervorgehoben${f.prog ? ' (Prognose, BFS mittel)' : ''}</div>`;
@@ -271,7 +283,7 @@ export function render() {
   const box = tEl.closest('.fact');
   box.addEventListener('mouseenter', () => { paused = true; }); box.addEventListener('mouseleave', () => { paused = false; });
   box.addEventListener('focusin', () => { paused = true; }); box.addEventListener('focusout', () => { paused = false; });
-  if (!reduced()) { const t = setInterval(() => { if (!paused && !ageRun && !staffRun && !document.hidden) show(fi + 1); }, 7000); cleanup.push(() => clearInterval(t)); }
+  if (!reduced()) { const t = setInterval(() => { if (!paused && !ageRun && !staffRun && !dayRun && !document.hidden) show(fi + 1); }, 7000); cleanup.push(() => clearInterval(t)); }
 
   // ---- scroll story: sticky map recoloured per chapter
   let storyTip = null;                                    // tooltip of the active chapter (shows its indicator)

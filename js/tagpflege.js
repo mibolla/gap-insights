@@ -3,8 +3,8 @@
 // Step 1/2: staff per Bezirk (Heim | Spitex) → the Kantone fly into a scatter and become Wappen
 // Step 3/4: services per Bezirk → scatter with Wappen · Step 5: time travel of the services 2012 → reporting year
 // Data: data/tagpflege.json (cop/s8_tagpflege.py), heime.json, spitex.json, geo.json; daily rosters and visit routes are modelled.
-import { S, dataUrl, region, wappen } from './store.js?v=20261115122634';
-import { reduced } from './map.js?v=20261115122634';
+import { S, dataUrl, region, wappen } from './store.js?v=20261115123616';
+import { reduced } from './map.js?v=20261115123616';
 
 let TP = null, HE = null, SX = null;
 const load = () => Promise.all([
@@ -45,13 +45,18 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const [T, Hm, Sx] = await load();
   if (!alive()) return '';
   const N = { ...T.n }; N.heime = N.heime || Hm.x.length;
-  const G = S.geo, W = 1000, H = 700, OY = 34;
+  // overlay (hero): only the day, drawn over the interactive map in its own coordinates, following its zoom and drift
+  const OV = !!opts.overlay;
+  const G = S.geo, W = 1000, H = OV ? G.h : 700, OY = OV ? 0 : 34;
   const panel = map.container.parentElement;
   panel.querySelector('.tp-stage')?.remove();
   const stage = document.createElement('div'); stage.className = 'tp-stage';
   stage.innerHTML = '<canvas aria-label="Karte der Schweiz: Pflegeheime, Spitex-Standorte und Spitex-Besuche im Tagesverlauf, danach Personal und Leistungen je Bezirk und Kanton"></canvas><div class="tp-leg small"></div>';
-  panel.insertBefore(stage, map.container); map.container.hidden = true;
-  const legEl = opts.legendEl || panel.querySelector('#storyLegend'); if (legEl) legEl.hidden = true;
+  const legEl = opts.legendEl || panel.querySelector('#storyLegend');
+  if (OV) { stage.classList.add('tp-overlay'); map.container.appendChild(stage); }
+  else { panel.insertBefore(stage, map.container); map.container.hidden = true; if (legEl) legEl.hidden = true; }
+  const zoomRoot = map.svg.firstElementChild;
+  const Z = () => { if (!OV) return [1, 0, 0]; const tr = zoomRoot.getAttribute('transform') || ''; const m = tr.match(/translate\(([-\d.e]+),\s*([-\d.e]+)\)\s*scale\(([-\d.e]+)\)/); return m ? [+m[3], +m[1], +m[2]] : [1, 0, 0]; };
   const cv = stage.querySelector('canvas'), ctx = cv.getContext('2d'), tpLeg = stage.querySelector('.tp-leg');
   let dpr = 1;
   const fit = () => { dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; base = null; };
@@ -88,9 +93,10 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const emit = (t0, t1) => { for (let m = t0; m < t1;) { const st = Math.min(1, t1 - m), h = (((m % 1440) + 1440) % 1440) / 60;
     acc += SPARKS_DAY * rate(sp, h) * st / 60; while (acc >= 1) { acc -= 1; spawn(m + Math.random() * st); } m += st; } };
   const warm = () => { trips = []; rings = []; acc = Math.random(); emit(Tm - 90, Tm); };
+  if (OV) Tm = 5 * 60; const T0 = Tm;
   if (reduced()) Tm = 8 * 60;
   function drawDay(h, dim) {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, OY * dpr); ctx.globalCompositeOperation = 'lighter';
+    const [zk, zx, zy] = Z(); ctx.setTransform(dpr * zk, 0, 0, dpr * zk, dpr * zx, dpr * (zy + OY * zk)); ctx.globalCompositeOperation = 'lighter';
     const lh = (0.25 + 0.75 * rate(ap, h) / apMax) * dim;
     for (const [x, y, p] of HE_) { const r = 0.8 + Math.sqrt(p) * 0.16; ctx.fillStyle = `rgba(244,169,76,${0.1 * lh})`; ctx.beginPath(); ctx.arc(x, y, r * 2.6, 0, 6.283); ctx.fill(); ctx.fillStyle = `rgba(255,196,120,${0.65 * lh})`; ctx.beginPath(); ctx.arc(x, y, r * 0.7, 0, 6.283); ctx.fill(); }
     const ls = (0.3 + 0.7 * rate(sp, h) / spMax) * dim;
@@ -299,6 +305,7 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const DAY_LEG = '<span class="pt"><i class="h"></i>Pflegeheim (Grösse ∝ Personal, Helligkeit = im Dienst)</span><span class="pt"><i class="st"></i>Spitex-Standort (Grösse ∝ Stellen)</span><span class="pt"><i class="s"></i>1 Funke = 1 Spitex-Besuch</span>';
   const CAPS = ['Ein Tag Pflege: Pflegeheime und Spitex im Tagesverlauf (Durchschnittstag ' + S.meta.jahr + ', modelliert)', VIEWS[0].mapTitle, VIEWS[0].scTitle, VIEWS[1].mapTitle, VIEWS[1].scTitle, VIEWS[1].tTitle];
   const showStep = () => {
+    if (OV) { if (legEl) legEl.innerHTML = `<div class="tp-leg small">${DAY_LEG}</div>`; return; }
     opts.setCap?.(CAPS[step]);
     tpLeg.innerHTML = step === 0 ? DAY_LEG : step === 1 || step === 3 ? `<span>${VIEWS[step === 1 ? 0 : 1].legLabel} · gezählt am Standort der Institution</span>${VIEWS[step === 1 ? 0 : 1].ser.map(legOf).join('')}`
       : step === 5 ? '<span>Mit der Maus auf ein Wappen zeigen: seine Spur erscheint · Grösse ∝ Menschen ab 80</span>' : '<span>Wappen = Kanton, Grösse ∝ Menschen ab 80 · gestrichelt = Schweiz</span>';
@@ -306,20 +313,30 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const go = (s) => { s = Math.max(0, Math.min(STEPS - 1, s)); if (s === step) return; stepT = s > step ? 0 : 99; step = s; hoverK = null; showStep(); };
   if (opts.ctl) opts.ctl.go = go;
   fit(); warm(); showStep(); go(opts.initStep ? opts.initStep() : 0);
-  let done = false;
+  let done = false, overDone = false;
   if (opts.auto) { cover = 1; go(1); }   // hero entry: starts with the staff maps
   const onResize = () => fit(); window.addEventListener('resize', onResize);
 
   const tick = (now) => {
-    if (!alive()) { stage.remove(); map.container.hidden = false; if (legEl) legEl.hidden = false; window.removeEventListener('resize', onResize); return; }
+    if (!alive()) { stage.remove(); map.container.hidden = false; if (legEl) { legEl.hidden = false; if (OV) legEl.innerHTML = ''; } window.removeEventListener('resize', onResize); return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     stepT += dt;
     if (opts.auto) { if (step === 1 && stepT > opts.auto.maps) go(2); else if (step === 2 && stepT > opts.auto.scatter && !done) { done = true; opts.onDone?.(); } }
     cover = step === 0 ? Math.max(0, cover - dt / 0.8) : Math.min(1, cover + dt / 0.8);
     if (playing && cover < 1) { const dT = dt * 1440 / secPerDay(); emit(Tm, Tm + dT); Tm += dT; }
     const h = tod() / 60;
-    if (!base) base = drawBase();
-    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(base, 0, 0);
+    if (OV) {   // night map in the zoom of the interactive map underneath
+      const [zk, zx, zy] = Z();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0b1420'; ctx.fillRect(0, 0, cv.width, cv.height);
+      ctx.setTransform(dpr * zk, 0, 0, dpr * zk, dpr * zx, dpr * zy);
+      ctx.fillStyle = '#16263a'; ctx.fill(chP);
+      ctx.strokeStyle = 'rgba(147,166,182,.22)'; ctx.lineWidth = 0.8 / zk; ktP.forEach((p) => ctx.stroke(p));
+      ctx.strokeStyle = 'rgba(147,166,182,.45)'; ctx.lineWidth = 1.2 / zk; ctx.stroke(chP);
+      if (!overDone && Tm >= Math.floor(T0 / 1440) * 1440 + 1440 && opts.onDone) { overDone = true; opts.onDone(); }
+    } else {
+      if (!base) base = drawBase();
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, cv.width, cv.height); ctx.drawImage(base, 0, 0);
+    }
     if (cover < 1) drawDay(h, 1 - cover);
     if (cover > 0) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.globalAlpha = cover * 0.97; ctx.fillStyle = '#0d1826'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;

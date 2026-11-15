@@ -717,3 +717,8 @@ details.how p { margin-top: 6px; }
 .tp-duty .val { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; } .tp-duty .val.h { fill: #c77a14; } .tp-duty .val.s { fill: #138a75; }
 .tp-ctrl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .tp-ctrl select { font: inherit; font-size: .85rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: inherit; }
+.tp-stage.tp-overlay { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; overflow: hidden; }
+.tp-stage.tp-overlay canvas { width: 100%; height: 100%; aspect-ratio: auto; border-radius: inherit; }
+.tp-stage.tp-overlay .tp-leg { display: none; }
+.tp-stage.tp-overlay { z-index: 1; }
+.map .map-ctrl, .map .map-tip, .map .map-card { z-index: 3; }
