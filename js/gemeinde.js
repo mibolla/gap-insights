@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261115015955';
-import { createMap } from './map.js?v=20261115015955';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115015955';
-import { omnibox } from './search.js?v=20261115015955';
-import { esc, main } from './ui.js?v=20261115015955';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115015955';
-import { openReportDialog } from './report.js?v=20261115015955';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261115020931';
+import { createMap } from './map.js?v=20261115020931';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115020931';
+import { omnibox } from './search.js?v=20261115020931';
+import { esc, main } from './ui.js?v=20261115020931';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115020931';
+import { openReportDialog } from './report.js?v=20261115020931';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
