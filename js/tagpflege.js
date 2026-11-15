@@ -3,8 +3,8 @@
 // Step 1/2: staff per Bezirk (Heim | Spitex) → the Kantone fly into a scatter and become Wappen
 // Step 3/4: services per Bezirk → scatter with Wappen · Step 5: time travel of the services 2012 → reporting year
 // Data: data/tagpflege.json (cop/s8_tagpflege.py), heime.json, spitex.json, geo.json; daily rosters and visit routes are modelled.
-import { S, dataUrl, region, wappen } from './store.js?v=20261115120752';
-import { reduced } from './map.js?v=20261115120752';
+import { S, dataUrl, region, wappen } from './store.js?v=20261115122634';
+import { reduced } from './map.js?v=20261115122634';
 
 let TP = null, HE = null, SX = null;
 const load = () => Promise.all([
@@ -38,7 +38,8 @@ export function tagpflegeSteps() {
 
 /**
  * mount the chapter on the story map: map = createMap api (its SVG is hidden while the chapter runs),
- * opts: scope (element with data-tp placeholders: clock, duty, play, speed, tot), setCap(text), ctl (receives go(step)), initStep()
+ * opts: scope (element with data-tp placeholders: clock, duty, play, speed, tot), setCap(text), ctl (receives go(step)), initStep(),
+ *       legendEl (legend of the host to hide), auto { maps, scatter } (hero: staff maps → scatter by time, then onDone())
  */
 export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const [T, Hm, Sx] = await load();
@@ -50,7 +51,7 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const stage = document.createElement('div'); stage.className = 'tp-stage';
   stage.innerHTML = '<canvas aria-label="Karte der Schweiz: Pflegeheime, Spitex-Standorte und Spitex-Besuche im Tagesverlauf, danach Personal und Leistungen je Bezirk und Kanton"></canvas><div class="tp-leg small"></div>';
   panel.insertBefore(stage, map.container); map.container.hidden = true;
-  const legEl = panel.querySelector('#storyLegend'); if (legEl) legEl.hidden = true;
+  const legEl = opts.legendEl || panel.querySelector('#storyLegend'); if (legEl) legEl.hidden = true;
   const cv = stage.querySelector('canvas'), ctx = cv.getContext('2d'), tpLeg = stage.querySelector('.tp-leg');
   let dpr = 1;
   const fit = () => { dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; base = null; };
@@ -305,12 +306,16 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const go = (s) => { s = Math.max(0, Math.min(STEPS - 1, s)); if (s === step) return; stepT = s > step ? 0 : 99; step = s; hoverK = null; showStep(); };
   if (opts.ctl) opts.ctl.go = go;
   fit(); warm(); showStep(); go(opts.initStep ? opts.initStep() : 0);
+  let done = false;
+  if (opts.auto) { cover = 1; go(1); }   // hero entry: starts with the staff maps
   const onResize = () => fit(); window.addEventListener('resize', onResize);
 
   const tick = (now) => {
     if (!alive()) { stage.remove(); map.container.hidden = false; if (legEl) legEl.hidden = false; window.removeEventListener('resize', onResize); return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
-    stepT += dt; cover = step === 0 ? Math.max(0, cover - dt / 0.8) : Math.min(1, cover + dt / 0.8);
+    stepT += dt;
+    if (opts.auto) { if (step === 1 && stepT > opts.auto.maps) go(2); else if (step === 2 && stepT > opts.auto.scatter && !done) { done = true; opts.onDone?.(); } }
+    cover = step === 0 ? Math.max(0, cover - dt / 0.8) : Math.min(1, cover + dt / 0.8);
     if (playing && cover < 1) { const dT = dt * 1440 / secPerDay(); emit(Tm, Tm + dT); Tm += dT; }
     const h = tod() / 60;
     if (!base) base = drawBase();
