@@ -1,10 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115174328';
-import { whyHTML } from './context.js?v=20261115174328';
-import { attachMap } from './kpimap.js?v=20261115174328';
-import { toast, esc } from './ui.js?v=20261115174328';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115174328';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115175354';
+import { whyHTML, groupOf } from './context.js?v=20261115175354';
+import { attachMap } from './kpimap.js?v=20261115175354';
+import { toast, esc } from './ui.js?v=20261115175354';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115175354';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -474,3 +474,23 @@ export function simpleBars(div, cats, values, color = C.kt, suffix = '') {
 }
 
 export { C as COLORS, fmtInt, rnd };
+
+/** several indicators in one card (IND_GROUPS): buttons switch the indicator in place; an open map stays open, without animation */
+export function indicatorGroupCard(grp, id, { mode = 'kt', start = null } = {}) {
+  const make = (indId) => {
+    const card = indicatorCard(indId, id, { mode });
+    card.dataset.group = grp.ids.join(' ');
+    const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', grp.label);
+    seg.innerHTML = grp.ids.map((k) => `<button type="button" data-k="${k}" aria-pressed="${k === indId}">${esc(grp.btn[k] || S.ind.get(k).short)}</button>`).join('');
+    card.querySelector('.card-head').after(seg);
+    seg.addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b || b.dataset.k === indId) return;
+      const open = card._map?.isOpen(); const level = card._map?.level(); card._map?.close({ quiet: true });
+      const next = make(b.dataset.k); card.replaceWith(next);
+      if (open) next._map?.open({ quiet: true, level });
+    });
+    return card;
+  };
+  return make(grp.ids.includes(start) ? start : grp.ids[0]);
+}
+export { groupOf };

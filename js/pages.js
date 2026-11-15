@@ -1,9 +1,9 @@
 // Themen overview, one Thema (list of questions + Swiss values), Favoriten, Daten & Methodik.
-import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261115174328';
-import { indicatorCard, indicatorItem } from './cards.js?v=20261115174328';
-import { exportItems } from './export.js?v=20261115174328';
-import { omnibox } from './search.js?v=20261115174328';
-import { esc, main, toast } from './ui.js?v=20261115174328';
+import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261115175354';
+import { indicatorCard, indicatorItem, indicatorGroupCard, groupOf } from './cards.js?v=20261115175354';
+import { exportItems } from './export.js?v=20261115175354';
+import { omnibox } from './search.js?v=20261115175354';
+import { esc, main, toast } from './ui.js?v=20261115175354';
 
 export function themen() {
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Frage zuerst</span><h2>Themen und Fragen</h2></div></div>
@@ -35,7 +35,12 @@ export function thema(subId) {
   omnibox(document.getElementById('themaSearch'), { id: 'omniThema', compact: true, placeholder: 'Gemeinde suchen …',
     filter: (it) => it.go.startsWith('#/gemeinde/'), onPick: (it) => { location.hash = `${it.go}/${subId}`; } });
   const box = document.getElementById('themaCards');
-  S.meta.indicators.filter((i) => i.sub === subId && i.zeit !== 'ausblick').forEach((i) => box.appendChild(indicatorCard(i.id, 'CH')));
+  const seen = new Set();   // grouped indicators (Pflegestufen) in one card
+  S.meta.indicators.filter((i) => i.sub === subId && i.zeit !== 'ausblick').forEach((i) => {
+    const grp = groupOf(i.id);
+    if (!grp) box.appendChild(indicatorCard(i.id, 'CH'));
+    else if (!seen.has(grp)) { seen.add(grp); box.appendChild(indicatorGroupCard(grp, 'CH')); }
+  });
   if ((S.meta.zeit[subId] || []).includes('ausblick')) box.insertAdjacentHTML('afterbegin', `<article class="card wide"><h3>Ausblick bis 2055</h3><p>Für dieses Thema gibt es Prognosen. <a class="btn small" href="#/gemeinde/CH/${subId}/ausblick">Ausblick Schweiz öffnen →</a></p></article>`);
   window.scrollTo(0, 0);
 }

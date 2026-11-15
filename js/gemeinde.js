@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115174328';
-import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115174328';
-import { createMap } from './map.js?v=20261115174328';
-import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115174328';
-import { omnibox } from './search.js?v=20261115174328';
-import { esc, main } from './ui.js?v=20261115174328';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115174328';
-import { openReportDialog } from './report.js?v=20261115174328';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115175354';
+import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115175354';
+import { createMap } from './map.js?v=20261115175354';
+import { inkWord, indicatorCard, indicatorGroupCard, groupOf, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115175354';
+import { omnibox } from './search.js?v=20261115175354';
+import { esc, main } from './ui.js?v=20261115175354';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115175354';
+import { openReportDialog } from './report.js?v=20261115175354';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -290,9 +290,18 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     box.innerHTML = '';
     const all = S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit);
     const shown = lean(all, (i) => i.id);
-    shown.forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
+    // grouped indicators (e.g. the Pflegestufen) share one card; it opens on the indicator named in the link, if any
+    const want = decodeURIComponent(location.hash).split('/')[4];
+    const done = new Set();
+    shown.forEach((i) => {
+      const grp = groupOf(i.id);
+      if (!grp) { box.appendChild(indicatorCard(i.id, r.id, { mode })); return; }
+      if (done.has(grp)) return; done.add(grp);
+      const start = grp.ids.includes(want) ? want : (openMaps.find(([cid]) => grp.ids.includes(cid.slice(4))) || [])[0]?.slice(4) || grp.ids.find((k) => shown.some((x) => x.id === k));
+      const c = indicatorGroupCard({ ...grp, ids: grp.ids.filter((k) => shown.some((x) => x.id === k)) }, r.id, { mode, start }); box.appendChild(c);
+    });
     openMaps.forEach(([cid, level]) => document.getElementById(cid)?._map?.open({ quiet: true, level }));
-    if (!isPro() && all.length) box.appendChild(moreCard(all.filter((i) => !shown.includes(i)).map((i) => i.short)));
+    if (!isPro() && all.length) box.appendChild(moreCard([...new Set(all.filter((i) => !shown.includes(i)).map((i) => groupOf(i.id)?.label || i.short))]));
     ownBox(r, mode, () => { draw(); drawSpecial(); });
   };
   const spSub = zeit === 'rueckblick' ? ({ alter: 'entwicklung', inanspruchnahme: 'heimentwicklung' }[subId] || `hist_${subId}`) : subId;
