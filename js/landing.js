@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115013424';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel } from './store.js?v=20261115015955';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,10 +7,10 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115013424';
-import { omnibox } from './search.js?v=20261115013424';
-import { esc, main } from './ui.js?v=20261115013424';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115013424';
+import { createMap, legendHTML, reduced } from './map.js?v=20261115015955';
+import { omnibox } from './search.js?v=20261115015955';
+import { esc, main } from './ui.js?v=20261115015955';
+import { loadProg, pval, roundProg } from './prog.js?v=20261115015955';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -53,8 +53,9 @@ export function render() {
     { n: '', title: 'Die Schweiz wird älter', big: '<span class="age-year" data-age="year">2012</span>',
       text: 'Drei Jahre pro Sekunde: Jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80 – bis 2024 beobachtet, danach das mittlere BFS-Szenario. Je dunkler, desto älter.',
       extra: `<p class="age-beat" data-age="beat"></p>
-        <div class="age-counters"><div><b class="num" data-age="n">–</b><span>Gemeinden mit mindestens 10 % ab 80</span></div><div><b class="num" data-age="med">–</b><span>Anteil ab 80 in der mittleren Gemeinde</span></div></div>
-        <div class="age-mini"><span class="small muted">Gemeinden mit mindestens 10 % ab 80</span><div data-age="chart"></div></div>`,
+        <div data-age="ktblock" hidden><div class="age-counters"><div><b class="num" data-age="chv">–</b><span>Anteil ab 80 in der Schweiz</span></div><div><b class="num" data-age="rate">–</b><span>Zunahme pro Jahr, in Prozentpunkten</span></div></div></div>
+        <div data-age="gdeblock"><div class="age-counters"><div><b class="num" data-age="n">–</b><span>Gemeinden mit mindestens 10 % ab 80</span></div><div><b class="num" data-age="med">–</b><span>Anteil ab 80 in der mittleren Gemeinde</span></div></div>
+        <div class="age-mini"><span class="small muted">Gemeinden mit mindestens 10 % ab 80</span><div data-age="chart"></div></div></div>`,
       src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', map: (m, t, alive) => ageChapter(m, t, alive),
       thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' },
     { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
@@ -435,19 +436,35 @@ async function ageChapter(map, setTip = null, alive = () => true) {
   box.appendChild(ov);
   let L = null;   // layout in px of the overlay
   const ktName = (j) => region(K.ids[j])?.n || K.ids[j].slice(3);
+  const pw = (t) => t.length * 6.1 + 16;   // pill width estimate (11px text)
+  const pillBox = (anchor, w) => (anchor === 'end' ? -w - 3 : anchor === 'start' ? 3 : -w / 2);
+  const pill = (cls, x, y, anchor, t) => { const w = pw(t), bx = pillBox(anchor, w);
+    return `<g class="pin ${cls}" data-anchor="${anchor}" transform="translate(${x} ${y})"><rect x="${bx}" y="-8.5" width="${w}" height="17" rx="8.5"/><text x="${bx + w / 2}" y="3.8" text-anchor="middle">${t}</text></g>`; };
+  const setPill = (g, t, cx) => {   // live pill: centred on the line, kept inside the overlay
+    const w = pw(t); let bx = -w / 2; if (cx + bx < 4) bx = 4 - cx; if (cx + bx + w > L.w - 4) bx = L.w - 4 - w - cx;
+    const r = g.querySelector('rect'), tx = g.querySelector('text'); r.setAttribute('x', bx); r.setAttribute('width', w); tx.setAttribute('x', bx + w / 2); tx.textContent = t;
+  };
   const buildBars = () => {
-    if (box.clientWidth < 560) box.style.height = `${Math.max(box.clientHeight, nk * 13 + 54)}px`;   // phones: room for 26 readable rows
+    const CHART = 118, rowMin = box.clientWidth < 560 ? 13 : 14.5;   // rows on top, pace chart below; the box grows to fit both
+    box.style.height = `${Math.max(box.clientHeight, 44 + nk * rowMin + 34 + CHART)}px`;
     const w = box.clientWidth, h = box.clientHeight; ov.setAttribute('viewBox', `0 0 ${w} ${h}`);
-    const top = 30, rowH = (h - top - 8) / nk, icon = Math.min(30, rowH * 1.9), x0 = icon + 40, x1 = w - 48;
+    const top = 44, rowH = (h - top - 34 - CHART) / nk, icon = Math.min(30, rowH * 1.9), x0 = icon + 40, x1 = w - 48;
     L = { w, h, top, rowH, icon, x0, x1, sx: (v) => x0 + Math.max(0, v) / VMAX * (x1 - x0) };
     const fs = Math.max(9.5, Math.min(12.5, rowH * 0.72));
-    ov.innerHTML = `<text class="hd" x="${x0}" y="17">Anteil ab 80 nach Kanton</text><text class="hd yr" x="${x1 + 44}" y="17" text-anchor="end"></text>
-      <g class="chl"><line y1="${top - 6}" y2="${h - 6}"/><text y="${top - 9}" text-anchor="middle">CH</text></g>
+    const yT = top - 5, yB = top + nk * rowH + 3, xs = L.sx(A.ch[0]), i24 = Y.indexOf(A.obs_to);
+    ov.innerHTML = `<defs><linearGradient id="ageBand" x1="0" x2="1"><stop offset="0" style="stop-color:var(--a3);stop-opacity:.06"/><stop offset="1" style="stop-color:var(--a6);stop-opacity:.3"/></linearGradient></defs>
+      <text class="hd" x="${x0}" y="14">Anteil ab 80 nach Kanton</text><text class="hd yr" x="${x1 + 44}" y="14" text-anchor="end"></text>
       <g class="rows">${K.ids.map((id, j) => `<g class="row" data-j="${j}"><title></title>
         <text class="ab" x="${icon + 8}" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px">${id.slice(3)}</text>
         <rect class="bar" x="${x0}" y="${rowH * 0.14}" height="${rowH * 0.72}" width="${x1 - x0}" rx="2"/>
         <g class="tr">${TRACE.map((t) => `<line data-t="${t}" y1="${rowH * 0.14}" y2="${rowH * 0.86}" hidden/>`).join('')}</g>
-        <text class="val" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px"></text></g>`).join('')}</g><g class="sil"></g>`;
+        <text class="val" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px"></text></g>`).join('')}</g>
+      <g class="chx"><rect class="band" x="${xs}" y="${yT}" height="${yB - yT}" width="0" fill="url(#ageBand)"/>
+        <line class="c0" x1="${xs}" x2="${xs}" y1="${yT}" y2="${yB + 6}"/>
+        <line class="c24" y1="${yT}" y2="${yB + 6}" x1="${L.sx(A.ch[i24])}" x2="${L.sx(A.ch[i24])}"/>
+        ${pill('p0', xs, yB + 14, 'end', `${Y0} · ${fmt(A.ch[0] / 10, { dec: 1 })} %`)}${pill('p24', L.sx(A.ch[i24]), yB + 14, 'start', `${A.obs_to} · ${fmt(A.ch[i24] / 10, { dec: 1 })} %`)}
+        <g class="live"><line class="cl" y1="${yT}" y2="${yB}"/><circle class="knob" cy="${yT}" r="3.5"/>${pill('pl', 0, top - 16, 'middle', '')}</g></g>
+      <g class="sil"></g><g class="pace" transform="translate(0 ${h - CHART})">${paceSvg(w, CHART)}</g>`;
   };
   let rank = []; const rowY = (r) => L.top + r * L.rowH;
   const slot = (p, r) => {   // matrix that puts a Kanton silhouette into the icon slot of rank r
@@ -464,7 +481,13 @@ async function ageChapter(map, setTip = null, alive = () => true) {
   const drawBars = (yy, grow = false) => {
     const yi = Math.floor(yy);
     ov.querySelector('.yr').textContent = `${yi}${yi > A.obs_to ? ' · Szenario' : ''}`;
-    const cx = L.sx(chAt(yy)); ov.querySelector('.chl').style.transform = `translate(${cx}px, 0px)`;
+    // Schweiz: fixed start (2012), moving line, growth band, pins at 2012, 2024 and the end
+    const cv = chAt(yy), cx = L.sx(cv), xs = L.sx(A.ch[0]), end = yy >= Y1 - 1e-6;
+    ov.querySelector('.chx .band').setAttribute('width', Math.max(0, cx - xs));
+    ov.querySelector('.chx .live').style.transform = `translate(${cx}px, 0px)`;
+    const on24 = yy >= A.obs_to; ov.querySelectorAll('.chx .c24, .chx .p24').forEach((e) => e.classList.toggle('on', on24));
+    const lt = `${end ? Y1 : 'Schweiz'} · ${fmt(cv / 10, { dec: 1 })} % · +${fmt((cv - A.ch[0]) / 10, { dec: 1 })} Pp. seit ${Y0}`;
+    const pl = ov.querySelector('.chx .pl'); setPill(pl, lt, cx); pl.classList.toggle('final', end);
     ov.querySelectorAll('.row').forEach((g) => {
       const j = +g.dataset.j, v = kAt(yy, j), c = AGE_COL[ageCls(v)];
       const bar = g.querySelector('.bar'); bar.style.transition = grow ? 'transform .8s ease, fill .8s' : 'none';
@@ -474,9 +497,42 @@ async function ageChapter(map, setTip = null, alive = () => true) {
       g.querySelectorAll('.tr line').forEach((l) => { const t = +l.dataset.t; const on = t <= yy + 1e-6 && t > Y0 - 1; l.toggleAttribute('hidden', !on); if (on) { const x = L.sx(kAt(t, j)); l.setAttribute('x1', x); l.setAttribute('x2', x); } });
     });
     const top = rank[0], bot = rank[rank.length - 1];
-    if (top != null) set('beat', `Kantone ${yi}: am ältesten ist ${ktName(top)} (${fmt(kAt(yy, top) / 10, { dec: 1 })} %), am jüngsten ${ktName(bot)} (${fmt(kAt(yy, bot) / 10, { dec: 1 })} %). Schweiz: ${fmt(chAt(yy) / 10, { dec: 1 })} %. Die Striche zeigen die Spur alle fünf Jahre.`);
+    const r = pace(yy), x = r / base;
+    const tempo = x >= 1.3 ? ` Tempo: +${fmt(r, { dec: 2 })} Prozentpunkte pro Jahr – ${fmt(x, { dec: 1 })}-mal so schnell wie ${Y0}–2018.` : x <= 0.6 ? ` Tempo: nur noch +${fmt(r, { dec: 2 })} Prozentpunkte pro Jahr.` : ` Tempo: +${fmt(r, { dec: 2 })} Prozentpunkte pro Jahr.`;
+    if (top != null) set('beat', `Kantone ${yi}: am ältesten ist ${ktName(top)} (${fmt(kAt(yy, top) / 10, { dec: 1 })} %), am jüngsten ${ktName(bot)} (${fmt(kAt(yy, bot) / 10, { dec: 1 })} %).${tempo}`);
   };
   const set = (k, v) => { const e = q(k); if (e) e.textContent = v; };
+  // pace of ageing (CH): change of the share in percentage points per year; runs in parallel to the Kanton race
+  const R = A.ch_rate; const rateAt = (yy) => { if (yy <= R[0][0]) return R[0][1]; for (let k = 1; k < R.length; k++) if (yy <= R[k][0]) return R[k - 1][1] + (R[k][1] - R[k - 1][1]) * (yy - R[k - 1][0]) / (R[k][0] - R[k - 1][0]); return R[R.length - 1][1]; };
+  const base = R.filter((r) => r[0] < 2019).reduce((a, r, _, arr) => a + r[1] / arr.length, 0);   // 2012–2018: before Covid and before the baby boomers
+  const rMax = Math.max(...R.map((r) => r[1])), rTop = Math.ceil(rMax * 20) / 20;
+  const pk = R.reduce((a, r) => (r[1] > a[1] ? r : a)), cv = R.reduce((a, r) => (r[0] < 2021 && r[1] < a[1] ? r : a));
+  let P = null;   // pace chart scales inside the overlay
+  const paceSvg = (w, h) => {   // line chart under the bars: observed solid, scenario dashed, dot follows the race
+    const l = 8, r = w - 8, t = 22, b = h - 18;
+    P = { px: (yy) => l + (Math.min(Math.max(yy, Y0), Y1) - Y0) / (Y1 - Y0) * (r - l), py: (v) => b - v / rTop * (b - t) };
+    const ln = (pts) => pts.map(([x, v], i) => `${i ? 'L' : 'M'}${P.px(x).toFixed(1)} ${P.py(v).toFixed(1)}`).join('');
+    const obs = R.filter((x) => !x[2]);
+    return `<text class="hd" x="${l}" y="12">${w < 560 ? 'Tempo: Zunahme pro Jahr, CH (Prozentpunkte)' : 'Tempo: Zunahme des Anteils ab 80 pro Jahr, Schweiz (Prozentpunkte)'}</text>
+      <clipPath id="agePaceClip"><rect x="0" y="0" height="${h}" width="0"/></clipPath>
+      <line class="ax" x1="${l}" x2="${r}" y1="${b}" y2="${b}"/>
+      <line class="ax grid" x1="${l}" x2="${r}" y1="${P.py(base)}" y2="${P.py(base)}"/><text class="lb" x="${P.px(A.obs_to + 2)}" y="${P.py(base) + 11}">Tempo ${Y0}–2018: +${fmt(base, { dec: 2 })}</text>
+      <path class="ghost" d="${ln(R)}"/>
+      <g clip-path="url(#agePaceClip)"><path class="obs" d="${ln(obs)}"/><path class="sce" d="${ln([obs[obs.length - 1], ...R.filter((x) => x[2])])}"/>
+      <text class="val" x="${P.px(pk[0])}" y="${P.py(pk[1]) - 5}" text-anchor="middle">+${fmt(pk[1], { dec: 2 })}</text>
+      <text class="lb" x="${P.px(cv[0])}" y="${P.py(cv[1]) + 12}" text-anchor="middle">Covid</text></g>
+      ${[Y0, A.obs_to, Y1].map((yy, j) => `<text class="lb" x="${P.px(yy)}" y="${h - 4}" text-anchor="${['start', 'middle', 'end'][j]}">${yy}</text>`).join('')}
+      <text class="lb" x="${P.px(Y1 - 8)}" y="${b - 4}" text-anchor="middle">Szenario →</text>
+      <circle class="dot" r="4.5"/><text class="now" text-anchor="middle"></text>`;
+  };
+  const pace = (yy) => {
+    const r = rateAt(yy); set('rate', `+${fmt(r, { dec: 2 })}`); set('chv', `${fmt(chAt(yy) / 10, { dec: 1 })} %`);
+    const d = ov.querySelector('.pace .dot'), tx = ov.querySelector('.pace .now');
+    const clip = ov.querySelector('#agePaceClip rect'); if (clip && P) clip.setAttribute('width', P.px(yy) + 2);
+    if (d && P) { const x = P.px(yy), yv = P.py(r); d.setAttribute('cx', x); d.setAttribute('cy', yv); tx.setAttribute('x', x); tx.setAttribute('y', yv - 9); tx.textContent = `+${fmt(r, { dec: 2 })}`; }
+    return r;
+  };
+  const blocks = (kt) => { const a = q('ktblock'), b = q('gdeblock'); if (a) a.hidden = !kt; if (b) b.hidden = kt; };
   let phase = 'map', pt = 0, lastRank = null;   // phases: map → pre → fly → rewind → bars → back → map
   const toBars = () => {
     map.reset(); phase = 'pre'; pt = 0; fx.innerHTML = '';
@@ -492,27 +548,27 @@ async function ageChapter(map, setTip = null, alive = () => true) {
       p.style.fill = AGE_COL[ageCls(kAt(y, j))]; p.style.transform = m0; sil.appendChild(p);
     });
     rerank(y); drawBars(y);
-    box.classList.add('age-barmode');
+    box.classList.add('age-barmode'); blocks(true);
     requestAnimationFrame(() => requestAnimationFrame(() => {
       rank.forEach((j, r) => { const p = sil.querySelector(`path[data-j="${j}"]`); p.style.transitionDelay = `${(r * 0.025).toFixed(3)}s`; p.style.transform = slot(p, r); p.style.fill = 'var(--a5)'; p.dataset.landed = 1; });
     }));
     phase = 'fly'; pt = 0;
   };
   const toMap = () => {
-    box.classList.remove('age-barmode'); ov.classList.remove('landed'); box.style.height = ''; phase = 'back'; pt = 0;
+    box.classList.remove('age-barmode'); ov.classList.remove('landed'); blocks(false); box.style.height = ''; phase = 'back'; pt = 0;
   };
   const tick = (now) => {
-    if (!alive()) { fx.remove(); ov.remove(); box.classList.remove('age-barmode'); box.style.height = ''; return; }
+    if (!alive()) { fx.remove(); ov.remove(); box.classList.remove('age-barmode'); box.style.height = ''; blocks(false); return; }
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (phase === 'map') {
       if (run) { if (y >= Y1) { hold += dt; if (hold > 1.2) { hold = 0; toBars(); } } else y = Math.min(Y1, y + dt * 3); }   // 3 years per second
-      const k = Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }
+      const k = y >= Y1 ? -1 : Math.round(y * 10); if (k !== shownY) { shownY = k; paint(); }   // the last step always draws 2055
     } else if (phase === 'pre') { pt += dt; if (pt > 0.7) fly(); }                       // zoom back to the whole Schweiz first
     else if (phase === 'fly') { pt += dt; if (pt > 2.2) { phase = 'rewind'; pt = 0; ov.classList.add('landed'); y = Y0; rerank(y); drawBars(y, true); } }
     else if (phase === 'rewind') { pt += dt; if (pt > 1.1) { phase = 'bars'; pt = 0; } }
     else if (phase === 'bars') {
       if (run) { if (y >= Y1) { hold += dt; if (hold > 3.5) { hold = 0; toMap(); } } else y = Math.min(Y1, y + dt * 3); }
-      const k = Math.round(y * 20); if (k !== shownY) { shownY = k; const r = Math.floor(y); if (r !== lastRank) { lastRank = r; rerank(y); } drawBars(y);
+      const k = y >= Y1 ? -1 : Math.round(y * 20); if (k !== shownY) { shownY = k; const r = Math.floor(y); if (r !== lastRank) { lastRank = r; rerank(y); } drawBars(y);
         set('year', Math.floor(y)); set('mode', Math.floor(y) <= A.obs_to ? 'beobachtet' : 'Szenario'); const sc = q('scrub'); if (sc && document.activeElement !== sc) sc.value = y; }
     } else if (phase === 'back') { pt += dt; if (pt > 0.7) { ov.innerHTML = ''; phase = 'map'; y = Y0; prevY = null; shownY = null; } }
     requestAnimationFrame(tick);
