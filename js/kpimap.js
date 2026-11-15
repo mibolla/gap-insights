@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115165333';
-import { esc } from './ui.js?v=20261115165333';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115165744';
+import { esc } from './ui.js?v=20261115165744';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -47,7 +47,11 @@ export function kpiMapCard(opts) {
   let zk = 1; let zoom = null; let root = null;
   const sel = () => d3.select(svg);
   if (window.d3) {
-    zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', (ev) => { zk = ev.transform.k; root?.setAttribute('transform', ev.transform); })
+    zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', (ev) => {
+      zk = ev.transform.k; root?.setAttribute('transform', ev.transform);
+      // the numbers keep their size on screen while the map zooms
+      if (card._sc0) { const fs = 10.5 / (card._sc0 * zk); svg.querySelectorAll('.km-val text').forEach((t) => t.setAttribute('font-size', fs)); }
+    })
       .on('end', () => card._relabel && card._relabel());
     sel().call(zoom).on('dblclick.zoom', null);
     card.querySelector('.map-ctrl').addEventListener('click', (ev) => {
@@ -88,7 +92,7 @@ export function kpiMapCard(opts) {
     const labels = () => {
       lab.innerHTML = ''; const vb = svg.viewBox.baseVal; const w = svg.clientWidth; const h = svg.clientHeight;
       if (!vb || !vb.width || !w) return;
-      const sc = Math.min(w / vb.width, h / vb.height) * zk; const fs = 10.5 / sc; const pt = svg.createSVGPoint();
+      card._sc0 = Math.min(w / vb.width, h / vb.height); const sc = card._sc0 * zk; const fs = 10.5 / sc; const pt = svg.createSVGPoint();
       items.forEach(({ p, o, k }) => {
         const t = opts.fmt(o.v).replace(/\s*%$/, ''); const b = p.getBBox();
         const tw = t.length * 0.6 * fs; const c = o.x.e === 'GDE' && S.geo.c && S.geo.c[o.x.id.slice(4)];
