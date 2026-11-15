@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115172156';
-import { esc } from './ui.js?v=20261115172156';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115172516';
+import { esc } from './ui.js?v=20261115172516';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -44,12 +44,14 @@ export function kpiMapCard(opts) {
     <div class="km-leg num"></div>`;
   const svg = card.querySelector('.km-map svg'); const read = card.querySelector('.km-read'); const leg = card.querySelector('.km-leg');
   // zoom and pan like the large maps (wheel, drag, pinch, buttons); the numbers are re-fitted after each move
-  let picked = null; let rest = () => {};   // region selected by a click; readout shown when the mouse is not over a region
+  let picked = null; let rest = () => {};
+  const unpick = () => { picked?.p.classList.remove('pick'); picked = null; card.querySelector('.km-pop')?.remove(); };   // region selected by a click; readout shown when the mouse is not over a region
   let zk = 1; let zx = 0; let zy = 0; let zoom = null; let root = null;
   const sel = () => d3.select(svg);
   if (window.d3) {
     zoom = d3.zoom().scaleExtent([1, 14]).on('zoom', (ev) => {
       zk = ev.transform.k; zx = ev.transform.x; zy = ev.transform.y; root?.setAttribute('transform', ev.transform);
+      card.querySelector('.km-pop')?.remove();   // the popup belongs to a place on the map; it goes when the map moves
       // the numbers are not part of the zoomed layer: they only move, their size on screen never changes
       svg.querySelectorAll('.km-val text').forEach((t) => { t.setAttribute('x', zx + zk * t._cx); t.setAttribute('y', zy + zk * t._cy); });
     })
@@ -73,7 +75,7 @@ export function kpiMapCard(opts) {
     svg.innerHTML = '';
     root = document.createElementNS(NS, 'g'); svg.appendChild(root);
     const g = document.createElementNS(NS, 'g'); root.appendChild(g);
-    let top = null; const items = []; picked = null;
+    let top = null; const items = []; unpick();
     regs.forEach((o) => {
       const p = document.createElementNS(NS, 'path'); p.setAttribute('d', o.d);
       const ok = o.v != null && Number.isFinite(o.v);
@@ -84,10 +86,21 @@ export function kpiMapCard(opts) {
       const [nm, vv] = txt.split(': ');
       p.addEventListener('mouseenter', () => { read.innerHTML = picked && picked.p === p ? picked.html : `<b>${esc(nm)}</b> ${esc(vv)}`; });
       // a click selects the region and offers the way to it; it does not leave the page
-      p.addEventListener('click', () => {
-        const again = picked && picked.p === p; picked?.p.classList.remove('pick');
-        picked = again ? null : { p, html: `<b>${esc(nm)}</b> ${esc(vv)}${o.x.id === opts.id ? '' : ` <a class="km-go" href="#/gemeinde/${o.x.id}">Alles zu ${esc(o.x.e === 'GDE' ? o.x.n : regionLabel(o.x.id, false))} →</a>`}` };
-        if (picked) { p.classList.add('pick'); g.appendChild(p); if (top && top !== p) g.appendChild(top); }
+      p.addEventListener('click', (ev) => {
+        const again = picked && picked.p === p; unpick();
+        if (again) { rest(); return; }
+        picked = { p, html: `<b>${esc(nm)}</b> ${esc(vv)}` };
+        p.classList.add('pick'); g.appendChild(p); if (top && top !== p) g.appendChild(top);
+        if (o.x.id !== opts.id) {   // a small popup at the click with a discreet button to that region
+          const box = card.querySelector('.km-map'); const bb = box.getBoundingClientRect();
+          const pop = document.createElement('div'); pop.className = 'km-pop';
+          pop.innerHTML = `<a class="btn small" href="#/gemeinde/${o.x.id}">Alles zu ${esc(o.x.e === 'GDE' ? o.x.n : regionLabel(o.x.id, false))} →</a><button type="button" class="km-pop-x" aria-label="Schliessen">×</button>`;
+          box.appendChild(pop);
+          const x = Math.max(4, Math.min(bb.width - pop.offsetWidth - 4, ev.clientX - bb.left - pop.offsetWidth / 2));
+          const above = ev.clientY - bb.top > pop.offsetHeight + 18;
+          pop.style.left = `${x}px`; pop.style.top = `${above ? ev.clientY - bb.top - pop.offsetHeight - 12 : ev.clientY - bb.top + 14}px`;
+          pop.querySelector('.km-pop-x').addEventListener('click', () => { unpick(); rest(); });
+        }
         rest();
       });
       const t = document.createElementNS(NS, 'title'); t.textContent = txt; p.appendChild(t);

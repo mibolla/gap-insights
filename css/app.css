@@ -811,3 +811,9 @@ details.how p { margin-top: 6px; }
 .km-map path.pick { stroke: var(--ink); stroke-width: 2.4; }
 .km-read .km-go { margin-left: 10px; font-weight: 600; white-space: nowrap; }
 .km-read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; }
+.km-pop { position: absolute; z-index: 4; display: flex; align-items: center; gap: 2px; padding: 4px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.28); white-space: nowrap; animation: kmPop .16s ease-out; }
+.km-pop .btn { border: 0; background: none; font-size: .84rem; padding: 5px 8px; color: var(--blue); }
+.km-pop .btn:hover { background: var(--blue-soft); }
+.km-pop-x { border: 0; background: none; color: var(--faint); font-size: 1.05rem; line-height: 1; padding: 4px 7px; border-radius: 6px; cursor: pointer; }
+.km-pop-x:hover { color: var(--ink); background: var(--ground); }
+@keyframes kmPop { from { opacity: 0; transform: translateY(4px); } }
