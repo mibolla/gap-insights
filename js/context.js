@@ -1,6 +1,6 @@
 // Basis mode: which topics and indicators are shown, and the plain-language context beside the results.
 // The Experte mode shows everything and leaves the context texts out.
-import { isPro } from './store.js?v=20261115180916';
+import { isPro } from './store.js?v=20261115181623';
 
 /** topics only shown in the Experte mode */
 export const PRO_SUBS = new Set(['bewegungen', 'kosten', 'finanzierung', 'kennzahlen', 'statamb']);
@@ -52,6 +52,8 @@ export const IND_GROUPS = [
   { ids: ['aph_stufe', 'aph_leicht2', 'aph_leicht3', 'aph_stufe3', 'aph_schwer4', 'aph_mittel48', 'aph_schwer9'], label: 'Pflegestufen im Heim',
     btn: { aph_stufe: 'Durchschnitt', aph_leicht2: 'Stufe 0–2', aph_leicht3: '0–3', aph_stufe3: '3', aph_schwer4: '4–12', aph_mittel48: '4–8', aph_schwer9: '9–12' } },
 ];
+IND_GROUPS.push({ ids: ['hh1', 'hhs', 'al65', 'al85', 'koll85'], label: 'Haushalte und Wohnen im Alter',
+  btn: { hh1: 'Einpersonenhaushalte', hhs: 'Haushaltsgrösse', al65: 'Allein ab 65', al85: 'Allein ab 85', koll85: 'Im Heim ab 85' } });
 IND_GROUPS.push({ ids: ['aph_bel', 'aph_alter', 'aph_dauer', 'aph_frauen', 'aph_ausserkt', 'aph_fluk', 'aph_klheim'], label: 'Pflegeheime: Belegung und Bewohnende',
   btn: { aph_bel: 'Belegung', aph_alter: 'Eintrittsalter', aph_dauer: 'Aufenthaltsdauer', aph_frauen: 'Frauenanteil', aph_ausserkt: 'Aus anderen Kantonen', aph_fluk: 'Fluktuation', aph_klheim: 'Heimgrösse' } });
 IND_GROUPS.push({ ids: ['spx_ktgem', 'spx_versstd', 'spx_klstd', 'spx_ktgemant', 'spx_marge'], label: 'Finanzierung der Spitex',
