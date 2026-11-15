@@ -808,3 +808,6 @@ details.how p { margin-top: 6px; }
 @media (max-width: 900px) { .km-pair > .card.kmap { border-left: 0; border-top: 1px solid var(--line); border-radius: 0 0 var(--radius) var(--radius); } }
 .km-title { display: flex; flex-direction: column; gap: 3px; } .km-title .eyebrow { color: var(--blue); font-size: .7rem; }
 .km-pair { position: relative; z-index: 2; }
+.km-map path.pick { stroke: var(--ink); stroke-width: 2.4; }
+.km-read .km-go { margin-left: 10px; font-weight: 600; white-space: nowrap; }
+.km-read { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; }

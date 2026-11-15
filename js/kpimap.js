@@ -1,7 +1,7 @@
 // Experte: «Auf Karte zeigen» for bar cards – a half-width choropleth beside the bars.
 // Level: Gemeinde | Bezirk | Kanton; Gemeinden either of the Bezirk or of the whole Kanton.
-import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115171904';
-import { esc } from './ui.js?v=20261115171904';
+import { S, region, shortName, regionLabel, prefs, setPrefs } from './store.js?v=20261115172156';
+import { esc } from './ui.js?v=20261115172156';
 
 const NS = 'http://www.w3.org/2000/svg';
 const RAMP = ['var(--r0)', 'var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
@@ -44,6 +44,7 @@ export function kpiMapCard(opts) {
     <div class="km-leg num"></div>`;
   const svg = card.querySelector('.km-map svg'); const read = card.querySelector('.km-read'); const leg = card.querySelector('.km-leg');
   // zoom and pan like the large maps (wheel, drag, pinch, buttons); the numbers are re-fitted after each move
+  let picked = null; let rest = () => {};   // region selected by a click; readout shown when the mouse is not over a region
   let zk = 1; let zx = 0; let zy = 0; let zoom = null; let root = null;
   const sel = () => d3.select(svg);
   if (window.d3) {
@@ -72,7 +73,7 @@ export function kpiMapCard(opts) {
     svg.innerHTML = '';
     root = document.createElementNS(NS, 'g'); svg.appendChild(root);
     const g = document.createElementNS(NS, 'g'); root.appendChild(g);
-    let top = null; const items = [];
+    let top = null; const items = []; picked = null;
     regs.forEach((o) => {
       const p = document.createElementNS(NS, 'path'); p.setAttribute('d', o.d);
       const ok = o.v != null && Number.isFinite(o.v);
@@ -80,8 +81,15 @@ export function kpiMapCard(opts) {
       if (!ok) p.classList.add('na');
       if (o.x.id === me) { p.classList.add('me'); top = p; }
       const txt = `${o.x.e === 'GDE' ? o.x.n : regionLabel(o.x.id, false)}: ${ok ? opts.fmt(o.v) : 'kein Wert'}`;
-      p.addEventListener('mouseenter', () => { read.innerHTML = `<b>${esc(txt.split(': ')[0])}</b> ${esc(txt.split(': ')[1])}`; });
-      p.addEventListener('click', () => { location.hash = opts.href(o.x.id); });
+      const [nm, vv] = txt.split(': ');
+      p.addEventListener('mouseenter', () => { read.innerHTML = picked && picked.p === p ? picked.html : `<b>${esc(nm)}</b> ${esc(vv)}`; });
+      // a click selects the region and offers the way to it; it does not leave the page
+      p.addEventListener('click', () => {
+        const again = picked && picked.p === p; picked?.p.classList.remove('pick');
+        picked = again ? null : { p, html: `<b>${esc(nm)}</b> ${esc(vv)}${o.x.id === opts.id ? '' : ` <a class="km-go" href="#/gemeinde/${o.x.id}">Alles zu ${esc(o.x.e === 'GDE' ? o.x.n : regionLabel(o.x.id, false))} →</a>`}` };
+        if (picked) { p.classList.add('pick'); g.appendChild(p); if (top && top !== p) g.appendChild(top); }
+        rest();
+      });
       const t = document.createElementNS(NS, 'title'); t.textContent = txt; p.appendChild(t);
       g.appendChild(p);
       if (ok) items.push({ p, o, k: cls(o.v) });
@@ -114,7 +122,8 @@ export function kpiMapCard(opts) {
     const scope = `${LVL[level]} ${ext === 'CH' ? 'der Schweiz' : ext === 'KT' ? `im Kanton ${r.kt}` : `im ${regionLabel(r.e === 'GDE' ? r.bez : r.id, false)}`}`;
     const meV = me ? opts.value(me) : null;
     const base = me && meV != null ? `<b>${esc(shortName(me))}</b> ${esc(opts.fmt(meV))}` : `${regs.length} ${LVL[level]}`;
-    read.innerHTML = base; svg.onmouseleave = () => { read.innerHTML = base; };
+    rest = () => { read.innerHTML = picked ? picked.html : base; };
+    rest(); svg.onmouseleave = () => rest();
     leg.innerHTML = vals.length ? `<span class="km-lab">${esc(opts.label)} · ${esc(scope)}</span><span class="km-ramp"><span>${esc(opts.fmt(vals[0]))}</span>${RAMP.map((c) => `<i style="background:${c}"></i>`).join('')}<span>${esc(opts.fmt(vals[vals.length - 1]))}</span></span>`
       : `<span class="km-lab">Für diese Ebene liegen keine Werte vor.</span>`;
     card.querySelectorAll('[data-l]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.l === level)));

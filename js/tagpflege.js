@@ -3,8 +3,8 @@
 // Step 1/2: staff per Bezirk (Heim | Spitex) → the Kantone fly into a scatter and become Wappen
 // Step 3/4: services per Bezirk → scatter with Wappen · Step 5: time travel of the services 2012 → reporting year
 // Data: data/tagpflege.json (cop/s8_tagpflege.py), heime.json, spitex.json, geo.json; daily rosters and visit routes are modelled.
-import { S, dataUrl, region, wappen } from './store.js?v=20261115171904';
-import { reduced } from './map.js?v=20261115171904';
+import { S, dataUrl, region, wappen } from './store.js?v=20261115172156';
+import { reduced } from './map.js?v=20261115172156';
 
 let TP = null, HE = null, SX = null;
 const load = () => Promise.all([
