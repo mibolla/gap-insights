@@ -1,15 +1,17 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers } from './store.js?v=20261115124832';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs } from './cards.js?v=20261115124832';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115124832';
-import { esc } from './ui.js?v=20261115124832';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261115155532';
+import { whyHTML, lean } from './context.js?v=20261115155532';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261115155532';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115155532';
+import { esc } from './ui.js?v=20261115155532';
 
 let PV = null;
 export async function loadProg() {
   if (!PV) PV = fetch(dataUrl('values_prog.json')).then((r) => r.json());
   return PV;
 }
-export const progState = () => ({ v: prefs().variant || S.meta.prog.default_variant, j: +(prefs().zieljahr || S.meta.prog.default_year) });
+export const progState = () => ({ v: (isPro() && prefs().variant) || S.meta.prog.default_variant,   // Basis: always the reference scenario
+  j: +(prefs().zieljahr || S.meta.prog.default_year) });
 export const isProg = (indId) => (S.ind.get(indId) || {}).zeit === 'ausblick';
 
 export function pval(P, indId, id, v, j) {
@@ -44,8 +46,8 @@ export function progLabel(mid, onChange) {
       <b>${esc(m.name)}</b><span class="pl-meta">${esc(m.herausgeber)} · Publikation ${m.publikation} · Basisjahr ${m.basisjahr}</span>
       ${ph ? '<span class="pl-warn">nicht für Planungsentscheide – wird durch das Projektmodell ersetzt</span>' : ''}</div>
     <div class="pl-ctrl">
-      <div><span class="pl-lab">Variante</span><div class="seg" role="group" aria-label="Variante">${S.meta.prog.variants.slice().reverse().map((v) =>
-        `<button type="button" data-v="${v}" aria-pressed="${v === st.v}">${mid === 'aph_dummy' ? 'Basis BFS ' : 'BFS '}${VNAME[v]}</button>`).join('')}</div></div>
+      ${isPro() ? `<div><span class="pl-lab">Variante</span><div class="seg" role="group" aria-label="Variante">${S.meta.prog.variants.slice().reverse().map((v) =>
+        `<button type="button" data-v="${v}" aria-pressed="${v === st.v}">${mid === 'aph_dummy' ? 'Basis BFS ' : 'BFS '}${VNAME[v]}</button>`).join('')}</div></div>` : ''}
       <div><span class="pl-lab">Zieljahr</span><div class="seg" role="group" aria-label="Zieljahr">${S.meta.prog.years.map((y) =>
         `<button type="button" data-j="${y}" aria-pressed="${y === st.j}">${y}</button>`).join('')}</div></div>
     </div>
@@ -101,7 +103,7 @@ export async function progCard(indId, id, mode = 'kt') {
   card.innerHTML = `<div class="card-head"><h3>${esc(i.label)}</h3><div class="card-tools no-print">
       <button class="icon-btn" data-act="export" title="Exportieren: Bild, PDF, PowerPoint, Excel, CSV" aria-label="Exportieren" aria-haspopup="menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg></button></div></div>
     ${ph ? '<p class="ph-flag">Platzhalter – nicht für Planungsentscheide</p>' : ''}
-    <p class="key-sentence">${sent}</p><div class="chart"></div>
+    <p class="key-sentence">${sent}</p><div class="chart"></div>${whyHTML(indId)}
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das berechnet?</summary><p>${esc(i.def)}</p><p>${esc(m.regionalisierung)}</p></details>
     <p class="src-line">${progSourceHTML(i.modell)}</p>`;
@@ -154,7 +156,7 @@ export function fanChart(div, id, d, key, opts = {}) {
   if (obs) data.push({ type: 'scatter', mode: key === 'aph' ? 'lines+markers' : 'lines', x: obs.y, y: obs.v, name: obs.name, line: { color: C.ink, width: 2.5 }, marker: { size: 4 },
     hovertemplate: `%{x}: %{y:,.0f} ${key === 'aph' ? 'Plätze (beobachtet)' : '(beobachtet)'}<extra></extra>` });
   data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p.tief[key], name: 'BFS tief', line: { width: 0 }, showlegend: false, hoverinfo: 'skip' });
-  data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p.hoch[key], name: 'Spannweite tief–hoch', fill: 'tonexty', fillcolor: 'rgba(27,103,178,0.16)', line: { width: 0 }, hoverinfo: 'skip' });
+  data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p.hoch[key], name: 'Spannweite tief–hoch', fill: 'tonexty', fillcolor: C.band, line: { width: 0 }, hoverinfo: 'skip' });
   for (const vv of ['tief', 'mittel', 'hoch']) {
     data.push({ type: 'scatter', mode: 'lines', x: p.y, y: p[vv][key], name: `${key === 'aph' ? 'Basis ' : ''}BFS ${vv}`,
       line: { color: vv === v ? C.me : C.kt, width: vv === v ? 3 : 1.2, dash: vv === v ? 'solid' : 'dot' },
@@ -163,13 +165,13 @@ export function fanChart(div, id, d, key, opts = {}) {
   const yi = p.y.indexOf(j); const yj = p[v][key][yi];
   const shapes = [{ type: 'line', x0: 2024, x1: 2024, yref: 'paper', y0: 0, y1: 1, line: { color: C.muted, width: 1, dash: 'dash' } }];
   const ann = [{ x: 2024, yref: 'paper', y: 1, text: 'heute', showarrow: false, yanchor: 'bottom', font: { size: 11, color: C.muted } },
-    { x: j, y: yj, text: `${j}: ${fmtInt(roundProg(yj))}`, showarrow: true, arrowhead: 0, ax: 0, ay: -34, font: { size: 12, color: C.me }, bgcolor: 'rgba(255,255,255,0.85)' }];
+    { x: j, y: yj, text: `${j}: ${fmtInt(roundProg(yj))}`, showarrow: true, arrowhead: 0, ax: 0, ay: -34, font: { size: 12, color: C.me }, bgcolor: C.annbg }];
   if (key === 'aph') {
     shapes.push({ type: 'line', x0: 2024, x1: 2055, y0: p.aph_heute, y1: p.aph_heute, line: { color: C.ink, width: 2 } });
     ann.push({ x: 2055, y: p.aph_heute, text: `Plätze heute: ${fmtInt(p.aph_heute)}`, showarrow: false, xanchor: 'right', yanchor: 'bottom', font: { size: 11, color: C.ink } });
   }
   plot(div, data, baseLayout({ height: 360, showlegend: true, legend: { orientation: 'h', y: -0.16 }, margin: { l: 56, r: 16, t: 24, b: 50 },
-    xaxis: { gridcolor: '#eef1f3', dtick: 5 }, yaxis: { gridcolor: '#eef1f3', rangemode: 'tozero', title: { text: lab, font: { size: 11 } } }, shapes, annotations: ann }));
+    xaxis: { gridcolor: C.grid, dtick: 5 }, yaxis: { gridcolor: C.grid, rangemode: 'tozero', title: { text: lab, font: { size: 11 } } }, shapes, annotations: ann }));
   div._table = { columns: ['Jahr', ...(obs ? [obs.name] : []), `${key === 'aph' ? 'Bedarf ' : ''}BFS tief`, `${key === 'aph' ? 'Bedarf ' : ''}BFS mittel`, `${key === 'aph' ? 'Bedarf ' : ''}BFS hoch`],
     rows: [...(obs ? obs.y.filter((y) => y < 2024).map((y, k) => [y, obs.v[k], null, null, null]) : []),
       ...p.y.map((y, k) => [y, ...(obs ? [y === 2024 ? obs.v[obs.y.indexOf(2024)] : null] : []), p.tief[key][k], p.mittel[key][k], p.hoch[key][k]])] };
@@ -195,7 +197,7 @@ export function pyrCompare(div, id, d) {
     line(neg(a.m), true), line(a.f, false)],
   baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true, legend: { orientation: 'h', y: -0.14, font: { size: 12 } }, margin: { l: 8, r: 10, t: 6, b: 66 },
     yaxis: { automargin: true, tickfont: { size: 11 }, tickvals: yi, ticktext: p.groups, range: [-0.6, p.groups.length - 0.4], zeroline: false, showgrid: false },
-    xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => fmtInt(Math.abs(t))), zeroline: true, zerolinecolor: C.line, gridcolor: '#eef1f3',
+    xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => fmtInt(Math.abs(t))), zeroline: true, zerolinecolor: C.line, gridcolor: C.grid,
       title: { text: 'Personen  ·  ◀ Männer   |   Frauen ▶', font: { size: 11 } } } }));
   div._table = { columns: ['Altersgruppe', 'Männer 2024', `Männer ${j} BFS ${v}`, 'Frauen 2024', `Frauen ${j} BFS ${v}`, 'Veränderung total %'],
     rows: p.groups.map((g, k) => [g, rnd(a.m[k], 0), rnd(b.m[k], 0), rnd(a.f[k], 0), rnd(b.f[k], 0), rnd(pct(b.m[k] + b.f[k], a.m[k] + a.f[k]), 1)]) };
@@ -262,19 +264,33 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
   const mid = subId === 'inanspruchnahme' ? 'aph_dummy' : 'bfs2025';
   box.appendChild(progLabel(mid, rerender));
   const grid = document.createElement('div'); grid.className = 'cards'; box.appendChild(grid);
+  const pro = isPro();
   if (subId === 'alter') {
-    grid.appendChild(progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `Schwarz: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: gewählte Variante (BFS ${v}).`, mid, (div) => fanChart(div, r.id, d, 'b80'), false));
-    grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), schwarze Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d), false));
+    const FAN = { b80: 'Menschen ab 80', b65: 'Menschen ab 65', bev: 'Bevölkerung' };
+    const fan = progChartCard(`Menschen ab 80 – beobachtet und Szenarien bis 2055`, `${inkWord(true)}: beobachtet ${d.ts.y[0]}–2024. Band: Spannweite BFS tief bis hoch. Orange: ${pro ? `gewählte Variante (BFS ${v})` : 'das mittlere Szenario des BFS'}.`, mid, (div) => fanChart(div, r.id, d, 'b80'), false);
+    if (pro) {   // Experte: the fan for all three age groups
+      const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
+      seg.innerHTML = Object.entries(FAN).map(([k, l], n) => `<button type="button" data-k="${k}" aria-pressed="${n === 0}">${l}</button>`).join('');
+      fan.querySelector('.card-head').after(seg);
+      seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return;
+        fanChart(fan.querySelector('.chart'), r.id, d, b.dataset.k); fan.querySelector('h3').textContent = `${FAN[b.dataset.k]} – beobachtet und Szenarien bis 2055`;
+        seg.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); });
+    }
+    grid.appendChild(fan);
+    if (pro) grid.appendChild(progChartCard(`Altersaufbau 2024 und ${j}`, `Personen je Altersgruppe, Männer links, Frauen rechts. Balken: ${j} (BFS ${v}), ${inkWord()} Linie: 2024.`, mid, (div) => pyrCompare(div, r.id, d), false));
   } else {
-    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `Schwarz: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph'), false));
+    grid.appendChild(progChartCard('Benötigte Pflegeheimplätze bis 2055', `${inkWord(true)}: Langzeitplätze am Standort, beobachtet ${S.meta.alter_jahre[0]}–2024, und als Linie «Plätze heute» bis 2055. Band: Spannweite auf Basis BFS tief bis hoch. Orange: Basis BFS ${v}.`, mid, (div) => fanChart(div, r.id, d, 'aph'), false));
   }
   // all forecast indicators of the topic in one card; buttons switch the indicator (sentence, bars, explanation follow)
-  const cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards);
-  const inds = S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick');
+  // Basis: the card sits beside the fan chart and offers the core indicators only
+  let cards = grid;
+  if (pro) { cards = document.createElement('div'); cards.className = 'cards'; box.appendChild(cards); }
+  const inds = lean(S.meta.indicators.filter((x) => x.sub === subId && x.zeit === 'ausblick'), (x) => x.id);
   const LAB = { p_bev: 'Bevölkerung', p_b65: 'ab 65', p_b80: 'ab 80', p_a80: 'Anteil 80+', p_aq: 'Altersquotient', p_aph: 'Benötigte Plätze', p_aph_diff: 'Zusätzliche Plätze' };
+  let slot = null;
   let cur = inds.find((i) => i.id === 'p_b80') ? 'p_b80' : inds[0]?.id;
   const show = async (iid) => {
-    const prev = barState(cards.querySelector('.chart'));
+    const prev = barState(slot?.querySelector('.chart'));
     cur = iid; const card = await progCard(iid, r.id, mode);
     if (inds.length > 1) {
       const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
@@ -282,7 +298,8 @@ export async function ausblickSection(box, r, d, subId, rerender, mode = 'kt') {
       card.querySelector('.card-head').after(seg);
       seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && b.dataset.k !== cur) show(b.dataset.k); });
     }
-    cards.replaceChildren(card);
+    if (slot) slot.replaceWith(card); else cards.appendChild(card);
+    slot = card;
     if (prev) animateBars(card.querySelector('.chart'), prev);
   };
   if (cur) await show(cur);
@@ -305,7 +322,7 @@ export async function ausblickPage(page, r, d, rerender) {
   g1.appendChild(progChartCard('Menschen ab 80 bis 2055', '', 'bfs2025', (div) => fanChart(div, r.id, d, 'b80')));
   g1.appendChild(await progCard('p_b80', r.id));
   g1.appendChild(await progCard('p_a80', r.id));
-  g1.appendChild(await progCard('p_aq', r.id));
+  if (isPro()) g1.appendChild(await progCard('p_aq', r.id));
   const s2 = sec('Pflegeheime', 'aph_dummy', 'inanspruchnahme');
   s2.appendChild(progLabel('aph_dummy', rerender));
   const g2 = document.createElement('div'); g2.className = 'cards'; s2.appendChild(g2);

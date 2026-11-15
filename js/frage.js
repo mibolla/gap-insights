@@ -1,11 +1,11 @@
 // Workflow B "Frage zuerst": answer for Switzerland (map + Kantone), then "Und bei uns?".
-import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML } from './store.js?v=20261115124832';
-import { createMap, legendHTML } from './map.js?v=20261115124832';
-import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261115124832';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115124832';
-import { omnibox } from './search.js?v=20261115124832';
-import { esc, main } from './ui.js?v=20261115124832';
-import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261115124832';
+import { S, val, region, fmt, fmtUnit, shortName, regionLabel, quantiles, classOf, prefs, setPrefs, sourceHTML, cmpMode } from './store.js?v=20261115155532';
+import { createMap, legendHTML } from './map.js?v=20261115155532';
+import { indicatorCard, plot, baseLayout, COLORS, rnd } from './cards.js?v=20261115155532';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115155532';
+import { omnibox } from './search.js?v=20261115155532';
+import { esc, main } from './ui.js?v=20261115155532';
+import { loadProg, pval, progState, progLabel, progCard, roundProg, model, progSourceHTML } from './prog.js?v=20261115155532';
 
 const DL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3"/></svg>';
 
@@ -59,7 +59,7 @@ export function render(qid, id) {
   if (r && r.e !== 'CH') { m.select(lvl === 'BEZ' && r.e === 'GDE' ? r.bez : r.id); if (r.e === 'GDE' && lvl === 'GDE') m.peers(r.nb || []); }
   omnibox(document.getElementById('usSearch'), { id: 'omniUs', compact: true, placeholder: r ? 'Andere Gemeinde wählen …' : 'Gemeinde suchen …',
     filter: (it) => it.go.startsWith('#/gemeinde/'), onPick: (it) => { location.hash = `#/frage/${qid}/${it.go.split('/')[2]}`; } });
-  if (r) document.getElementById('usCard').appendChild(indicatorCard(i.id, r.id, { mode: prefs().mode || 'kt' }));
+  if (r) document.getElementById('usCard').appendChild(indicatorCard(i.id, r.id, { mode: cmpMode() }));
   // Kantone ranking, own Kanton highlighted
   const myKt = r && r.e !== 'CH' ? r.kt : null;
   plot(document.getElementById('ktChart'), [{ type: 'bar', orientation: 'h', y: kts.map((d) => d.x.kt), x: kts.map((d) => d.v),
@@ -82,7 +82,7 @@ export function render(qid, id) {
   bk.onclick = () => exportMenu(bk, (f) => exportItems(f, [{ title: `${i.label} – Kantone im Vergleich`, sheet: 'Kantone', sentence: '', source: src, definition: i.def, div: kdiv,
     table: { columns: ['Kanton', 'Kürzel', `${i.short} (${unit})`], rows: [...kts.map((d) => [d.x.n, d.x.kt, rnd(d.v, i.dec + 1)]), ['Schweiz', 'CH', rnd(val(i.id, 'CH'), i.dec + 1)]] } }]));
   const more = document.getElementById('moreCards');
-  q.more.forEach((k) => more.appendChild(indicatorCard(k, r ? r.id : 'CH', { mode: prefs().mode || 'kt' })));
+  q.more.forEach((k) => more.appendChild(indicatorCard(k, r ? r.id : 'CH', { mode: cmpMode() })));
   window.scrollTo(0, 0);
 }
 

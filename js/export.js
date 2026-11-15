@@ -1,6 +1,7 @@
 // Export of charts and their numbers: PNG, PDF, PowerPoint, Excel, CSV.
+import { lightFigure } from './cards.js?v=20261115155532';
 // Libraries are loaded only when the user exports (keeps the app fast).
-import { toast, esc } from './ui.js?v=20261115124832';
+import { toast, esc } from './ui.js?v=20261115155532';
 
 const LIBS = {
   xlsx: { url: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', global: 'XLSX' },
@@ -46,7 +47,7 @@ export async function chartImage(div, title, source, { width = 1000, height } = 
   const l = { ...div.layout, title: { text: title, x: 0.01, font: { size: 15 } }, margin: { ...div.layout.margin, t: 48, b: Math.max(46, (div.layout.margin || {}).b || 0) + 16 },
     annotations: [...(div.layout.annotations || []), { text: `${source} · GAP-Insights`, xref: 'paper', yref: 'paper', x: 0, y: -0.02, yanchor: 'top', yshift: -18, showarrow: false, font: { size: 10, color: C } }],
     paper_bgcolor: '#fff', width, height: height || Math.max(420, (div.layout.height || 320) + 110) };
-  return Plotly.toImage({ data: div.data, layout: l }, { format: 'png', width, height: l.height, scale: 2 });
+  return Plotly.toImage(lightFigure({ data: div.data, layout: l }), { format: 'png', width, height: l.height, scale: 2 });
 }
 
 /** PNG data URL → JPEG data URL (white background); keeps PDFs small */

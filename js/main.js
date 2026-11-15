@@ -1,15 +1,20 @@
 // Boot, router and top bar.
-import { S, loadAll, mappe } from './store.js?v=20261115124832';
-import * as landing from './landing.js?v=20261115124832';
-import * as gemeinde from './gemeinde.js?v=20261115124832';
-import * as frage from './frage.js?v=20261115124832';
-import * as pages from './pages.js?v=20261115124832';
-import { omnibox } from './search.js?v=20261115124832';
-import { main } from './ui.js?v=20261115124832';
+import { S, loadAll, isPro, setMode, applyMode } from './store.js?v=20261115155532';
+import { chartTheme } from './cards.js?v=20261115155532';
+import * as landing from './landing.js?v=20261115155532';
+import * as gemeinde from './gemeinde.js?v=20261115155532';
+import * as frage from './frage.js?v=20261115155532';
+import * as pages from './pages.js?v=20261115155532';
+import { omnibox } from './search.js?v=20261115155532';
+import { main } from './ui.js?v=20261115155532';
 
-function updateMappeCount() {
-  const n = mappe().length; const b = document.getElementById('mappeCount');
-  b.textContent = n; b.hidden = n === 0;
+/** Basis | Experte switch in the top bar: theme, chart colours, then the current view is drawn again */
+function wireMode() {
+  const sw = document.getElementById('modeSw');
+  const show = () => { applyMode(); chartTheme(isPro()); sw.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String((b.dataset.m === 'pro') === isPro()))); };
+  sw.addEventListener('click', (ev) => { const b = ev.target.closest('button'); if (b && (b.dataset.m === 'pro') !== isPro()) setMode(b.dataset.m === 'pro'); });
+  document.addEventListener('mode', async () => { show(); const y = window.scrollY; await route(); window.scrollTo(0, y); });
+  show();
 }
 
 async function route() {
@@ -66,8 +71,7 @@ window.addEventListener('click', (ev) => {
   }
   document.getElementById('footYear').textContent = S.meta.jahr;
   omnibox(document.getElementById('topSearchSlot'), { id: 'omniTop', compact: true });
-  document.addEventListener('mappe', updateMappeCount);
-  updateMappeCount();
+  wireMode();
   window.addEventListener('hashchange', route);
   route();
 })();

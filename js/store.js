@@ -149,6 +149,15 @@ export function setPrefs(patch) {
   try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* private mode: keep in memory only */ }
   return p;
 }
+// ---------- Basis | Experte: the expert mode shows every topic, indicator and option on a dark ground
+export const isPro = () => prefs().pro === true;
+export function applyMode() {
+  const pro = isPro(); const el = document.documentElement;
+  el.dataset.mode = pro ? 'pro' : 'base'; el.dataset.theme = pro ? 'dark' : 'light';
+}
+export function setMode(pro) { setPrefs({ pro: !!pro }); applyMode(); document.dispatchEvent(new CustomEvent('mode', { detail: !!pro })); }
+/** «Vergleichen mit» is an Experte option; the Basis mode always compares with Bezirk, Kanton and Schweiz */
+export const cmpMode = () => (isPro() ? prefs().mode || 'kt' : 'kt');
 export const mappe = () => prefs().mappe || [];
 export function toggleMappe(item) {
   const m = mappe(); const k = (x) => `${x.ind}|${x.id}`;

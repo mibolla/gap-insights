@@ -1,15 +1,31 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail } from './store.js?v=20261115124832';
-import { toast, esc } from './ui.js?v=20261115124832';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115124832';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261115155532';
+import { whyHTML } from './context.js?v=20261115155532';
+import { toast, esc } from './ui.js?v=20261115155532';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261115155532';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
 const ebene = { CH: 'Schweiz', KT: 'Kanton', BEZ: 'Bezirk', GDE: 'Gemeinde' };
 
-const C = { grp: '#2a9d8f', chRed: '#d62828', me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5' };
+const LIGHT = { grp: '#2a9d8f', chRed: '#d62828', me: '#e8701a', bez: '#8fb3d6', kt: '#1b67b2', ch: '#3a4046', grey: '#c7d0d6', ink: '#17232c', muted: '#5b6872', line: '#dbe1e5',
+  grid: '#eef1f3', annbg: 'rgba(255,255,255,0.85)', edge: '#ffffff', rest: '#9fb6c8', band: 'rgba(27,103,178,0.16)' };
+const DARK = { grp: '#3fbfae', chRed: '#ff6b6b', me: '#f08433', bez: '#4f7ba6', kt: '#6aa6e0', ch: '#c9d2d8', grey: '#55636e', ink: '#e6ecef', muted: '#a3b0b9', line: '#2c3740',
+  grid: '#27313a', annbg: 'rgba(27,35,42,0.85)', edge: '#1b232a', rest: '#5f7385', band: 'rgba(106,166,224,0.22)' };
+const C = { ...LIGHT };
 const FONT = { family: 'Noto Sans, Helvetica Neue, Arial, sans-serif', size: 13, color: C.ink };
+/** chart colours follow the mode (Experte = dark ground); charts are redrawn by the router afterwards */
+export function chartTheme(dark) { Object.assign(C, dark ? DARK : LIGHT); FONT.color = C.ink; C.dark = !!dark; }
+/** exports are always on white: translate the dark chart colours back to the light ones */
+export function lightFigure(fig) {
+  if (!C.dark) return fig;
+  let j = JSON.stringify(fig);
+  Object.keys(LIGHT).forEach((k) => { j = j.split(JSON.stringify(DARK[k]).slice(1, -1)).join(LIGHT[k]); });
+  return JSON.parse(j);
+}
+/** the «black» observed line is light on the dark ground */
+export const inkWord = (cap = false) => (C.dark ? (cap ? 'Hell' : 'helle') : (cap ? 'Schwarz' : 'schwarze'));
 const CFG = { displayModeBar: false, responsive: true, locale: 'de-CH' };
 
 export function baseLayout(extra = {}) {
@@ -71,6 +87,16 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
     empty = isAph ? `In ${r.n} gibt es kein Alters- und Pflegeheim. ${b && val(indId, b) != null ? `Wert für den ${regionLabel(b, false)}: <b>${fmtUnit(val(indId, b), i)}</b>.` : ''}`
       : 'Für diese Region liegt kein Wert vor.';
   }
+  // Experte: where the region stands among its peers (rank, median, range)
+  let stats = '';
+  if (isPro() && levelOk && v != null && r.e !== 'CH' && indId !== 'bev') {
+    const pool = S.regions.filter((x) => x.e === r.e && (r.e === 'KT' || x.kt === r.kt)).map((x) => val(indId, x.id)).filter((x) => x != null).sort((a, b) => b - a);
+    if (pool.length > 2) {
+      const med = pool.length % 2 ? pool[(pool.length - 1) / 2] : (pool[pool.length / 2 - 1] + pool[pool.length / 2]) / 2;
+      const what = r.e === 'GDE' ? `Gemeinden im Kanton ${r.kt}` : r.e === 'BEZ' ? `Bezirken im Kanton ${r.kt}` : 'Kantonen';
+      stats = `<p class="pro-stats num"><span>Rang <b>${pool.findIndex((x) => x <= v) + 1}</b> von ${pool.length} ${what} <small>(höchster Wert = Rang 1)</small></span><span>Median <b>${fmt(med, i)}</b></span><span>Spannweite <b>${fmt(pool[pool.length - 1], i)}</b> bis <b>${fmt(pool[0], i)}</b></span></p>`;
+    }
+  }
   const on = inMappe(indId, id);
   card.innerHTML = `
     <div class="card-head"><h3>${esc(i.label)}</h3>
@@ -82,7 +108,7 @@ export function indicatorCard(indId, id, { mode = 'kt', wide = false } = {}) {
     ${sent ? `<p class="key-sentence">${sent}</p>` : ''}
     ${empty ? `<p class="empty">${empty}</p>` : ''}
     ${hint ? `<p class="proxy-hint">${hint}</p>` : ''}
-    <div class="chart" aria-hidden="true"></div>
+    <div class="chart" aria-hidden="true"></div>${stats}${whyHTML(indId)}
     ${i.note ? `<p class="note">${esc(i.note)}</p>` : ''}
     <details class="how"><summary>Wie wird das gemessen?</summary><p>${esc(i.def)}</p>
       <p><a href="${S.meta.sources[i.src].url}" target="_blank" rel="noopener">${esc(S.meta.sources[i.src].publisher)} – ${esc(S.meta.sources[i.src].name)} ↗</a> · <a href="#/daten">Methodik</a></p></details>
@@ -159,7 +185,7 @@ export function groupChart(div, indId, id, mode) {
     if (v == null) return;
     shapes.push({ type: 'line', x0: v, x1: v, yref: 'paper', y0: 0, y1: 1, line: { color: c, width: 1.5, dash: 'dot' } });
     ann.push({ x: v, yref: 'paper', y: 1, yshift: 2 + lift, text: lab, showarrow: false, font: { size: 11, color: c }, yanchor: 'bottom',
-      bgcolor: 'rgba(255,255,255,0.85)', borderpad: 1 });
+      bgcolor: C.annbg, borderpad: 1 });
     if (lift) shapes.push({ type: 'line', x0: v, x1: v, yref: 'paper', y0: 1, y1: 1, line: { color: c, width: 1, dash: 'dot' } });
   });
   plot(div, [{ type: 'bar', orientation: 'h', y: rows.map((d) => (d.x === id ? `<b>${shortName(d.x)}</b>` : shortName(d.x))), x: rows.map((d) => d.v),
@@ -225,7 +251,7 @@ export function pyramid(div, d, dk, years, refName = 'Schweiz') {
   rows: g.map((x, k) => [x, now.m[k], now.f[k], r1(tm)[k], r1(tf)[k], r1(pm)[k], r1(pf)[k], r1(pct(ref.m, ref))[k], r1(pct(ref.f, ref))[k]]) };
   plot(div, data, baseLayout({ height: 460, barmode: 'overlay', bargap: 0.08, showlegend: true,
     legend: { orientation: 'h', y: -0.08, font: { size: 12 } }, margin: { l: 8, r: 8, t: 8, b: 40 },
-    xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => `${Math.abs(t)} %`), zeroline: true, zerolinecolor: C.line, gridcolor: '#eef1f3' },
+    xaxis: { range: [-m, m], tickvals: ticks, ticktext: ticks.map((t) => `${Math.abs(t)} %`), zeroline: true, zerolinecolor: C.line, gridcolor: C.grid },
     yaxis: { automargin: true, tickfont: { size: 11 }, tickvals: yi, ticktext: g, range: [-0.6, g.length - 0.4], zeroline: false, showgrid: false } }));
 }
 
@@ -246,7 +272,7 @@ function leanPlot(div, data, ends0, nm, years, { note = '', ref100 = false, toze
   const lw = Math.max(60, ...ends.map((e) => (nm(e.s).length + 4) * 7)) + 14;
   const done = plot(div, data, baseLayout({ height: H, showlegend: false, margin: { l: 40, r: lw, t: 26, b: 30 }, annotations: ann,
     xaxis: { range: [years[0] - 0.3, years[1] + 0.3], tickvals: years[1] - years[0] <= 6 ? Array.from({ length: years[1] - years[0] + 1 }, (_, k) => years[0] + k) : [years[0], years[0] + 4, years[0] + 8, years[1]].filter((v, i, a) => v <= years[1] && a.indexOf(v) === i), showgrid: false, zeroline: false, ticks: 'outside', ticklen: 4, tickcolor: C.line },
-    yaxis: { gridcolor: '#e6eaed', zeroline: false, rangemode: tozero ? 'tozero' : 'normal' },
+    yaxis: { gridcolor: C.grid, zeroline: false, rangemode: tozero ? 'tozero' : 'normal' },
     shapes: ref100 ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 100, y1: 100, line: { color: C.muted, width: 1, dash: 'dot' } }] : [] }));
   // hover a name (or a line): that line stays, all other lines, end dots and names fade
   const focus = (ti) => {
@@ -337,7 +363,7 @@ export function shareBars(div, cats, series, unitLabel = '%') {
   div._table = { columns: ['Kategorie', ...series.flatMap((s) => [`${nameOf(s)} (Anzahl)`, `${nameOf(s)} (%)`])],
     rows: cats.map((c, k) => [c, ...series.flatMap(({ values }, j) => [values[k] == null ? null : rnd(values[k], 0), rnd(data[j].y[k], 2)])]) };
   plot(div, data, baseLayout({ height: 320, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: -0.2 }, margin: { l: 40, r: 10, t: 10, b: 60 },
-    yaxis: { ticksuffix: ' %', gridcolor: '#eef1f3' } }));
+    yaxis: { ticksuffix: ' %', gridcolor: C.grid } }));
 }
 
 export function stackedMix(div, series, cats, colors) {
@@ -349,7 +375,7 @@ export function stackedMix(div, series, cats, colors) {
   div._table = { columns: ['Region', ...cats.map((c) => `${c} (%)`), ...cats.map((c) => `${c} (CHF)`)],
     rows: series.map((s, k) => [nameOf(s), ...cats.map((c, j) => rnd(data[j].x[k], 2)), ...cats.map((c) => rnd(s.mix[c], 0))]) };
   plot(div, data, baseLayout({ height: 60 + 46 * series.length, barmode: 'stack', showlegend: true, legend: { orientation: 'h', y: -0.25 },
-    margin: { l: 8, r: 10, t: 6, b: 50 }, yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', range: [0, 100], gridcolor: '#eef1f3' } }));
+    margin: { l: 8, r: 10, t: 6, b: 50 }, yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', range: [0, 100], gridcolor: C.grid } }));
 }
 
 export function bewChart(div, series) {
@@ -360,7 +386,7 @@ export function bewChart(div, series) {
   div._table = { columns: ['Bewegung', ...series.map((s) => `${nameOf(s)} (% der Bevölkerung pro Jahr)`)],
     rows: keys.map((x) => [lab[x] || x, ...series.map(({ d }) => rnd(d.bew[x], 3))]) };
   plot(div, data, baseLayout({ height: 380, barmode: 'group', showlegend: true, legend: { orientation: 'h', y: -0.12 }, margin: { l: 8, r: 10, t: 6, b: 50 },
-    yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', gridcolor: '#eef1f3', title: { text: 'in % der Bevölkerung pro Jahr', font: { size: 11 } } } }));
+    yaxis: { autorange: 'reversed', automargin: true }, xaxis: { ticksuffix: ' %', gridcolor: C.grid, title: { text: 'in % der Bevölkerung pro Jahr', font: { size: 11 } } } }));
 }
 
 export function peerScatter(div, id, xInd, yInd, mode = 'kt') {
@@ -379,12 +405,12 @@ export function peerScatter(div, id, xInd, yInd, mode = 'kt') {
   const BIG = 22;
   const tr = (arr, c, size, name) => {
     const t = { type: 'scatter', mode: 'markers', x: arr.map((p) => p.a), y: arr.map((p) => p.b), name,
-      customdata: arr.map((p) => p.x.n), marker: { color: c, size: arr.map((p) => size(p)), line: { color: '#fff', width: 1 }, opacity: 0.85 },
+      customdata: arr.map((p) => p.x.n), marker: { color: c, size: arr.map((p) => size(p)), line: { color: C.edge, width: 1 }, opacity: 0.85 },
       hovertemplate: `<b>%{customdata}</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` };
     if (lvl === 'KT') {
       t.mode = 'markers+text'; t.text = arr.map((p) => p.x.kt); t.cliponaxis = false;
       t.textposition = arr.map((p) => (size(p) >= BIG ? 'middle center' : 'top center'));
-      t.textfont = { family: FONT.family, size: 11, color: arr.map((p) => (size(p) >= BIG && c === C.me ? '#ffffff' : C.ink)) };
+      t.textfont = { family: FONT.family, size: 11, color: arr.map((p) => (size(p) >= BIG ? (c === C.me ? '#ffffff' : '#17232c') : C.ink)) };
     }
     return t;
   };
@@ -396,18 +422,18 @@ export function peerScatter(div, id, xInd, yInd, mode = 'kt') {
   // Switzerland as a red reference bubble (fixed size), third legend entry
   const chx = val(xInd, 'CH'); const chy = val(yInd, 'CH');
   const chTrace = chx > 0 && chy > 0 ? [{ type: 'scatter', mode: lvl === 'KT' ? 'markers+text' : 'markers', x: [chx], y: [chy], name: 'Schweiz',
-    marker: { color: C.chRed, size: lvl === 'KT' ? 26 : 20, line: { color: '#fff', width: 1.5 }, opacity: 0.95 },
+    marker: { color: C.chRed, size: lvl === 'KT' ? 26 : 20, line: { color: C.edge, width: 1.5 }, opacity: 0.95 },
     text: lvl === 'KT' ? ['CH'] : undefined, textposition: 'middle center', textfont: { family: FONT.family, size: 11, color: '#ffffff' }, cliponaxis: false,
     hovertemplate: `<b>Schweiz</b><br>${ix.short}: %{x:.1f}<br>${iy.short}: %{y:.1f}<extra></extra>` }] : [];
   const own = mode === 'own' && gpts.length <= 3;     // Eigene Auswahl up to three: each with its name and colour, as in the line charts
   const OWNC = ['#2a9d8f', '#8e5bb5', '#b07d12'];
   const grpTr = !gpts.length ? [] : own ? gpts.map((p, k) => ({ ...tr([p], OWNC[k], (q) => sz(q) + 2, shortName(p.x.id)), mode: 'markers+text', text: [shortName(p.x.id)], textposition: 'top center', textfont: { family: FONT.family, size: 11, color: OWNC[k] }, cliponaxis: false }))
     : [tr(gpts, C.grp, (q) => sz(q) + 1, `${groupLabelFor(mode, r.e)} (${gpts.length})`)];
-  plot(div, [tr(rest, '#9fb6c8', sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), ...grpTr, tr(me, C.me, (p) => sz(p) + 4, shortName(id)), ...chTrace],
+  plot(div, [tr(rest, C.rest, sz, lvl === 'GDE' ? `Gemeinden ${r.kt}` : lvl === 'BEZ' ? `Bezirke ${r.kt}` : 'Kantone'), ...grpTr, tr(me, C.me, (p) => sz(p) + 4, shortName(id)), ...chTrace],
     baseLayout({ height: 420, showlegend: true, legend: { orientation: 'h', y: -0.18 }, margin: { l: 56, r: 12, t: 28, b: 60 },
       // both axes logarithmic with readable ticks 1-2-5; shapes use data values, annotations log10 positions
-      xaxis: { type: 'log', title: { text: `${ix.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.a).concat(vk[0] > 0 ? [vk[0]] : [], chx > 0 ? [chx] : [])) },
-      yaxis: { type: 'log', title: { text: `${iy.short} (log. Skala)`, font: { size: 12 } }, gridcolor: '#eef1f3', zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.b).concat(vk[1] > 0 ? [vk[1]] : [], chy > 0 ? [chy] : [])) },
+      xaxis: { type: 'log', title: { text: `${ix.short} (log. Skala)`, font: { size: 12 } }, gridcolor: C.grid, zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.a).concat(vk[0] > 0 ? [vk[0]] : [], chx > 0 ? [chx] : [])) },
+      yaxis: { type: 'log', title: { text: `${iy.short} (log. Skala)`, font: { size: 12 } }, gridcolor: C.grid, zeroline: false, ...logTicks([...pos, ...gpts].map((p) => p.b).concat(vk[1] > 0 ? [vk[1]] : [], chy > 0 ? [chy] : [])) },
       shapes: vk[0] > 0 && vk[1] > 0 ? [
         { type: 'line', x0: vk[0], x1: vk[0], yref: 'paper', y0: 0, y1: 1, line: { color: C.kt, dash: 'dot', width: 1 } },
         { type: 'line', y0: vk[1], y1: vk[1], xref: 'paper', x0: 0, x1: 1, line: { color: C.kt, dash: 'dot', width: 1 } }] : [],
@@ -437,7 +463,7 @@ function logTicks(values) {
 
 export function simpleBars(div, cats, values, color = C.kt, suffix = '') {
   plot(div, [{ type: 'bar', x: cats, y: values, marker: { color }, hovertemplate: `%{x}: %{y:,.0f}${suffix}<extra></extra>` }],
-    baseLayout({ height: 280, margin: { l: 50, r: 10, t: 10, b: 50 }, yaxis: { gridcolor: '#eef1f3' } }));
+    baseLayout({ height: 280, margin: { l: 50, r: 10, t: 10, b: 50 }, yaxis: { gridcolor: C.grid } }));
 }
 
 export { C as COLORS, fmtInt, rnd };

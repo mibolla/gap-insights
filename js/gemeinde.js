@@ -1,12 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261115124832';
-import { createMap } from './map.js?v=20261115124832';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115124832';
-import { omnibox } from './search.js?v=20261115124832';
-import { esc, main } from './ui.js?v=20261115124832';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115124832';
-import { openReportDialog } from './report.js?v=20261115124832';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115155532';
+import { PRO_SUBS, INTRO, lean } from './context.js?v=20261115155532';
+import { createMap } from './map.js?v=20261115155532';
+import { inkWord, indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115155532';
+import { omnibox } from './search.js?v=20261115155532';
+import { esc, main } from './ui.js?v=20261115155532';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115155532';
+import { openReportDialog } from './report.js?v=20261115155532';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -98,6 +99,19 @@ const chip = (t, s, base, sub) => (s.soon
   ? `<span class="chip soon" title="in Vorbereitung">${esc(s.label)}</span>`
   : `<a class="chip t-${t.color}${s.id === sub ? ' on' : ''}" href="${base}/${s.id}"${s.id === sub ? ' aria-current="page"' : ''}>${esc(s.label)}${(S.meta.zeit[s.id] || []).includes('ausblick') ? ' <span class="fut" title="mit Ausblick bis 2055">→ 2055</span>' : ''}</a>`);
 
+/** Basis mode: only the core topics (plus the one that is open), no «in Vorbereitung» chips */
+const subsFor = (t, sub) => (isPro() ? t.sub : t.sub.filter((s) => s.id === sub || (!s.soon && !PRO_SUBS.has(s.id))));
+/** Basis mode, instead of «Vergleichen mit»: what the bar colours mean */
+const colourKey = (r) => (r.e === 'CH' ? '' : `<div class="ckey" aria-label="Farben der Balken und Linien"><span><i class="me"></i>${esc(shortName(r.id))}</span>${r.e === 'GDE' ? '<span><i class="bez"></i>Bezirk</span>' : ''}${r.e !== 'KT' ? '<span><i class="kt"></i>Kanton</span>' : ''}<span><i class="ch"></i>Schweiz</span></div>`);
+/** Basis mode: a card at the end of a topic that says what the Experte mode adds */
+function moreCard(names) {
+  const card = document.createElement('article'); card.className = 'card ghost no-print';
+  card.innerHTML = `<h3>Mehr Tiefe im Experten-Modus</h3><p class="muted">${names.length ? `${names.length === 1 ? 'Eine weitere Kennzahl' : names.length + ' weitere Kennzahlen'} zu diesem Thema: ${names.map(esc).join(', ')}. ` : ''}Dazu der Vergleich mit Nachbargemeinden, ähnlich grossen Gemeinden oder einer eigenen Auswahl.</p>
+    <p><button type="button" class="btn small" data-pro>Experten-Modus einschalten</button></p>`;
+  card.querySelector('[data-pro]').addEventListener('click', () => setMode(true));
+  return card;
+}
+
 function topicPanel(r, sub) {
   const base = `#/gemeinde/${r.id}`;
   const cur = sub ? S.sub.get(sub) : null;
@@ -106,19 +120,21 @@ function topicPanel(r, sub) {
     <a class="ov${!sub ? ' on' : ''}" href="${base}"${!sub ? ' aria-current="page"' : ''} title="Überblick: Startseite von ${esc(shortName(r.id))}">
       <span class="ov-i">${HOME_ICON}</span>
       <span class="ov-x"><span class="ov-t">Überblick</span><span class="ov-s">${!sub ? `Startseite von ${esc(shortName(r.id))}` : `Zurück zum Start von ${esc(shortName(r.id))}`}</span></span></a>
-    <div class="trows">${S.meta.themen.map((t) => `
+    <div class="trows">${S.meta.themen.map((t) => ({ t, subs: subsFor(t, sub) })).filter((x) => x.subs.length).map(({ t, subs }) => `
       <div class="trow t-${t.color}${cur && cur.thema.id === t.id ? ' active' : ''}">
         <span class="tlabel">${esc(t.label)}</span>
-        <div class="tchips">${t.sub.map((s) => chip(t, s, base, sub)).join('')}</div>
-      </div>`).join('')}</div></div>`;
+        <div class="tchips">${subs.map((s) => chip(t, s, base, sub)).join('')}</div>
+      </div>`).join('')}${isPro() ? '' : `<p class="more-pro no-print">Bewegungen, Kosten, Finanzierung und Integrierte Versorgung: <button type="button" class="linkbtn" data-pro>im Experten-Modus</button></p>`}</div></div>`;
+  el.querySelector('[data-pro]')?.addEventListener('click', () => setMode(true));
   return el;
 }
 
 // ------------------------------------------------------------------ «Vergleichen mit»: a fixed row of the topic panel
 const modesFor = (r) => (r.e === 'GDE' ? ['kt', 'nb', 'size', 'kanton', 'own'] : r.e === 'BEZ' || r.e === 'KT' ? ['kt', 'kanton', 'own'] : ['kt']);
-const curMode = (r) => { const m = prefs().mode || 'kt'; return modesFor(r).includes(m) ? m : 'kt'; };
+const curMode = (r) => { const m = isPro() ? prefs().mode || 'kt' : 'kt'; return modesFor(r).includes(m) ? m : 'kt'; };
 /** «Vergleichen mit» as a view setting beside the time switch (and small in the sticky bar); both selects stay in sync */
 function cmpSelect(r, small = false) {
+  if (!isPro()) return small ? '' : colourKey(r);
   const modes = modesFor(r); if (modes.length < 2) return '';
   const mode = curMode(r);
   return `<label class="cmpsel no-print${small ? ' sm' : ''}${mode !== 'kt' ? ' grp' : ''}"><span class="cs-l">${small ? 'Vergleich' : 'Vergleichen mit'}</span>
@@ -203,8 +219,12 @@ async function portrait(page, r, d) {
     <div class="tiles">${tiles}</div>
     ${await ausblickTiles(r)}
     <div class="cards"><article class="card"><h3>Was möchten Sie wissen?</h3><ul class="qlist">${qs}</ul></article>
-      <article class="card"><h3>Mit anderen vergleichen</h3><p class="muted">Jedes Thema lässt sich mit dem Bezirk, dem Kanton und der Schweiz vergleichen – oder mit Nachbargemeinden, Gemeinden ähnlicher Grösse und einer eigenen Auswahl.</p>
-        <p><a class="btn small" href="#/gemeinde/${r.id}/alter">Mit der Altersstruktur beginnen →</a></p></article></div>`;
+      ${isPro() ? `<article class="card"><h3>Mit anderen vergleichen</h3><p class="muted">Jedes Thema lässt sich mit dem Bezirk, dem Kanton und der Schweiz vergleichen – oder mit Nachbargemeinden, Gemeinden ähnlicher Grösse und einer eigenen Auswahl.</p>
+        <p><a class="btn small" href="#/gemeinde/${r.id}/alter">Mit der Altersstruktur beginnen →</a></p></article>`
+    : `<article class="card"><h3>So lesen Sie die Zahlen</h3><p class="muted">Jede Kennzahl steht neben dem Wert ${r.e === 'GDE' ? 'des Bezirks, ' : ''}des Kantons und der Schweiz. So sehen Sie auf einen Blick, ob ${esc(shortName(r.id))} darüber oder darunter liegt. Ein kurzer Text erklärt, warum die Zahl zählt.</p>
+        <p><a class="btn small" href="#/gemeinde/${r.id}/alter">Mit der Altersstruktur beginnen →</a></p>
+        <p class="small muted">Alle Kennzahlen, eigene Vergleichsgruppen und Szenarien: <button type="button" class="linkbtn" data-pro>Experten-Modus</button></p></article>`}</div>`;
+  page.querySelector('[data-pro]')?.addEventListener('click', () => setMode(true));
 }
 
 function tile(k, r) {
@@ -246,8 +266,9 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   const zbar = zs.length > 1 ? `<nav class="zeit no-print" aria-label="Zeitansicht">${zs.map((z) =>
     `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
   let mode = curMode(r);
+  const intro = !isPro() && INTRO[subId] ? `<p class="lead-ctx">${INTRO[subId]}</p>` : '';
   if (zeit === 'ausblick') {      // forecasts: the same «Vergleichen mit» row; the forecast cards rank the group
-    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
+    page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${intro}
       <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div><div id="ausblick"></div>`;
     const drawA = async () => {
       const box = document.getElementById('ausblick'); if (!box) return; const y = window.scrollY;
@@ -259,12 +280,15 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
     await drawA();
     return;
   }
-  page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
+  page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${intro}
     <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div>
     <div class="cards" id="topicGrid"><div id="special" class="sub-grid"></div><div id="indCards" class="sub-grid"></div></div>`;   // one grid: half-width topic charts sit beside the indicator cards
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
-    S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
+    const all = S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit);
+    const shown = lean(all, (i) => i.id);
+    shown.forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
+    if (!isPro() && all.length) box.appendChild(moreCard(all.filter((i) => !shown.includes(i)).map((i) => i.short)));
     ownBox(r, mode, () => { draw(); drawSpecial(); });
   };
   const spSub = zeit === 'rueckblick' ? ({ alter: 'entwicklung', inanspruchnahme: 'heimentwicklung' }[subId] || `hist_${subId}`) : subId;
@@ -366,7 +390,7 @@ async function special(box, r, d, subId, mode = 'kt') {
   if (subId === 'alter') {
     const ref = grp && grp.d.pyr ? grp : series[series.length - 1];
     const refName = ref.grp ? ref.name.replace(/ \(\d+\)$/, '') : 'Schweiz';
-    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop', false);   // half width
+    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, ${inkWord()} Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop', false);   // half width
     c.setHow(`Ständige Wohnbevölkerung am 31.12. nach 5-Jahres-Altersgruppen und Geschlecht, als Anteil an der gesamten Bevölkerung der Region. Die Anteile machen Regionen unterschiedlicher Grösse vergleichbar.`);
     box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
   } else if (subId === 'entwicklung') {
@@ -374,7 +398,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     c.setHow(`Ständige Wohnbevölkerung am 31.12. jedes Jahres, als Index: ${y0} = 100. 150 heisst 50 % mehr als ${y0}. Alle Jahre auf dem heutigen Gemeindestand (fusionierte Gemeinden zusammengezählt).`);
     const n = d.ts.y.length - 1;
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
-    const opts = { b80: 'ab 80 Jahren', b65: 'ab 65 Jahren', bev: 'Gesamte Bevölkerung' };
+    const opts = isPro() ? { b80: 'ab 80 Jahren', b65: 'ab 65 Jahren', bev: 'Gesamte Bevölkerung' } : { b80: 'ab 80 Jahren', bev: 'Gesamte Bevölkerung' };
     seg.innerHTML = Object.entries(opts).map(([k, l], j) => `<button type="button" data-k="${k}" aria-pressed="${j === 0}">${l}</button>`).join('');
     c.card.querySelector('.card-head').after(seg);
     const drawK = (k) => {
@@ -391,7 +415,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     const own = d.aph_ts && d.aph_ts.pl.some((x) => x > 0);
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     seg.innerHTML = Object.entries(APH_TS_OPTS).map(([k, l], j) => `<button type="button" data-k="${k}" aria-pressed="${j === 0}">${l}</button>`).join('');
-    c.card.querySelector('.card-head').after(seg);
+    if (isPro()) c.card.querySelector('.card-head').after(seg);   // Basis: places per 1000 only
     const HOWI = { pl80: 'aph_pl80', kl80: 'aph_kl80', pl: 'aph_g_pl' };
     const f0 = (x) => fmt(x, { dec: 0 });
     const drawK = (k) => {
@@ -431,7 +455,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     box.appendChild(c.card); bewChart(c.div, series.filter((s) => s.d.bew));
   } else if (subId === 'inanspruchnahme' || subId === 'leistungen') {
     if (r.e === 'GDE') box.appendChild(lists(r, d, subId));
-    if (subId === 'leistungen' && series.some((s) => s.d.aph && s.d.aph.stufen)) {
+    if (subId === 'leistungen' && isPro() && series.some((s) => s.d.aph && s.d.aph.stufen)) {
       const c = chartCard('Pflegetage nach Pflegestufe', 'Wie viel Pflege brauchen die Bewohnerinnen und Bewohner? Stufe 1 = bis 20 Minuten pro Tag, Stufe 12 = mehr als 220 Minuten.', 'somed');
       c.setHow(`Pflegetage der Heime am Standort nach KVG-Pflegestufe (je 20 Minuten Pflege pro Tag eine Stufe), in Prozent aller Pflegetage mit Pflegestufe, ${M.jahr}. Die Aufteilung nach Stufe gibt es nur für ${M.jahr}.`);
       box.appendChild(c.card);
@@ -470,7 +494,7 @@ function histCards(box, r, d, series, ids) {
   const yrs = (id) => M.hist_years[id];
   const isSpx = (id) => S.ind.get(id).src === 'spitex';
   const notes = [];
-  const aph = ids.filter((x) => !isSpx(x)); const spx = ids.filter(isSpx);
+  const aph = lean(ids.filter((x) => !isSpx(x))); const spx = lean(ids.filter(isSpx));
   const has = (id) => d.aph_hist && d.aph_hist[id] && d.aph_hist[id].some((v) => v != null);
   if (aph.length && !aph.some(has)) notes.push(`${name} hatte zwischen ${yrs(aph[0])[0]} und ${M.jahr} kein eigenes Alters- und Pflegeheim. Die Heim-Grafiken zeigen ${r.e === 'GDE' ? 'Bezirk, ' : ''}Kanton und Schweiz.`);
   if (spx.length) notes.push(`Spitex-Kennzahlen veröffentlicht das BAG seit ${yrs(spx[0])[0]}. Organisationen ohne Adresse im Kanton sind nach Einwohnern auf seine Gemeinden verteilt.`);
