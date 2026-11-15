@@ -722,3 +722,4 @@ details.how p { margin-top: 6px; }
 .tp-stage.tp-overlay .tp-leg { display: none; }
 .tp-stage.tp-overlay { z-index: 1; }
 .map .map-ctrl, .map .map-tip, .map .map-card { z-index: 3; }
+.cards > .sub-grid { display: contents; }

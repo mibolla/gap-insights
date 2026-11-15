@@ -1,12 +1,12 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261115123616';
-import { createMap } from './map.js?v=20261115123616';
-import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115123616';
-import { omnibox } from './search.js?v=20261115123616';
-import { esc, main } from './ui.js?v=20261115123616';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115123616';
-import { openReportDialog } from './report.js?v=20261115123616';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg } from './store.js?v=20261115124832';
+import { createMap } from './map.js?v=20261115124832';
+import { indicatorCard, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115124832';
+import { omnibox } from './search.js?v=20261115124832';
+import { esc, main } from './ui.js?v=20261115124832';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115124832';
+import { openReportDialog } from './report.js?v=20261115124832';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -261,7 +261,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   }
   page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>
     <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div>
-    <div class="cards" id="special"></div><div class="cards" id="indCards"></div>`;
+    <div class="cards" id="topicGrid"><div id="special" class="sub-grid"></div><div id="indCards" class="sub-grid"></div></div>`;   // one grid: half-width topic charts sit beside the indicator cards
   const draw = () => {
     const box = document.getElementById('indCards'); box.innerHTML = '';
     S.meta.indicators.filter((i) => i.sub === subId && (i.zeit || 'heute') === zeit).forEach((i) => box.appendChild(indicatorCard(i.id, r.id, { mode })));
@@ -271,7 +271,7 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   let spRun = 0;
   const drawSpecial = async () => {   // the topic chart follows «Vergleichen mit» as well
     const run = ++spRun; const box = document.getElementById('special');
-    const tmp = document.createElement('div'); tmp.className = 'cards'; tmp.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + box.clientWidth + 'px';
+    const tmp = document.createElement('div'); tmp.className = 'cards'; tmp.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + box.parentElement.clientWidth + 'px';
     document.body.appendChild(tmp);     // drawn off-screen at the right width, then swapped in without flicker
     try { await special(tmp, r, d, spSub, mode); } finally { tmp.remove(); }
     if (run !== spRun) return;          // a newer selection is already drawing
@@ -366,7 +366,7 @@ async function special(box, r, d, subId, mode = 'kt') {
   if (subId === 'alter') {
     const ref = grp && grp.d.pyr ? grp : series[series.length - 1];
     const refName = ref.grp ? ref.name.replace(/ \(\d+\)$/, '') : 'Schweiz';
-    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop');
+    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, schwarze Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop', false);   // half width
     c.setHow(`Ständige Wohnbevölkerung am 31.12. nach 5-Jahres-Altersgruppen und Geschlecht, als Anteil an der gesamten Bevölkerung der Region. Die Anteile machen Regionen unterschiedlicher Grösse vergleichbar.`);
     box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
   } else if (subId === 'entwicklung') {
