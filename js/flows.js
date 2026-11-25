@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125230606';
-import { reduced } from './map.js?v=20261125230606';
-import { esc, main } from './ui.js?v=20261125230606';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125230833';
+import { reduced } from './map.js?v=20261125230833';
+import { esc, main } from './ui.js?v=20261125230833';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -160,13 +160,12 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     }
     // step 2: balance of the latest year as sorted bars (red right: takes in, blue left: sends out)
     const bars = q('bars');
-    if (mode === 'net' && bars && !bars.dataset.done) {
-      bars.dataset.done = 1;
+    if (mode === 'net' && bars) {                                  // rebuilt each time, so its hover uses this run's state
       const K = D.kts.filter((k) => NET[k]).sort((a2, b2) => NET[b2][last] - NET[a2][last]), bh = 16, BW = 380, bz = 205, bh2 = 115;
       const mx = Math.max(...K.map((k) => Math.abs(NET[k][last])));
       bars.innerHTML = `<svg viewBox="0 0 ${BW} ${K.length * bh + 4}" role="img" aria-label="Saldo der Kantone ${Y[last]}"><line class="z" x1="${bz}" x2="${bz}" y1="0" y2="${K.length * bh + 4}"/>
         ${K.map((k, r) => { const v = NET[k][last], w = Math.max(0.5, Math.abs(v) / mx * bh2);
-          return `<g transform="translate(0,${r * bh + 2})"><text class="rk" x="14" y="${bh * 0.72}" text-anchor="end">${r + 1}</text><image href="${wappen(`KT:${k}`)}" x="19" y="1.5" width="${bh - 3}" height="${bh - 3}"/>
+          return `<g class="br" data-k="${k}" transform="translate(0,${r * bh + 2})"><rect class="hit" x="0" y="0" width="${BW}" height="${bh}"/><text class="rk" x="14" y="${bh * 0.72}" text-anchor="end">${r + 1}</text><image href="${wappen(`KT:${k}`)}" x="19" y="1.5" width="${bh - 3}" height="${bh - 3}"/>
             <text class="kt" x="${21 + bh}" y="${bh * 0.72}">${k}</text><rect class="${v >= 0 ? 'pos' : 'neg'}" x="${(v >= 0 ? bz : bz - w).toFixed(1)}" y="3" width="${w.toFixed(1)}" height="${bh - 6}" rx="2"/>
             <text class="v num ${v >= 0 ? 'pos' : 'neg'}" x="${BW - 2}" y="${bh * 0.72}" text-anchor="end">${v >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(v)))}</text></g>`; }).join('')}</svg>`;
     }
@@ -253,8 +252,13 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       set('year', yi); set('beat', beats.reduce((s2, b2) => (y >= b2[0] ? b2[1] : s2), beats[0][1]));
       if (yrl) yrl.textContent = phase === 'morph' || phase === 'hold' ? '' : yi;
     };
-    const over = (ev) => { const id = ev.target?.dataset?.id; focus = id && id.startsWith('KT:') ? id.slice(3) : null; draw(); };
-    const leave = () => { focus = null; draw(); };
+    const markRow = () => bars && mode === 'net' && bars.querySelectorAll('g.br').forEach((g2) => g2.classList.toggle('hl', g2.dataset.k === focus));
+    const over = (ev) => { const id = ev.target?.dataset?.id; focus = id && id.startsWith('KT:') ? id.slice(3) : null; draw(); markRow(); };
+    if (mode === 'net' && bars) bars.querySelectorAll('g.br').forEach((g2) => {      // hover a bar = hover the Kanton on the map
+      g2.addEventListener('pointerenter', () => { focus = g2.dataset.k; draw(); markRow(); });
+      g2.addEventListener('pointerleave', () => { focus = null; draw(); markRow(); });
+    });
+    const leave = () => { focus = null; draw(); markRow(); };
     map.svg.addEventListener('pointerover', over); map.svg.addEventListener('pointerleave', leave);
     if (setTip) setTip((id) => {
       const r = region(id); if (!r) return ''; const k = id.slice(3), yi = Math.round(y), i = inflow(k, yi), o = outflow(k, yi);

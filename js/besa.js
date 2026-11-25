@@ -4,9 +4,9 @@
 // Step 2: the same Bezirke coloured by the assessment instrument (BESA, RAI, PLAISIR) – it explains much of the gap.
 // Step 3: «Rennen der Kantone»: animated line chart 2012 → latest year (2012–2016 BAG index, from 2017 BFS care
 //         days by level), a Wappen at each line head and a ranking column that re-sorts as the years pass.
-import { S, region, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125230606';
-import { legendHTML, reduced } from './map.js?v=20261125230606';
-import { esc, main } from './ui.js?v=20261125230606';
+import { S, region, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125230833';
+import { legendHTML, reduced } from './map.js?v=20261125230833';
+import { esc, main } from './ui.js?v=20261125230833';
 
 let BD = null;
 const load = () => (BD = BD || fetch(dataUrl('besa.json')).then((r) => r.json()));

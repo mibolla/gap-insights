@@ -950,3 +950,7 @@ details.how p { margin-top: 6px; }
 .mob-bars text { font-size: 10.5px; fill: var(--ink); } .mob-bars .rk { fill: var(--faint); } .mob-bars .kt { font-weight: 600; }
 .mob-bars rect.pos { fill: #e0605a; } .mob-bars rect.neg { fill: #4a90d9; }
 .mob-bars .v.pos { fill: #e0605a; font-weight: 700; } .mob-bars .v.neg { fill: #4a90d9; font-weight: 700; }
+.mob-bars g.br { cursor: pointer; }
+.mob-bars .hit { fill: transparent; }
+.mob-bars g.br.hl .hit { fill: var(--ink); fill-opacity: .08; }
+.mob-bars g.br.hl .kt, .mob-bars g.br.hl .v { font-weight: 800; }

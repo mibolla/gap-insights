@@ -4,9 +4,9 @@
 // Step 3 «Wo die Zahl wächst»: every Gemeinde leaves the map as a circle (area = people 65+ living alone) and joins
 //   one of six piles by Gemeinde size; the years run and the piles grow – fastest in Gemeinden of 2000–20'000.
 // Step 4 «Der Ring um die Städte»: Gemeinden by size, circles = additional people 80+ since the first year.
-import { S, region, fmtInt, fmt, dataUrl } from './store.js?v=20261125230606';
-import { reduced } from './map.js?v=20261125230606';
-import { esc, main } from './ui.js?v=20261125230606';
+import { S, region, fmtInt, fmt, dataUrl } from './store.js?v=20261125230833';
+import { reduced } from './map.js?v=20261125230833';
+import { esc, main } from './ui.js?v=20261125230833';
 
 let AL = null;
 const load = () => (AL = AL || fetch(dataUrl('alleinleben.json')).then((r) => r.json()));
