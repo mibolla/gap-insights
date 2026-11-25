@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125215630';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125221818';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,14 +7,14 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261125215630';
-import { omnibox } from './search.js?v=20261125215630';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125215630';
-import { alleinChapter, alleinSteps } from './allein.js?v=20261125215630';
-import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125215630';
-import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125215630';
-import { esc, main } from './ui.js?v=20261125215630';
-import { loadProg, pval, roundProg } from './prog.js?v=20261125215630';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125221818';
+import { omnibox } from './search.js?v=20261125221818';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125221818';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125221818';
+import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125221818';
+import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125221818';
+import { esc, main } from './ui.js?v=20261125221818';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125221818';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }

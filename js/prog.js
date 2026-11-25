@@ -1,10 +1,10 @@
 // Ausblick (forecasts): declared models, variant/year selection, fan chart, forecast cards, overview page.
-import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261125215630';
-import { whyHTML, lean } from './context.js?v=20261125215630';
-import { attachMap } from './kpimap.js?v=20261125215630';
-import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261125215630';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261125215630';
-import { esc } from './ui.js?v=20261125215630';
+import { S, region, parents, shortName, regionLabel, fmtInt, fmt, prefs, setPrefs, detail, dataUrl, srcLink, compareWord, groupMembers, isPro } from './store.js?v=20261125221818';
+import { whyHTML, lean } from './context.js?v=20261125221818';
+import { attachMap } from './kpimap.js?v=20261125221818';
+import { plot, baseLayout, COLORS as C, rnd, scrollRows, stairs, inkWord } from './cards.js?v=20261125221818';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261125221818';
+import { esc } from './ui.js?v=20261125221818';
 
 let PV = null;
 export async function loadProg() {
