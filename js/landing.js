@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125204110';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125214342';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,14 +7,14 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261125204110';
-import { omnibox } from './search.js?v=20261125204110';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125204110';
-import { alleinChapter, alleinSteps } from './allein.js?v=20261125204110';
-import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125204110';
-import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125204110';
-import { esc, main } from './ui.js?v=20261125204110';
-import { loadProg, pval, roundProg } from './prog.js?v=20261125204110';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125214342';
+import { omnibox } from './search.js?v=20261125214342';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125214342';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125214342';
+import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125214342';
+import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125214342';
+import { esc, main } from './ui.js?v=20261125214342';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125214342';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -82,7 +82,7 @@ export function render() {
     scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
   const MB = M.mob || { inter: 6544, share: 3.8, y0: 2006, y1: y1 };
   const mobCh = { id: 'mob', title: 'Ins Heim in einen anderen Kanton', big: fmtInt(MB.inter),
-    text: `Menschen lebten ${MB.y1} in einem Alters- und Pflegeheim ausserhalb ihres Wohnkantons – ${fmt(MB.share, { dec: 1 })} % aller Heimbewohnenden. Jeder Lichtpunkt steht für 15 von ihnen, er wandert vom Wohnkanton zum Kanton des Heims. Die Farbe zeigt, wie viele Bewohnende eines Kantons von ausserhalb kommen.`,
+    text: `Menschen lebten ${MB.y1} in einem Alters- und Pflegeheim ausserhalb ihres Wohnkantons – ${fmt(MB.share, { dec: 1 })} % aller Heimbewohnenden. Jeder Pfeil führt vom Wohnkanton zum Kanton des Heims, seine Breite ist die Zahl der Menschen. Im Kreis jedes Kantons kommen alle zusammen, die er aufnimmt. Die Farbe zeigt, wie viele Bewohnende eines Kantons von ausserhalb kommen.`,
     extra: flowsExtra, src: `BFS, Statistik der sozialmedizinischen Institutionen: Klientenwanderung ${MB.y0}–${MB.y1}`,
     thema: 'inanspruchnahme', q: 'plaetze', cap: `Heimbewohnende nach Wohnkanton und Kanton des Heims, ${MB.y1}`, steps: flowsSteps(MB.y0, MB.y1), ctl: {} };
   mobCh.map = (m, t, alive) => flowsChapter(m, t, alive, { ctl: mobCh.ctl, initStep: () => mobCh.s || 0,

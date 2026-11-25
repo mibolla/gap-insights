@@ -4,17 +4,18 @@
 // Step 1: the largest flows of the latest year (Kantone by share of residents from other Kantone).
 // Step 2: balance (taken in − sent out). Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card follows four Kantone whose role changed.
-import { S, region, fmtInt, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125204110';
-import { legendHTML, reduced } from './map.js?v=20261125204110';
-import { esc, main } from './ui.js?v=20261125204110';
+import { S, region, fmtInt, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125214342';
+import { legendHTML, reduced } from './map.js?v=20261125214342';
+import { esc, main } from './ui.js?v=20261125214342';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
 const NS = 'http://www.w3.org/2000/svg';
 const DIV = ['#2166ac', '#67a9cf', '#c6dbef', '#fcbba1', '#ef8a62', '#b2182b'];
 const NBR = [-200, -50, 0, 50, 200];
-const MIN_PAIR = 50, MIN_SHOW = 40, NLAB = 6;
-const W_OF = (n) => 1 + n / 22;                       // arrow width in map units: 100 people ≈ 5.5
+const MIN_PAIR = 20, MIN_SHOW = 20, NLAB = 6;
+const W_OF = (n) => 0.6 + Math.sqrt(n) * 0.45;        // arrow width in map units: 20 → 2.6, 100 → 5.1, 364 → 9.2
+const R_OF = (n) => 7 + Math.sqrt(n) * 0.62;          // collector bubble: radius from the people taken in (max over the years)
 const FOCUS = [['OW', 'Obwalden'], ['BS', 'Basel-Stadt'], ['BE', 'Bern'], ['ZH', 'Zürich']];
 
 export const flowsExtra = '<div class="mob-top" data-mob="top"></div>';
@@ -47,20 +48,61 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     map.clear(); map.setLevel('kt');
     root.querySelector('.mob-fx')?.remove();
     const fx = document.createElementNS(NS, 'g'); fx.setAttribute('class', 'mob-fx'); root.appendChild(fx);
-    fx.innerHTML = `<defs><marker id="mobHead" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
+    fx.innerHTML = `<defs><marker id="mobHead" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
     const at = (arr, y) => { const k = Math.min(last - 1, Math.max(0, Math.floor(y - Y[0]))), f = Math.max(0, Math.min(1, y - Y[0] - k)); return arr[k] + (arr[k + 1] - arr[k]) * f; };
-    const F = D.flows.filter((f) => Math.max(...f[2]) >= MIN_PAIR).map(([o, d, ns]) => {
-      const p0 = A[o], p1 = A[d]; if (!p0 || !p1) return null;
-      const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
-      const s0 = [p0[0] + ux * 6, p0[1] + uy * 6], s1 = [p1[0] - ux * 14, p1[1] - uy * 14];      // leave room for the head
-      const c = [(s0[0] + s1[0]) / 2 - uy * L * 0.2, (s0[1] + s1[1]) / 2 + ux * L * 0.2];
-      const d0 = `M${s0[0].toFixed(1)} ${s0[1].toFixed(1)}Q${c[0].toFixed(1)} ${c[1].toFixed(1)} ${s1[0].toFixed(1)} ${s1[1].toFixed(1)}`;
+    // collector bubbles: every Kanton gets a circle; arrows arrive on its border, each at its own port
+    const PAIRS = D.flows.filter((f) => Math.max(...f[2]) >= MIN_PAIR && A[f[0]] && A[f[1]]);
+    const inMax = Object.fromEntries(D.kts.map((k) => [k, Math.max(...Y.map((_, i) => PAIRS.reduce((s2, f) => s2 + (f[1] === k ? f[2][i] : 0), 0)))]));
+    const R = Object.fromEntries(D.kts.map((k) => [k, R_OF(inMax[k])]));
+    // bubbles must not overlap: push neighbours apart (Basel, Appenzell/St. Gallen, Zentralschweiz), small pull back
+    const K2 = D.kts.filter((k) => A[k]); const home = Object.fromEntries(K2.map((k) => [k, [...A[k]]]));
+    for (let it = 0; it < 200; it++) {
+      for (let i = 0; i < K2.length; i++) for (let j = i + 1; j < K2.length; j++) {
+        const a2 = A[K2[i]], b2 = A[K2[j]], dx = b2[0] - a2[0], dy = b2[1] - a2[1], d = Math.hypot(dx, dy) || 0.01, m = R[K2[i]] + R[K2[j]] + 4;
+        if (d < m) { const push = (m - d) / 2, ux = dx / d, uy = dy / d; a2[0] -= ux * push; a2[1] -= uy * push; b2[0] += ux * push; b2[1] += uy * push; }
+      }
+      K2.forEach((k) => { A[k][0] += (home[k][0] - A[k][0]) * 0.02; A[k][1] += (home[k][1] - A[k][1]) * 0.02; });
+    }
+    const ports = {};                                                // Kanton -> [{flow, kind, ang, w}]
+    const F = PAIRS.map(([o, d, ns]) => {
+      const p0 = A[o], p1 = A[d], dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      const c = [(p0[0] + p1[0]) / 2 - uy * L * 0.18, (p0[1] + p1[1]) / 2 + ux * L * 0.18];   // bend to the left
+      const f = { o, d, ns, c, wmax: W_OF(Math.max(...ns)) };
+      (ports[d] = ports[d] || []).push({ f, kind: 'in', ang: Math.atan2(c[1] - p1[1], c[0] - p1[0]) });
+      (ports[o] = ports[o] || []).push({ f, kind: 'out', ang: Math.atan2(c[1] - p0[1], c[0] - p0[0]) });
+      return f;
+    });
+    // spread the ports around each circle: neighbours keep at least their half widths + a gap apart (arc length)
+    Object.entries(ports).forEach(([k, ps]) => {
+      const r = R[k] + 1.5; ps.sort((a2, b2) => a2.ang - b2.ang);
+      const need = (i, j) => ((ps[i].f.wmax + ps[j].f.wmax) / 2 + 2.2) / r;
+      for (let it = 0; it < 60; it++) {
+        let moved = false;
+        for (let i = 0; i < ps.length && ps.length > 1; i++) {
+          const j = (i + 1) % ps.length; let gap = ps[j].ang - ps[i].ang; if (j === 0) gap += 2 * Math.PI;
+          const m = need(i, j); if (gap < m) { const d2 = (m - gap) / 2; ps[i].ang -= d2; ps[j].ang += d2; moved = true; }
+        }
+        if (!moved) break;
+      }
+      ps.forEach((pt) => { const P = [A[k][0] + Math.cos(pt.ang) * (R[k] + (pt.kind === 'in' ? 1 : 0)), A[k][1] + Math.sin(pt.ang) * (R[k] + (pt.kind === 'in' ? 1 : 0))];
+        if (pt.kind === 'in') pt.f.e = P; else pt.f.s = P; });
+    });
+    F.forEach((f) => {
+      // control point: the original bend, pulled so the curve leaves and enters radially
+      const s0 = f.s, s1 = f.e, so = A[f.o], sd = A[f.d], L = Math.hypot(s1[0] - s0[0], s1[1] - s0[1]);
+      const k1 = L * 0.38, a0 = Math.atan2(s0[1] - so[1], s0[0] - so[0]), a1 = Math.atan2(s1[1] - sd[1], s1[0] - sd[0]);
+      const c0 = [s0[0] + Math.cos(a0) * k1, s0[1] + Math.sin(a0) * k1], c1 = [s1[0] + Math.cos(a1) * k1, s1[1] + Math.sin(a1) * k1];
+      const d0 = `M${s0[0].toFixed(1)} ${s0[1].toFixed(1)}C${c0[0].toFixed(1)} ${c0[1].toFixed(1)} ${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${s1[0].toFixed(1)} ${s1[1].toFixed(1)}`;
       const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'mob-arrow');
       g.innerHTML = `<path class="body" d="${d0}" marker-end="url(#mobHead)"/><path class="flow" d="${d0}"/>`;
-      const mid = [0.25 * s0[0] + 0.5 * c[0] + 0.25 * s1[0], 0.25 * s0[1] + 0.5 * c[1] + 0.25 * s1[1]];
-      return { o, d, ns, g, body: g.firstChild, flow: g.lastChild, mid };
-    }).filter(Boolean).sort((a, b) => Math.max(...b.ns) - Math.max(...a.ns));
+      f.g = g; f.body = g.firstChild; f.flow = g.lastChild;
+      f.mid = [0.125 * s0[0] + 0.375 * c0[0] + 0.375 * c1[0] + 0.125 * s1[0], 0.125 * s0[1] + 0.375 * c0[1] + 0.375 * c1[1] + 0.125 * s1[1]];
+    });
+    F.sort((a2, b2) => Math.max(...b2.ns) - Math.max(...a2.ns));
     [...F].reverse().forEach((f) => fx.appendChild(f.g));              // large arrows on top
+    const bubG = document.createElementNS(NS, 'g'); bubG.setAttribute('class', 'mob-bub'); fx.appendChild(bubG);
+    bubG.innerHTML = D.kts.filter((k) => A[k]).map((k) => `<g data-k="${k}" transform="translate(${A[k][0].toFixed(1)},${A[k][1].toFixed(1)})"><circle r="${R[k].toFixed(1)}"/><circle class="fill" r="0"/><text class="kt" y="-1">${k}</text><text class="v num" y="${Math.min(9, R[k] * 0.55).toFixed(1)}"></text></g>`).join('');
+    const bub = Object.fromEntries(D.kts.filter((k) => A[k]).map((k) => [k, bubG.querySelector(`g[data-k="${k}"]`)]));
     const labG = document.createElementNS(NS, 'g'); labG.setAttribute('class', 'mob-labs'); fx.appendChild(labG);
     const inflow = (k, y) => D.flows.reduce((s, f) => s + (f[1] === k ? at(f[2], y) : 0), 0);
     const outflow = (k, y) => D.flows.reduce((s, f) => s + (f[0] === k ? at(f[2], y) : 0), 0);
@@ -77,8 +119,11 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       F.forEach((f, i) => {
         const n = cur[i], on = !focus || f.o === focus || f.d === focus, vis = n >= MIN_SHOW;
         f.g.style.opacity = !vis ? 0 : on ? 1 : 0.08;
-        const w = W_OF(n).toFixed(2); f.body.style.strokeWidth = w; f.flow.style.strokeWidth = Math.max(0.6, W_OF(n) * 0.28).toFixed(2);
+        const w = W_OF(n).toFixed(2); f.body.style.strokeWidth = w; f.flow.style.strokeWidth = Math.max(0.5, W_OF(n) * 0.3).toFixed(2);
       });
+      D.kts.forEach((k) => { const b2 = bub[k]; if (!b2) return; const n = inflow(k, y), on = !focus || focus === k || F.some((f) => (f.o === focus && f.d === k) || (f.d === focus && f.o === k));
+        b2.querySelector('.fill').setAttribute('r', Math.min(R[k], R_OF(n) * R[k] / R_OF(inMax[k] || 1)).toFixed(1));
+        b2.querySelector('.v').textContent = n >= 1 ? fmtInt(Math.round(n)) : ''; b2.style.opacity = on ? 1 : 0.15; });
       labG.innerHTML = topIdx.filter((i) => cur[i] >= MIN_SHOW && (!focus || F[i].o === focus || F[i].d === focus))
         .map((i) => `<g transform="translate(${F[i].mid[0].toFixed(1)},${F[i].mid[1].toFixed(1)})"><rect x="-17" y="-8" width="34" height="15" rx="7"/><text y="3.5" text-anchor="middle">${fmtInt(Math.round(cur[i]))}</text></g>`).join('');
     };
@@ -118,9 +163,10 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     map.svg.addEventListener('pointerover', over); map.svg.addEventListener('pointerleave', leave);
     if (setTip) setTip((id) => {
       const r = region(id); if (!r) return ''; const k = id.slice(3), yi = Math.round(y), i = inflow(k, yi), o = outflow(k, yi);
-      return `${esc(r.n)} ${yi} · aus anderen Kantonen: ${fmtInt(Math.round(i))} · in Heime anderer Kantone: ${fmtInt(Math.round(o))} · Saldo ${i - o >= 0 ? '+' : ''}${fmtInt(Math.round(i - o))}`;
+      return `<b>${esc(r.n)}</b> <span class="tm">${yi}</span><span class="tr"><span>aufgenommen</span><b class="num">${fmtInt(Math.round(i))}</b></span><span class="tr"><span>abgegeben</span><b class="num">${fmtInt(Math.round(o))}</b></span><span class="tr sal ${i - o >= 0 ? 'pos' : 'neg'}"><span>Saldo</span><b class="num">${i - o >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(i - o)))}</b></span>`;
     });
-    cleanup = () => { fx.remove(); map.svg.removeEventListener('pointerover', over); map.svg.removeEventListener('pointerleave', leave); cleanup = () => {}; };
+    map.container.classList.add('tip-side');                         // tooltip in the corner: never over the arrows
+    cleanup = () => { fx.remove(); map.container.classList.remove('tip-side'); map.svg.removeEventListener('pointerover', over); map.svg.removeEventListener('pointerleave', leave); cleanup = () => {}; };
     paintKt(Math.round(y)); draw(); counters();
     if (mode === 'time') {
       const tick = (now) => {
@@ -141,7 +187,7 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       const watch = () => { if (my !== gen) return; if (!alive()) { cleanup(); return; } setTimeout(watch, 400); };
       watch();
     }
-    const key = `<span class="mob-akey"><svg viewBox="0 0 60 14"><path d="M2 7H44" stroke-width="3"/><path d="M2 7H44" class="fl" stroke-width="1"/><path d="M44 2L56 7L44 12z"/></svg> Pfeilbreite = Menschen, die in ein Heim eines anderen Kantons ziehen (Wohnkanton → Kanton des Heims; ab ${MIN_SHOW} Personen)</span><span class="muted">Maus auf einen Kanton: nur seine Pfeile</span>`;
+    const key = `<span class="mob-akey"><svg viewBox="0 0 60 14"><path d="M2 7H44" stroke-width="3"/><path d="M2 7H44" class="fl" stroke-width="1"/><path d="M44 2L56 7L44 12z"/></svg> Pfeilbreite = Menschen in einem Heim eines anderen Kantons (Wohnkanton → Kanton des Heims; ab ${MIN_SHOW} Personen)</span><span><i class="mob-bkey"></i> Kreis = alle aufgenommenen Menschen aus anderen Kantonen</span><span class="muted">Maus auf einen Kanton: nur seine Pfeile</span>`;
     if (mode === 'flows') return `${legendHTML(BRS, (x) => `${fmt(x, { dec: 1 })} %`, `Bewohnende aus anderen Kantonen, ${Y[last]}`)}<div class="legend mob-key">${key}</div>`;
     return `<div class="legend"><span>Saldo: aufgenommen − abgegeben</span><span>gibt ab</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>nimmt auf</span><span class="muted">−200 · −50 · 0 · +50 · +200</span></div><div class="legend mob-key">${key}</div>`;
   };

@@ -1,12 +1,12 @@
 // Boot, router and top bar.
-import { S, loadAll, isPro, setMode, applyMode } from './store.js?v=20261125204110';
-import { chartTheme } from './cards.js?v=20261125204110';
-import * as landing from './landing.js?v=20261125204110';
-import * as gemeinde from './gemeinde.js?v=20261125204110';
-import * as frage from './frage.js?v=20261125204110';
-import * as pages from './pages.js?v=20261125204110';
-import { omnibox } from './search.js?v=20261125204110';
-import { main } from './ui.js?v=20261125204110';
+import { S, loadAll, isPro, setMode, applyMode } from './store.js?v=20261125214342';
+import { chartTheme } from './cards.js?v=20261125214342';
+import * as landing from './landing.js?v=20261125214342';
+import * as gemeinde from './gemeinde.js?v=20261125214342';
+import * as frage from './frage.js?v=20261125214342';
+import * as pages from './pages.js?v=20261125214342';
+import { omnibox } from './search.js?v=20261125214342';
+import { main } from './ui.js?v=20261125214342';
 
 /** Basis | Experte switch in the top bar: theme, chart colours, then the current view is drawn again */
 function wireMode() {

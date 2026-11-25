@@ -912,3 +912,16 @@ details.how p { margin-top: 6px; }
 .mob-focus circle { fill: var(--ink); }
 .mob-focus b { text-align: right; color: #2166ac; } .mob-focus .mf.pos b { color: #b2182b; }
 @media (prefers-reduced-motion: reduce) { .mob-arrow .flow { animation: none; } }
+.mob-bub circle { fill: var(--surface); fill-opacity: .88; stroke: #f0a020; stroke-width: 1.4; }
+.mob-bub circle.fill { fill: #f0a020; fill-opacity: .28; stroke: none; }
+.mob-bub text { text-anchor: middle; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 2px; }
+.mob-bub .kt { font-size: 9px; font-weight: 700; }
+.mob-bub .v { font-size: 7.5px; }
+.mob-bub g { transition: opacity .3s; }
+.mob-bkey { display: inline-block; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #f0a020; background: rgba(240, 160, 32, .25); vertical-align: middle; margin-right: 4px; }
+.map.tip-side .map-tip { left: 12px !important; top: auto !important; bottom: 12px; transform: none; white-space: normal; width: 168px; padding: 8px 10px; line-height: 1.35; }
+.map.tip-side .map-tip .tm { color: var(--faint); font-weight: 400; }
+.map.tip-side .map-tip .tr { display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; }
+.map.tip-side .map-tip .tr:first-of-type { margin-top: 4px; }
+.map.tip-side .map-tip .sal { border-top: 1px solid rgba(127, 127, 127, .4); margin-top: 3px; padding-top: 3px; }
+.map.tip-side .map-tip .sal.pos b { color: #ef8a62; } .map.tip-side .map-tip .sal.neg b { color: #67a9cf; }
