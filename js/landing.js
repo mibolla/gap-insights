@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125232023';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125233345';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,14 +7,14 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261125232023';
-import { omnibox } from './search.js?v=20261125232023';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125232023';
-import { alleinChapter, alleinSteps } from './allein.js?v=20261125232023';
-import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125232023';
-import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125232023';
-import { esc, main } from './ui.js?v=20261125232023';
-import { loadProg, pval, roundProg } from './prog.js?v=20261125232023';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125233345';
+import { omnibox } from './search.js?v=20261125233345';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125233345';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125233345';
+import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125233345';
+import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125233345';
+import { esc, main } from './ui.js?v=20261125233345';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125233345';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -88,12 +88,12 @@ export function render() {
   mobCh.map = (m, t, alive) => flowsChapter(m, t, alive, { ctl: mobCh.ctl, initStep: () => mobCh.s || 0,
     scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
   const chapters = [
-    { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
+    { n: 'Story 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
       src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
     ageCh,
     tagCh,
     alCh,
-    { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
+    { n: 'Story 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
       src: `BAG / SOMED ${M.jahr}`, map: (m, t, alive) => { const l = colourBy(m, 'aph_pl80', 'kt', t); heimPoints(m, alive); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
     besaCh,
     mobCh,
@@ -107,14 +107,14 @@ export function render() {
         text: `stationäre Fälle haben die ${fmtInt(P.spitaeler)} Spitäler der Schweiz ${M.jahr} behandelt – die Hälfte davon nur ${P.haelfte} Spitäler, allen voran ${esc(P.groesstes)} mit ${fmtInt(P.groesstes_faelle)} Fällen. Die Fläche jeder Blase entspricht den Fällen eines Spitals, die Farbe dem Spitaltyp.`,
         src: `BAG, Kennzahlen der Schweizer Spitäler ${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourSpitaeler(m, t, alive),
         ext: M.sources.kzp.url, extLabel: 'Kennzahlen der Spitäler (BAG)', cap: `Spitäler ${M.jahr} – Blasengrösse: stationäre Fälle pro Jahr` }; })(),
-    { n: 'Kapitel 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
+    { n: 'Story 4', title: 'Pflege zu Hause', big: fmt(ch('spx_kl65'), 'spx_kl65'), text: `von 1000 Menschen ab 65 erhalten Leistungen der Spitex. Die Spitex ist für viele die erste Unterstützung, damit sie zu Hause bleiben können. Die Karte zeigt die Kantone.`,
       src: `BAG / Spitex-Statistik ${M.jahr}`, map: (m, t) => colourBy(m, 'spx_kl65', 'kt', t), thema: 'inanspruchnahme', q: 'spitex', cap: 'Spitex-Klientinnen und -Klienten pro 1000 Menschen ab 65, nach Kanton' },
     (() => { const X = M.spitex;
       return { n: '', title: 'Spitex vor Ort', big: `${fmt(X.privat1, { dec: 0 })} %`,
         text: `der Spitex-Klientinnen und -Klienten werden ${M.jahr} von privaten, gewinnorientierten Organisationen betreut – ${X.y0} waren es ${fmt(X.privat0, { dec: 0 })} %. Die gemeinnützigen Spitex betreuen noch ${fmt(X.gemein1, { dec: 0 })} % (${X.y0}: ${fmt(X.gemein0, { dec: 0 })} %). Jede Blase ist eine Organisation, ihre Fläche entspricht den Klientinnen und Klienten.`,
         src: `BAG, Kennzahlen Krankenpflege und Hilfe zu Hause ${X.y0}–${M.jahr} · Standorte: geo.admin.ch (Adressen 2023)`, map: (m, t, alive) => colourSpitex(m, t, alive),
         thema: 'inanspruchnahme', q: 'spitex', cap: `Spitex-Organisationen ${M.jahr} – Blasengrösse: Klientinnen und Klienten` }; })(),
-    { n: 'Kapitel 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
+    { n: 'Story 5', title: 'Blick nach vorn', big: `${fmtInt(Math.round(M.prog_ch.mittel.b80['2040'] / 1000) * 1000)}`,
       text: `Menschen ab 80 werden 2040 in der Schweiz leben – gemäss BFS-Referenzszenario (mittel), heute sind es ${fmtInt(Math.round(M.prog_ch.mittel.b80['2024'] / 1000) * 1000)}. Die Karte zeigt die erwartete Zunahme bis 2040 in jeder Gemeinde. Jede Prognose nennt ihr Modell und ihre Variante.`,
       src: 'BFS-Szenarien 2025–2055, regionalisiert (HSLU)', map: (m, t, alive) => colourProg(m, 'p_b80', 2040, 'Zunahme 80+ 2024–2040', t, alive),
       thema: 'alter', q: 'zukunft80', cap: 'Zunahme der Menschen ab 80 bis 2040, BFS mittel (in %)' },
@@ -154,16 +154,16 @@ export function render() {
     <div class="story-grid">
       <div class="story-cards">${chapters.map((c, k) => `
         <article class="story-card${k === 0 ? ' active' : ''}${c.steps ? ' has-steps' : ''}" data-k="${k}" data-s="0"${c.id ? ` data-ch="${c.id}"` : ''}>
-          <span class="n">Kapitel ${k + 1} von ${chapters.length}${c.steps ? ` · Schritt 1 von ${c.steps.length + 1}` : ''}</span><h3>${c.title}</h3>
+          <span class="n">Story ${k + 1} von ${chapters.length}${c.steps ? ` · Schritt 1 von ${c.steps.length + 1}` : ''}</span><h3>${c.title}</h3>
           <span class="big num">${c.big}</span><p>${c.text}</p>${c.extra || ''}
-          ${c.steps ? `<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen – dieses Kapitel hat ${c.steps.length + 1} Schritte</p>` : ''}
+          ${c.steps ? `<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen – diese Story hat ${c.steps.length + 1} Schritte</p>` : ''}
           <span class="src">Quelle: ${c.src}</span>
           <div class="exits">${c.thema ? `<a class="btn small" href="#/thema/${c.thema}">Thema ${esc(S.sub.get(c.thema).label)}</a><a class="btn small" href="#/frage/${c.q}">${esc(S.q.get(c.q).text)}</a>
           <button class="btn small primary" type="button" data-us="${c.q}">Und bei uns?</button>` : `<a class="btn small" href="${c.ext}" target="_blank" rel="noopener">${esc(c.extLabel)} ↗</a>`}</div>
         </article>${(c.steps || []).map((st, i) => `
         <article class="story-card step" data-k="${k}" data-s="${i + 1}">
-          <span class="n">Kapitel ${k + 1} · Schritt ${i + 2} von ${c.steps.length + 1}</span><h3>${st.title}</h3><p>${st.text}</p>${st.extra || ''}
-          ${i < c.steps.length - 1 ? '<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen</p>' : '<p class="small muted">Ende des Kapitels – weiter mit dem nächsten Kapitel.</p>'}
+          <span class="n">Story ${k + 1} · Schritt ${i + 2} von ${c.steps.length + 1}</span><h3>${st.title}</h3><p>${st.text}</p>${st.extra || ''}
+          ${i < c.steps.length - 1 ? '<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen</p>' : '<p class="small muted">Ende der Story – weiter mit der nächsten Story.</p>'}
         </article>`).join('')}`).join('')}
       </div>
       <div class="story-map"><div class="story-dots" aria-hidden="true">${chapters.map((_, k) => `<span class="${k === 0 ? 'on' : ''}"></span>`).join('')}</div>

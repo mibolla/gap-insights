@@ -829,8 +829,8 @@ details.how p { margin-top: 6px; }
 .al-big span { font-size: .8rem; color: var(--faint); }
 .al-ov .al-line { fill: none; stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
 .al-ov .al-line.tot { stroke-width: 4; stroke-dasharray: 7 5; }
-.al-ov .al-head .h1 { font-size: 14px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
-.al-ov .al-head .h2 { font-size: 12px; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.al-ov .al-head .h1 { font-size: 19px; font-weight: 700; fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+.al-ov .al-head .h2 { font-size: 15.5px; fill: var(--muted); paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .al-tab { width: 100%; border-collapse: collapse; font-size: .86rem; margin-top: 10px; }
 .al-tab th { font-weight: 600; color: var(--faint); font-size: .76rem; text-align: left; padding: 3px 4px; }
 .al-tab td { padding: 4px; border-top: 1px solid var(--line); }
@@ -954,3 +954,4 @@ details.how p { margin-top: 6px; }
 .mob-bars .hit { fill: transparent; }
 .mob-bars g.br.hl .hit { fill: var(--ink); fill-opacity: .08; }
 .mob-bars g.br.hl .kt, .mob-bars g.br.hl .v { font-weight: 800; }
+.al-ov .tk { font-size: 16px; } .al-ov .axl { font-size: 16px; }

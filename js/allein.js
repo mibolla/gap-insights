@@ -4,9 +4,9 @@
 // Step 3 «Wo die Zahl wächst»: every Gemeinde leaves the map as a circle (area = people 65+ living alone) and joins
 //   one of six piles by Gemeinde size; the years run and the piles grow – fastest in Gemeinden of 2000–20'000.
 // Step 4 «Der Ring um die Städte»: Gemeinden by size, circles = additional people 80+ since the first year.
-import { S, region, fmtInt, fmt, dataUrl } from './store.js?v=20261125232023';
-import { reduced } from './map.js?v=20261125232023';
-import { esc, main } from './ui.js?v=20261125232023';
+import { S, region, fmtInt, fmt, dataUrl } from './store.js?v=20261125233345';
+import { reduced } from './map.js?v=20261125233345';
+import { esc, main } from './ui.js?v=20261125233345';
 
 let AL = null;
 const load = () => (AL = AL || fetch(dataUrl('alleinleben.json')).then((r) => r.json()));
@@ -50,7 +50,7 @@ export function alleinChapter(map, setTip, alive, opts = {}) {
       <text class="axl" x="${L - 50}" y="${T - 20}">Anteil allein lebend (in Privathaushalten)</text>
       <text class="yr num" x="${R - 6}" y="${B - 14}" text-anchor="end">${Y0}</text>
       ${AGES.map(([k, , c]) => `<path class="al-line${k === '65+' ? ' tot' : ''}" data-k="${k}" stroke="${c}" d=""/>`).join('')}
-      ${AGES.map(([k, lab, c]) => `<g class="al-head" data-k="${k}"><circle r="5" fill="${c}"/><text class="h1" x="12" y="-2">${lab}</text><text class="h2 num" x="12" y="14"></text></g>`).join('')}
+      ${AGES.map(([k, lab, c]) => `<g class="al-head" data-k="${k}"><circle r="5.5" fill="${c}"/><g class="lt"><text class="h1" x="12" y="-1">${lab}</text><text class="h2 num" x="12" y="17"></text></g></g>`).join('')}
     </svg>`;
     map.container.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on'));
     const P = Object.fromEntries(AGES.map(([k]) => [k, ov.querySelector(`path[data-k="${k}"]`)]));
@@ -67,13 +67,17 @@ export function alleinChapter(map, setTip, alive, opts = {}) {
         const v = at(A.al[k], t); Hd[k].setAttribute('transform', `translate(${sx(t).toFixed(1)},${sy(v).toFixed(1)})`);
         Hd[k].querySelector('.h2').textContent = `${pct(v)} · ${fmtInt(Math.round(at(A.n[k], t)))} Pers.`;
       });
+      // labels of lines that come close (75–84 and «alle ab 65») are pushed apart; the dots stay on the lines
+      const ys = AGES.map(([k]) => [k, sy(at(A.al[k], t))]).sort((a2, b2) => a2[1] - b2[1]), off = ys.map(([, y]) => y);
+      for (let it = 0; it < 20; it++) for (let i = 1; i < off.length; i++) if (off[i] - off[i - 1] < 40) { const d = (40 - (off[i] - off[i - 1])) / 2; off[i - 1] -= d; off[i] += d; }
+      ys.forEach(([k, y], i) => Hd[k].querySelector('.lt').setAttribute('transform', `translate(0,${(off[i] - y).toFixed(1)})`));
       yr.textContent = Math.floor(t + 1e-9);
     };
     let t = reduced() ? Y1 : Y0, hold = 0, t0 = performance.now(), run = true;
     const tick = (now) => {
       if (!run || my !== gen) return; if (!alive()) { clean(); return; }
       const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
-      if (t >= Y1) { hold += dt; if (hold > 5) { t = Y0; hold = 0; } } else t = Math.min(Y1, t + dt * 1.2);
+      t = Math.min(Y1, t + dt * 1.2);                 // stops at the latest year (the loop keeps watching alive())
       draw(t); requestAnimationFrame(tick);
     };
     draw(t); requestAnimationFrame(tick);
@@ -127,7 +131,7 @@ export function alleinChapter(map, setTip, alive, opts = {}) {
       if (!run) { requestAnimationFrame(tick); return; }
       if (phase === 'fly') { pt += dt; if (pt > 3) phase = 'grow'; }
       else if (phase === 'grow') {
-        if (t >= Y1) { hold += dt; if (hold > 5) { t = Y0; hold = 0; setR(t); sim.alpha(0.5).restart(); } }
+        if (t >= Y1) { /* stays at the latest year; «Von vorn» restarts */ }
         else { t = Math.min(Y1, t + dt * 0.9); setR(t); sim.force('c').radius((d) => d.r + 0.4); if (sim.alpha() < 0.2) sim.alpha(0.25).restart(); }
         const yi = Math.floor(t + 1e-9); if (yi !== shownY) { shownY = yi; g.querySelector('.al-pyr').textContent = yi; const e = q('year'); if (e) e.textContent = yi; }
         counters(t);
