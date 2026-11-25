@@ -4,9 +4,9 @@
 // Step 1: the largest flows of the latest year (Kantone by share of residents from other Kantone).
 // Step 2: balance (taken in − sent out). Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card follows four Kantone whose role changed.
-import { S, region, fmtInt, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125214342';
-import { legendHTML, reduced } from './map.js?v=20261125214342';
-import { esc, main } from './ui.js?v=20261125214342';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125215630';
+import { reduced } from './map.js?v=20261125215630';
+import { esc, main } from './ui.js?v=20261125215630';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -15,7 +15,7 @@ const DIV = ['#2166ac', '#67a9cf', '#c6dbef', '#fcbba1', '#ef8a62', '#b2182b'];
 const NBR = [-200, -50, 0, 50, 200];
 const MIN_PAIR = 20, MIN_SHOW = 20, NLAB = 6;
 const W_OF = (n) => 0.6 + Math.sqrt(n) * 0.45;        // arrow width in map units: 20 → 2.6, 100 → 5.1, 364 → 9.2
-const R_OF = (n) => 7 + Math.sqrt(n) * 0.62;          // collector bubble: radius from the people taken in (max over the years)
+const RN = (v) => Math.sqrt(Math.abs(v)) * 0.85;       // net circle: area ~ |taken in − sent out| (692 → 22)
 const FOCUS = [['OW', 'Obwalden'], ['BS', 'Basel-Stadt'], ['BE', 'Bern'], ['ZH', 'Zürich']];
 
 export const flowsExtra = '<div class="mob-top" data-mob="top"></div>';
@@ -52,8 +52,11 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     const at = (arr, y) => { const k = Math.min(last - 1, Math.max(0, Math.floor(y - Y[0]))), f = Math.max(0, Math.min(1, y - Y[0] - k)); return arr[k] + (arr[k + 1] - arr[k]) * f; };
     // collector bubbles: every Kanton gets a circle; arrows arrive on its border, each at its own port
     const PAIRS = D.flows.filter((f) => Math.max(...f[2]) >= MIN_PAIR && A[f[0]] && A[f[1]]);
-    const inMax = Object.fromEntries(D.kts.map((k) => [k, Math.max(...Y.map((_, i) => PAIRS.reduce((s2, f) => s2 + (f[1] === k ? f[2][i] : 0), 0)))]));
-    const R = Object.fromEntries(D.kts.map((k) => [k, R_OF(inMax[k])]));
+    // net per Kanton and year (all flows); the arrows end on the net circle, or on a minimal ring that leaves room
+    // for all ports where the net is small (e.g. Zürich: many arrows, balance ≈ 0)
+    const NET = Object.fromEntries(D.kts.map((k) => [k, Y.map((_, i) => D.flows.reduce((s2, f) => s2 + (f[1] === k ? f[2][i] : 0) - (f[0] === k ? f[2][i] : 0), 0))]));
+    const RMIN = Object.fromEntries(D.kts.map((k) => [k, Math.max(5, PAIRS.reduce((s2, f) => s2 + (f[0] === k || f[1] === k ? W_OF(Math.max(...f[2])) + 1.4 : 0), 0) / (2 * Math.PI))]));
+    const R = Object.fromEntries(D.kts.map((k) => [k, Math.max(RMIN[k], mode === 'time' ? Math.max(...NET[k].map(RN)) : RN(NET[k][last]))]));
     // bubbles must not overlap: push neighbours apart (Basel, Appenzell/St. Gallen, Zentralschweiz), small pull back
     const K2 = D.kts.filter((k) => A[k]); const home = Object.fromEntries(K2.map((k) => [k, [...A[k]]]));
     for (let it = 0; it < 200; it++) {
@@ -101,15 +104,15 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     F.sort((a2, b2) => Math.max(...b2.ns) - Math.max(...a2.ns));
     [...F].reverse().forEach((f) => fx.appendChild(f.g));              // large arrows on top
     const bubG = document.createElementNS(NS, 'g'); bubG.setAttribute('class', 'mob-bub'); fx.appendChild(bubG);
-    bubG.innerHTML = D.kts.filter((k) => A[k]).map((k) => `<g data-k="${k}" transform="translate(${A[k][0].toFixed(1)},${A[k][1].toFixed(1)})"><circle r="${R[k].toFixed(1)}"/><circle class="fill" r="0"/><text class="kt" y="-1">${k}</text><text class="v num" y="${Math.min(9, R[k] * 0.55).toFixed(1)}"></text></g>`).join('');
+    bubG.innerHTML = D.kts.filter((k) => A[k]).map((k) => `<g data-k="${k}" transform="translate(${A[k][0].toFixed(1)},${A[k][1].toFixed(1)})"><circle class="port" r="${R[k].toFixed(1)}"/>
+      <circle class="net" r="0"/><circle class="rip a" r="0"/><circle class="rip b" r="0"/><text class="kt" y="${(-R[k] - 3).toFixed(1)}">${k}</text><text class="v num" y="${(R[k] + 9).toFixed(1)}"></text></g>`).join('');
     const bub = Object.fromEntries(D.kts.filter((k) => A[k]).map((k) => [k, bubG.querySelector(`g[data-k="${k}"]`)]));
     const labG = document.createElementNS(NS, 'g'); labG.setAttribute('class', 'mob-labs'); fx.appendChild(labG);
     const inflow = (k, y) => D.flows.reduce((s, f) => s + (f[1] === k ? at(f[2], y) : 0), 0);
     const outflow = (k, y) => D.flows.reduce((s, f) => s + (f[0] === k ? at(f[2], y) : 0), 0);
-    const BRS = quantiles(D.kts.map((k) => inflow(k, Y[last]) / Math.max(1, D.tot[k][last]) * 100));
     let focus = null, y = mode === 'time' && !reduced() ? Y[0] : Y[last], run = true, hold = 0, t0 = performance.now(), shown = null;
     const paintKt = (yy) => {
-      if (mode === 'flows') { map.choropleth(new Map(D.kts.map((k) => [`KT:${k}`, classOf(inflow(k, yy) / Math.max(1, at(D.tot[k], yy)) * 100, BRS)]))); return; }
+      if (mode !== 'net') { map.choropleth(new Map()); return; }          // neutral map: the arrows and circles carry the story
       map.choropleth(new Map());
       D.kts.forEach((k) => { const p = map.svg.querySelector(`.area-kt [data-id="KT:${k}"]`); if (p) p.style.fill = DIV[classOf(inflow(k, yy) - outflow(k, yy), NBR)]; });
     };
@@ -121,9 +124,11 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
         f.g.style.opacity = !vis ? 0 : on ? 1 : 0.08;
         const w = W_OF(n).toFixed(2); f.body.style.strokeWidth = w; f.flow.style.strokeWidth = Math.max(0.5, W_OF(n) * 0.3).toFixed(2);
       });
-      D.kts.forEach((k) => { const b2 = bub[k]; if (!b2) return; const n = inflow(k, y), on = !focus || focus === k || F.some((f) => (f.o === focus && f.d === k) || (f.d === focus && f.o === k));
-        b2.querySelector('.fill').setAttribute('r', Math.min(R[k], R_OF(n) * R[k] / R_OF(inMax[k] || 1)).toFixed(1));
-        b2.querySelector('.v').textContent = n >= 1 ? fmtInt(Math.round(n)) : ''; b2.style.opacity = on ? 1 : 0.15; });
+      D.kts.forEach((k) => { const b2 = bub[k]; if (!b2) return;
+        const n = at(NET[k], y), r = Math.min(R[k], RN(n)).toFixed(1), on = !focus || focus === k || F.some((f) => (f.o === focus && f.d === k) || (f.d === focus && f.o === k));
+        b2.classList.toggle('pos', n > 0.5); b2.classList.toggle('neg', n < -0.5);
+        b2.querySelectorAll('.net, .rip').forEach((c) => c.setAttribute('r', r));
+        b2.querySelector('.v').textContent = Math.abs(n) >= 1 ? `${n > 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(n)))}` : '±0'; b2.style.opacity = on ? 1 : 0.15; });
       labG.innerHTML = topIdx.filter((i) => cur[i] >= MIN_SHOW && (!focus || F[i].o === focus || F[i].d === focus))
         .map((i) => `<g transform="translate(${F[i].mid[0].toFixed(1)},${F[i].mid[1].toFixed(1)})"><rect x="-17" y="-8" width="34" height="15" rx="7"/><text y="3.5" text-anchor="middle">${fmtInt(Math.round(cur[i]))}</text></g>`).join('');
     };
@@ -187,8 +192,8 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       const watch = () => { if (my !== gen) return; if (!alive()) { cleanup(); return; } setTimeout(watch, 400); };
       watch();
     }
-    const key = `<span class="mob-akey"><svg viewBox="0 0 60 14"><path d="M2 7H44" stroke-width="3"/><path d="M2 7H44" class="fl" stroke-width="1"/><path d="M44 2L56 7L44 12z"/></svg> Pfeilbreite = Menschen in einem Heim eines anderen Kantons (Wohnkanton → Kanton des Heims; ab ${MIN_SHOW} Personen)</span><span><i class="mob-bkey"></i> Kreis = alle aufgenommenen Menschen aus anderen Kantonen</span><span class="muted">Maus auf einen Kanton: nur seine Pfeile</span>`;
-    if (mode === 'flows') return `${legendHTML(BRS, (x) => `${fmt(x, { dec: 1 })} %`, `Bewohnende aus anderen Kantonen, ${Y[last]}`)}<div class="legend mob-key">${key}</div>`;
+    const key = `<span class="mob-akey"><svg viewBox="0 0 60 14"><path d="M2 7H44" stroke-width="3"/><path d="M2 7H44" class="fl" stroke-width="1"/><path d="M44 2L56 7L44 12z"/></svg> Pfeilbreite = Menschen in einem Heim eines anderen Kantons (Wohnkanton → Kanton des Heims; ab ${MIN_SHOW} Personen)</span><span><i class="mob-bkey pos"></i><i class="mob-bkey neg"></i> Kreis = Saldo des Kantons (Fläche): rot nimmt mehr auf als er abgibt, Ringe ziehen nach innen · blau gibt mehr ab, Ringe ziehen nach aussen</span><span class="muted">Maus auf einen Kanton: nur seine Pfeile</span>`;
+    if (mode !== 'net') return `<div class="legend mob-key">${key}</div>`;
     return `<div class="legend"><span>Saldo: aufgenommen − abgegeben</span><span>gibt ab</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>nimmt auf</span><span class="muted">−200 · −50 · 0 · +50 · +200</span></div><div class="legend mob-key">${key}</div>`;
   };
 
