@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125233345';
-import { reduced } from './map.js?v=20261125233345';
-import { esc, main } from './ui.js?v=20261125233345';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125233840';
+import { reduced } from './map.js?v=20261125233840';
+import { esc, main } from './ui.js?v=20261125233840';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));

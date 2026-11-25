@@ -955,3 +955,5 @@ details.how p { margin-top: 6px; }
 .mob-bars g.br.hl .hit { fill: var(--ink); fill-opacity: .08; }
 .mob-bars g.br.hl .kt, .mob-bars g.br.hl .v { font-weight: 800; }
 .al-ov .tk { font-size: 16px; } .al-ov .axl { font-size: 16px; }
+/* lean map tooltips everywhere: narrow, wrapped, small */
+.map-tip { white-space: normal; max-width: 230px; font-size: .78rem; line-height: 1.35; padding: 5px 9px; }

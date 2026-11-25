@@ -1,10 +1,10 @@
 // Answer cards (key sentence → chart → explanation → source) and the chart types.
 import { S, val, region, parents, shortName, regionLabel, sentence, fmt, fmtUnit, fmtInt, sourceLine, sourceHTML,
-  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261125233345';
-import { whyHTML, groupOf } from './context.js?v=20261125233345';
-import { attachMap } from './kpimap.js?v=20261125233345';
-import { toast, esc } from './ui.js?v=20261125233345';
-import { exportItems, exportMenu, FORMATS } from './export.js?v=20261125233345';
+  groupMembers, groupLabel, groupLabelFor, inMappe, toggleMappe, detail, isPro } from './store.js?v=20261125233840';
+import { whyHTML, groupOf } from './context.js?v=20261125233840';
+import { attachMap } from './kpimap.js?v=20261125233840';
+import { toast, esc } from './ui.js?v=20261125233840';
+import { exportItems, exportMenu, FORMATS } from './export.js?v=20261125233840';
 
 const rnd = (v, d) => (v == null || Number.isNaN(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 const plain = (h) => String(h || '').replace(/<[^>]+>/g, '');
@@ -31,13 +31,27 @@ const CFG = { displayModeBar: false, responsive: true, locale: 'de-CH' };
 
 export function baseLayout(extra = {}) {
   return { font: FONT, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', margin: { l: 8, r: 16, t: 8, b: 28 },
-    hoverlabel: { font: { family: FONT.family } }, showlegend: false, ...extra };
+    showlegend: false, ...extra };
+}
+/** lean hover boxes for every chart: theme colours, small text, a thin border */
+const hoverLabel = () => ({ bgcolor: C.edge, bordercolor: C.line, align: 'left', namelength: 0, font: { family: FONT.family, size: 12, color: C.ink } });
+/** one-line hover texts become a few short lines: «<b>title</b> / value / detail» (texts with <br> stay as they are) */
+export function leanHover(t) {
+  if (typeof t !== 'string' || t.includes('<br>')) return t;
+  const m = t.match(/^([\s\S]*?)(<extra>[\s\S]*<\/extra>)?$/);
+  let body = m[1]; const ex = m[2] || '';
+  body = body.replace(/ \(([^)]*)\)/g, '<br>$1').replace(/ · /g, '<br>');
+  const i = body.indexOf(': ');
+  if (i > 0) body = `<b>${body.slice(0, i)}</b><br>${body.slice(i + 2)}`;
+  return body + ex;
 }
 export const plot = (div, data, layout, cfg = {}) => {
   // a fixed-height chart keeps its container at that height: otherwise Plotly's responsive resize (window
   // resize) shrinks the container to its CSS min-height and the plot overflows onto the source line below
   if (layout.height) div.style.height = `${layout.height}px`;
-  return Plotly.react(div, data, layout, { ...CFG, ...cfg });
+  const d = data.map((tr) => (tr && tr.hovertemplate ? { ...tr, hovertemplate: Array.isArray(tr.hovertemplate) ? tr.hovertemplate.map(leanHover) : leanHover(tr.hovertemplate) } : tr));
+  const l = { separators: ".'", ...layout, hoverlabel: { ...hoverLabel(), ...(layout.hoverlabel || {}) } };   // 24'908, lean box
+  return Plotly.react(div, d, l, { ...CFG, ...cfg });
 };
 /** long rankings (more than `show` bars): a window of `show` rows that scrolls, opened at the selected region */
 export const SCROLL_ROWS = 10;
