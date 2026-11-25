@@ -4,9 +4,9 @@
 // Step 2: the same Bezirke coloured by the assessment instrument (BESA, RAI, PLAISIR) – it explains much of the gap.
 // Step 3: «Rennen der Kantone»: animated line chart 2012 → latest year (2012–2016 BAG index, from 2017 BFS care
 //         days by level), a Wappen at each line head and a ranking column that re-sorts as the years pass.
-import { S, region, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125231344';
-import { legendHTML, reduced } from './map.js?v=20261125231344';
-import { esc, main } from './ui.js?v=20261125231344';
+import { S, region, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125232023';
+import { legendHTML, reduced } from './map.js?v=20261125232023';
+import { esc, main } from './ui.js?v=20261125232023';
 
 let BD = null;
 const load = () => (BD = BD || fetch(dataUrl('besa.json')).then((r) => r.json()));
@@ -126,13 +126,15 @@ export function besaChapter(map, setTip, alive, opts = {}) {
       if (my !== gen) return;
       if (!alive()) { ovOff(); return; }
       const dt = Math.min(0.1, (now - last) / 1000); last = now;
-      if (run) { if (t >= Y1) { hold += dt; if (hold > 4.5) { t = Y0; hold = 0; } } else t = Math.min(Y1, t + dt * SPEED); }
+      if (run) { t = Math.min(Y1, t + dt * SPEED); if (t >= Y1) finish(); }      // stops at the latest year; «Von vorn» restarts
       draw(t); requestAnimationFrame(tick);
     };
     draw(t); requestAnimationFrame(tick);
     const pb = q('play'), rb = q('restart');
-    if (pb) { pb.textContent = run ? 'Pause' : 'Abspielen'; pb.onclick = () => { run = !run; last = performance.now(); pb.textContent = run ? 'Pause' : 'Abspielen'; }; }
-    if (rb) rb.onclick = () => { t = Y0; hold = 0; run = true; if (pb) pb.textContent = 'Pause'; };
+    function finish() { run = false; if (pb) { pb.textContent = 'Pause'; pb.disabled = true; } }
+    if (pb) { pb.disabled = false; pb.textContent = run ? 'Pause' : 'Abspielen'; pb.onclick = () => { run = !run; last = performance.now(); pb.textContent = run ? 'Pause' : 'Abspielen'; }; }
+    if (rb) rb.onclick = () => { t = Y0; run = true; last = performance.now(); if (pb) { pb.disabled = false; pb.textContent = 'Pause'; } };
+    if (t >= Y1) finish();
     setLeg(`${instKey()}<div class="legend"><span class="muted">Linie = Kanton (Farbe: Instrument), dicke Linie = Schweiz · ${Y0}–${D.bfs_from - 1} BAG-Index der Pflegeintensität, ab ${D.bfs_from} BFS (Pflegetage nach Stufe) · Maus auf ein Wappen: Linie hervorheben</span></div>`);
   };
 
