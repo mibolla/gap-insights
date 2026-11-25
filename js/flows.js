@@ -1,43 +1,40 @@
-// Landing chapter «Ins Heim in einen anderen Kanton»: clients of Alters- und Pflegeheime whose Heim lies outside
-// their home Kanton (BFS SOMED, Klientenwanderung). Light particles stream along arcs from the home Kanton to the
-// Kanton of the Heim (one particle = PER clients); the arcs bend to the left of the direction, so A→B and B→A
-// stay apart. Step 1: flows of the latest year, Kantone by their share of clients from other Kantone.
-// Step 2: balance (clients taken in minus clients sent). Step 3: time travel over all years.
-// Hovering a Kanton shows only its flows.
-import { S, region, fmtInt, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125201421';
-import { legendHTML, reduced } from './map.js?v=20261125201421';
-import { esc, main } from './ui.js?v=20261125201421';
+// Landing chapter «Ins Heim in einen anderen Kanton» (BFS SOMED, Klientenwanderung: clients of Alters- und
+// Pflegeheime by home Kanton × Kanton of the Heim). Curved arrows from the home Kanton to the Kanton of the Heim;
+// the width is the number of people, moving dashes show the direction. A→B and B→A bend to different sides.
+// Step 1: the largest flows of the latest year (Kantone by share of residents from other Kantone).
+// Step 2: balance (taken in − sent out). Step 3: «Neue Wege» – the total hardly changes, but the routes do:
+//         arrows morph year by year, the card follows four Kantone whose role changed.
+import { S, region, fmtInt, fmt, quantiles, classOf, dataUrl, wappen } from './store.js?v=20261125204110';
+import { legendHTML, reduced } from './map.js?v=20261125204110';
+import { esc, main } from './ui.js?v=20261125204110';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
 const NS = 'http://www.w3.org/2000/svg';
-const RAMP = [0, 1, 2, 3, 4].map((k) => `var(--r${k})`);
 const DIV = ['#2166ac', '#67a9cf', '#c6dbef', '#fcbba1', '#ef8a62', '#b2182b'];
-const NBR = [-200, -50, 0, 50, 200];                 // balance classes (clients)
-const PER = 15;                                      // clients per particle
+const NBR = [-200, -50, 0, 50, 200];
+const MIN_PAIR = 50, MIN_SHOW = 40, NLAB = 6;
+const W_OF = (n) => 1 + n / 22;                       // arrow width in map units: 100 people ≈ 5.5
+const FOCUS = [['OW', 'Obwalden'], ['BS', 'Basel-Stadt'], ['BE', 'Bern'], ['ZH', 'Zürich']];
 
-/** chapter card extra: the largest flows (filled when the chapter opens) */
 export const flowsExtra = '<div class="mob-top" data-mob="top"></div>';
 
 export function flowsSteps(y0, y1) {
   return [
-    { title: 'Wer nimmt auf, wer gibt ab?', text: 'Rot: Kantone, deren Heime mehr Menschen aus anderen Kantonen aufnehmen, als eigene Einwohnerinnen und Einwohner in Heime anderer Kantone ziehen. Blau: umgekehrt. Obwalden nimmt viele Luzernerinnen und Luzerner auf, Basel-Stadt viele aus Basel-Landschaft.' },
-    { title: `Zeitreise ${y0} → ${y1}`, text: 'Die Ströme Jahr für Jahr: Die Zahl der Menschen in einem Heim ausserhalb ihres Wohnkantons wächst – ihr Anteil kaum. Die Wege folgen den Agglomerationen über die Kantonsgrenzen.',
-      extra: `<div class="al-big"><b class="num" data-mob="year">${y0}</b><span>Klientinnen und Klienten in Heimen</span></div>
-        <div class="age-counters"><div><b class="num" data-mob="n">–</b><span>in einem Heim ausserhalb des Wohnkantons</span></div><div><b class="num" data-mob="sh">–</b><span>aller Heimbewohnenden</span></div></div>
-        <div class="age-mini"><span class="small muted">Menschen in einem Heim eines anderen Kantons</span><div data-mob="chart"></div></div>
+    { title: 'Wer nimmt auf, wer gibt ab?', text: 'Rot: Kantone, deren Heime mehr Menschen aus anderen Kantonen aufnehmen, als eigene Einwohnerinnen und Einwohner in Heime anderer Kantone ziehen. Blau: umgekehrt. Die Pfeile bleiben: Ihre Breite ist die Zahl der Menschen.' },
+    { title: `Neue Wege ${y0} → ${y1}`, text: `Insgesamt ziehen jedes Jahr ähnlich viele Menschen in ein Heim eines anderen Kantons – rund 4 % aller Heimbewohnenden. Aber die Wege haben sich verschoben: Obwalden wird zum Heimkanton der Zentralschweiz, Basel-Stadt nimmt Baselbieter auf, Bern verliert seine Rolle als grosser Aufnahmekanton.`,
+      extra: `<div class="al-big"><b class="num" data-mob="year">${y0}</b><span data-mob="beat"></span></div>
+        <div class="mob-focus" data-mob="focus"></div>
         <div class="age-ctrl"><button class="btn small" type="button" data-mob="play">Pause</button><button class="btn small ghost" type="button" data-mob="restart">Von vorn</button></div>` },
   ];
 }
 
-/** chapter map; opts: { ctl, initStep, scope, legendEl } */
 export function flowsChapter(map, setTip, alive, opts = {}) {
   let step = -1, gen = 0, cleanup = () => {};
   const q = (k) => (opts.scope || main()).querySelector(`[data-mob="${k}"]`);
   const setLeg = (h) => { const e = opts.legendEl?.(); if (e) e.innerHTML = h; };
   const root = map.svg.firstElementChild;
-
-  const anchors = () => {      // population-weighted centre of each Kanton (map coordinates)
+  const anchors = () => {
     const a = {};
     S.regions.forEach((r) => { if (r.e !== 'GDE') return; const c = S.geo.c[r.id.slice(4)]; if (!c) return;
       const x = (a[r.kt] = a[r.kt] || [0, 0, 0]); x[0] += c[0] * r.pop; x[1] += c[1] * r.pop; x[2] += r.pop; });
@@ -50,103 +47,103 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     map.clear(); map.setLevel('kt');
     root.querySelector('.mob-fx')?.remove();
     const fx = document.createElementNS(NS, 'g'); fx.setAttribute('class', 'mob-fx'); root.appendChild(fx);
-    const arcsG = document.createElementNS(NS, 'g'); arcsG.setAttribute('class', 'mob-arcs'); fx.appendChild(arcsG);
-    const dotsG = document.createElementNS(NS, 'g'); dotsG.setAttribute('class', 'mob-dots'); fx.appendChild(dotsG);
-    const F = D.flows.map(([o, d, ns]) => {
-      const p0 = A[o], p1 = A[d]; if (!p0 || !p1) return null;
-      const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy);
-      const c = [(p0[0] + p1[0]) / 2 - dy * 0.22, (p0[1] + p1[1]) / 2 + dx * 0.22];   // bend to the left
-      const path = document.createElementNS(NS, 'path'); path.setAttribute('d', `M${p0[0].toFixed(1)} ${p0[1].toFixed(1)}Q${c[0].toFixed(1)} ${c[1].toFixed(1)} ${p1[0].toFixed(1)} ${p1[1].toFixed(1)}`);
-      arcsG.appendChild(path);
-      const maxP = Math.ceil(Math.max(...ns) / PER);
-      const dots = Array.from({ length: maxP }, () => { const e = document.createElementNS(NS, 'circle'); e.setAttribute('r', '2.1'); dotsG.appendChild(e); return { e, ph: Math.random(), sp: 0.22 + Math.random() * 0.1 }; });
-      return { o, d, ns, p0, p1, c, L, path, dots };
-    }).filter(Boolean);
+    fx.innerHTML = `<defs><marker id="mobHead" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10z"/></marker></defs>`;
     const at = (arr, y) => { const k = Math.min(last - 1, Math.max(0, Math.floor(y - Y[0]))), f = Math.max(0, Math.min(1, y - Y[0] - k)); return arr[k] + (arr[k + 1] - arr[k]) * f; };
-    const inflow = (k, y) => F.reduce((s, f) => s + (f.d === k ? at(f.ns, y) : 0), 0);
-    const outflow = (k, y) => F.reduce((s, f) => s + (f.o === k ? at(f.ns, y) : 0), 0);
-    let focus = null;
-    const ktIds = D.kts.map((k) => `KT:${k}`);
-    const paintKt = (y) => {
-      const yi = Math.round(y);
-      if (mode === 'net') {
-        map.choropleth(new Map());
-        D.kts.forEach((k) => { const p = map.svg.querySelector(`.area-kt [data-id="KT:${k}"]`); if (p) p.style.fill = DIV[classOf(inflow(k, yi) - outflow(k, yi), NBR)]; });
-      } else {
-        const vals = D.kts.map((k) => inflow(k, yi) / Math.max(1, at(D.tot[k], yi)) * 100);
-        map.choropleth(new Map(ktIds.map((id, i) => [id, classOf(vals[i], BRS)])));
-      }
-    };
+    const F = D.flows.filter((f) => Math.max(...f[2]) >= MIN_PAIR).map(([o, d, ns]) => {
+      const p0 = A[o], p1 = A[d]; if (!p0 || !p1) return null;
+      const dx = p1[0] - p0[0], dy = p1[1] - p0[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L;
+      const s0 = [p0[0] + ux * 6, p0[1] + uy * 6], s1 = [p1[0] - ux * 14, p1[1] - uy * 14];      // leave room for the head
+      const c = [(s0[0] + s1[0]) / 2 - uy * L * 0.2, (s0[1] + s1[1]) / 2 + ux * L * 0.2];
+      const d0 = `M${s0[0].toFixed(1)} ${s0[1].toFixed(1)}Q${c[0].toFixed(1)} ${c[1].toFixed(1)} ${s1[0].toFixed(1)} ${s1[1].toFixed(1)}`;
+      const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'mob-arrow');
+      g.innerHTML = `<path class="body" d="${d0}" marker-end="url(#mobHead)"/><path class="flow" d="${d0}"/>`;
+      const mid = [0.25 * s0[0] + 0.5 * c[0] + 0.25 * s1[0], 0.25 * s0[1] + 0.5 * c[1] + 0.25 * s1[1]];
+      return { o, d, ns, g, body: g.firstChild, flow: g.lastChild, mid };
+    }).filter(Boolean).sort((a, b) => Math.max(...b.ns) - Math.max(...a.ns));
+    [...F].reverse().forEach((f) => fx.appendChild(f.g));              // large arrows on top
+    const labG = document.createElementNS(NS, 'g'); labG.setAttribute('class', 'mob-labs'); fx.appendChild(labG);
+    const inflow = (k, y) => D.flows.reduce((s, f) => s + (f[1] === k ? at(f[2], y) : 0), 0);
+    const outflow = (k, y) => D.flows.reduce((s, f) => s + (f[0] === k ? at(f[2], y) : 0), 0);
     const BRS = quantiles(D.kts.map((k) => inflow(k, Y[last]) / Math.max(1, D.tot[k][last]) * 100));
-    let y = mode === 'time' && !reduced() ? Y[0] : Y[last], run = true, hold = 0, t0 = performance.now(), shown = null;
-    const draw = (dt) => {
-      F.forEach((f) => {
-        const n = at(f.ns, y), np = n / PER, on = !focus || f.o === focus || f.d === focus;
-        f.path.style.strokeWidth = (0.3 + Math.sqrt(n) * 0.11).toFixed(2);
-        f.path.style.opacity = on ? (focus ? 0.55 : 0.2) : 0.03;
-        f.dots.forEach((p, i) => {
-          const vis = i < np ? 1 : i < np + 1 ? np - i : 0;
-          if (!vis || !on) { if (p.v !== 0) { p.e.style.opacity = 0; p.v = 0; } return; }
-          if (!reduced()) p.ph = (p.ph + dt * p.sp * (90 / Math.max(40, f.L))) % 1;
-          const t = p.ph, u = 1 - t;
-          p.e.setAttribute('cx', (u * u * f.p0[0] + 2 * u * t * f.c[0] + t * t * f.p1[0]).toFixed(1));
-          p.e.setAttribute('cy', (u * u * f.p0[1] + 2 * u * t * f.c[1] + t * t * f.p1[1]).toFixed(1));
-          const o = vis * Math.min(1, Math.sin(Math.PI * t) * 1.6); p.e.style.opacity = o.toFixed(2); p.v = o;
-        });
-      });
+    let focus = null, y = mode === 'time' && !reduced() ? Y[0] : Y[last], run = true, hold = 0, t0 = performance.now(), shown = null;
+    const paintKt = (yy) => {
+      if (mode === 'flows') { map.choropleth(new Map(D.kts.map((k) => [`KT:${k}`, classOf(inflow(k, yy) / Math.max(1, at(D.tot[k], yy)) * 100, BRS)]))); return; }
+      map.choropleth(new Map());
+      D.kts.forEach((k) => { const p = map.svg.querySelector(`.area-kt [data-id="KT:${k}"]`); if (p) p.style.fill = DIV[classOf(inflow(k, yy) - outflow(k, yy), NBR)]; });
     };
-    // card: largest flows of the latest year (chapter card) and counters / chart (time travel)
+    const draw = () => {
+      const cur = F.map((f) => at(f.ns, y));
+      const topIdx = cur.map((n, i) => [n, i]).sort((a, b) => b[0] - a[0]).slice(0, NLAB).map((x) => x[1]);
+      F.forEach((f, i) => {
+        const n = cur[i], on = !focus || f.o === focus || f.d === focus, vis = n >= MIN_SHOW;
+        f.g.style.opacity = !vis ? 0 : on ? 1 : 0.08;
+        const w = W_OF(n).toFixed(2); f.body.style.strokeWidth = w; f.flow.style.strokeWidth = Math.max(0.6, W_OF(n) * 0.28).toFixed(2);
+      });
+      labG.innerHTML = topIdx.filter((i) => cur[i] >= MIN_SHOW && (!focus || F[i].o === focus || F[i].d === focus))
+        .map((i) => `<g transform="translate(${F[i].mid[0].toFixed(1)},${F[i].mid[1].toFixed(1)})"><rect x="-17" y="-8" width="34" height="15" rx="7"/><text y="3.5" text-anchor="middle">${fmtInt(Math.round(cur[i]))}</text></g>`).join('');
+    };
+    // card: largest flows of the latest year
     const top = q('top');
     if (top && !top.dataset.done) {
       top.dataset.done = 1;
-      const t = [...F].sort((a, b) => b.ns[last] - a.ns[last]).slice(0, 6);
-      top.innerHTML = `<span class="small muted">Grösste Ströme ${Y[last]} (Wohnkanton → Kanton des Heims)</span><ol>${t.map((f) => `<li><img src="${wappen(`KT:${f.o}`)}" alt=""> ${f.o} <span class="arr">→</span> <img src="${wappen(`KT:${f.d}`)}" alt=""> ${f.d}<b class="num">${fmtInt(f.ns[last])}</b></li>`).join('')}</ol>`;
+      const t = [...D.flows].sort((a, b) => b[2][last] - a[2][last]).slice(0, 6);
+      top.innerHTML = `<span class="small muted">Grösste Ströme ${Y[last]} (Wohnkanton → Kanton des Heims)</span><ol>${t.map((f) => `<li><img src="${wappen(`KT:${f[0]}`)}" alt=""> ${f[0]} <span class="arr">→</span> <img src="${wappen(`KT:${f[1]}`)}" alt=""> ${f[1]}<b class="num">${fmtInt(f[2][last])}</b></li>`).join('')}</ol>`;
     }
-    const W = 300, H = 80, mx = Math.max(...D.inter);
-    const sx = (yy) => 6 + (yy - Y[0]) / (Y[last] - Y[0]) * (W - 12), sy = (v) => H - 16 - v / mx * (H - 28);
-    const chart = q('chart');
-    if (mode === 'time' && chart) chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Menschen in einem Heim eines anderen Kantons ${Y[0]} bis ${Y[last]}"><line class="ax" x1="6" x2="${W - 6}" y1="${H - 16}" y2="${H - 16}"/>
-      <path class="obs" d="${D.inter.map((v, i) => `${i ? 'L' : 'M'}${sx(Y[i]).toFixed(1)} ${sy(v).toFixed(1)}`).join('')}"/>
-      <text x="${sx(Y[0])}" y="${H - 2}">${Y[0]}</text><text x="${sx(Y[last])}" y="${H - 2}" text-anchor="end">${Y[last]}</text><circle class="dot" r="4.5" cx="${sx(Y[0])}" cy="${sy(D.inter[0])}"/></svg>`;
-    const dot = chart?.querySelector('.dot');
+    // time travel: beats and four Kantone whose role changed (balance per year)
+    const fb = q('focus');
+    const beats = [[Y[0], `${Y[0]}: Bern nimmt am meisten auf (Saldo ${fmtInt(Math.round(inflow('BE', Y[0]) - outflow('BE', Y[0])))}), Zürich gibt am meisten ab.`],
+      [2011, 'Luzern → Obwalden und Basel-Landschaft → Basel-Stadt beginnen zu wachsen; die Wege nach Bern werden schmaler.'],
+      [2017, 'Obwalden wird zum Heimkanton der Zentralschweiz: Luzerner und Nidwaldner ziehen in seine Heime.'],
+      [Y[last], `${Y[last]}: Obwalden nimmt netto ${fmtInt(Math.round(inflow('OW', Y[last]) - outflow('OW', Y[last])))} Menschen auf – fast doppelt so viele wie Bern. Basel-Stadt nimmt auf statt abzugeben, Zürich ist ausgeglichen.`]];
+    const SW = 120, SH = 34;
+    const netS = Object.fromEntries(FOCUS.map(([k]) => [k, Y.map((yy) => inflow(k, yy) - outflow(k, yy))]));
+    const nmax = Math.max(...Object.values(netS).flat().map(Math.abs));
+    const ssx = (yy) => 2 + (yy - Y[0]) / (Y[last] - Y[0]) * (SW - 4), ssy = (v) => SH / 2 - v / nmax * (SH / 2 - 2);
+    if (mode === 'time' && fb) fb.innerHTML = FOCUS.map(([k, n]) => `<div class="mf" data-k="${k}"><img src="${wappen(`KT:${k}`)}" alt=""><span class="n">${n}</span>
+      <svg viewBox="0 0 ${SW} ${SH}"><line x1="0" x2="${SW}" y1="${SH / 2}" y2="${SH / 2}" class="z"/><path class="ln" d=""/><circle r="2.6"/></svg><b class="num"></b></div>`).join('') +
+      '<p class="small muted">Saldo: aufgenommen − abgegeben (Menschen in Heimen)</p>';
     const counters = () => {
-      const yi = Math.min(Y[last], Math.floor(y + 1e-9)), n = at(D.inter, y), sh = n / at(D.all, y) * 100;
       const set = (k, v) => { const e = q(k); if (e) e.textContent = v; };
-      set('year', yi); set('n', fmtInt(Math.round(n))); set('sh', `${fmt(sh, { dec: 1 })} %`);
-      if (dot) { dot.setAttribute('cx', sx(y)); dot.setAttribute('cy', sy(n)); }
+      set('year', Math.min(Y[last], Math.floor(y + 1e-9))); set('beat', beats.reduce((s, b) => (y >= b[0] ? b[1] : s), beats[0][1]));
+      if (fb && mode === 'time') FOCUS.forEach(([k]) => {
+        const el = fb.querySelector(`.mf[data-k="${k}"]`); if (!el) return; const v = inflow(k, y) - outflow(k, y);
+        const pts = Y.filter((yy) => yy <= y).map((yy, i) => [ssx(yy), ssy(netS[k][i])]); pts.push([ssx(y), ssy(v)]);
+        el.querySelector('.ln').setAttribute('d', pts.map(([a, b], i) => `${i ? 'L' : 'M'}${a.toFixed(1)} ${b.toFixed(1)}`).join(''));
+        const c = el.querySelector('circle'); c.setAttribute('cx', ssx(y)); c.setAttribute('cy', ssy(v));
+        el.querySelector('b').textContent = `${v >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(v)))}`; el.classList.toggle('pos', v >= 0);
+      });
     };
-    // hover: only the flows of one Kanton
-    const over = (ev) => { const id = ev.target?.dataset?.id; focus = id && id.startsWith('KT:') ? id.slice(3) : null; };
-    const leave = () => { focus = null; };
+    const over = (ev) => { const id = ev.target?.dataset?.id; focus = id && id.startsWith('KT:') ? id.slice(3) : null; draw(); };
+    const leave = () => { focus = null; draw(); };
     map.svg.addEventListener('pointerover', over); map.svg.addEventListener('pointerleave', leave);
     if (setTip) setTip((id) => {
-      const r = region(id); if (!r) return ''; const k = id.slice(3), yi = Math.round(y);
-      const i = inflow(k, yi), o = outflow(k, yi);
-      return `${esc(r.n)} ${yi} · aus anderen Kantonen: ${fmtInt(Math.round(i))} (${fmt(i / Math.max(1, at(D.tot[k], yi)) * 100, { dec: 1 })} %) · in Heime anderer Kantone: ${fmtInt(Math.round(o))} · Saldo ${i - o >= 0 ? '+' : ''}${fmtInt(Math.round(i - o))}`;
+      const r = region(id); if (!r) return ''; const k = id.slice(3), yi = Math.round(y), i = inflow(k, yi), o = outflow(k, yi);
+      return `${esc(r.n)} ${yi} · aus anderen Kantonen: ${fmtInt(Math.round(i))} · in Heime anderer Kantone: ${fmtInt(Math.round(o))} · Saldo ${i - o >= 0 ? '+' : ''}${fmtInt(Math.round(i - o))}`;
     });
     cleanup = () => { fx.remove(); map.svg.removeEventListener('pointerover', over); map.svg.removeEventListener('pointerleave', leave); cleanup = () => {}; };
-    paintKt(y); draw(0); counters();
-    const tick = (now) => {
-      if (my !== gen) return;
-      if (!alive()) { cleanup(); return; }
-      const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
-      if (mode === 'time' && run) {
-        if (y >= Y[last]) { hold += dt; if (hold > 3) { y = Y[0]; hold = 0; } } else y = Math.min(Y[last], y + dt * 0.8);
-        const yi = Math.floor(y + 1e-9); if (yi !== shown) { shown = yi; paintKt(yi); }
-        counters();
-      }
-      draw(run ? dt : 0);
-      requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-    const pb = q('play'), rb = q('restart');
+    paintKt(Math.round(y)); draw(); counters();
     if (mode === 'time') {
+      const tick = (now) => {
+        if (my !== gen) return; if (!alive()) { cleanup(); return; }
+        const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
+        if (run) {
+          if (y >= Y[last]) { hold += dt; if (hold > 5) { y = Y[0]; hold = 0; } } else y = Math.min(Y[last], y + dt * 0.75);
+          const yi = Math.floor(y + 1e-9); if (yi !== shown) { shown = yi; paintKt(yi); }
+          draw(); counters();
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      const pb = q('play'), rb = q('restart');
       if (pb) { pb.textContent = 'Pause'; pb.onclick = () => { run = !run; t0 = performance.now(); pb.textContent = run ? 'Pause' : 'Abspielen'; }; }
       if (rb) rb.onclick = () => { y = Y[0]; hold = 0; run = true; shown = null; if (pb) pb.textContent = 'Pause'; };
+    } else {
+      const watch = () => { if (my !== gen) return; if (!alive()) { cleanup(); return; } setTimeout(watch, 400); };
+      watch();
     }
-    const key = `<span><i class="mob-pt"></i> = ${PER} Menschen, die in ein Heim eines anderen Kantons ziehen · Maus auf einen Kanton: nur seine Ströme</span>`;
-    if (mode === 'net') return `<div class="legend"><span>Saldo ${Y[last]}: aufgenommen − abgegeben</span><span>gibt ab</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>nimmt auf</span><span class="muted">Stufen: −200 · −50 · 0 · +50 · +200</span></div><div class="legend mob-key">${key}</div>`;
-    return `${legendHTML(BRS, (x) => `${fmt(x, { dec: 1 })} %`, `Anteil aus anderen Kantonen${mode === 'time' ? '' : `, ${Y[last]}`}`)}<div class="legend mob-key">${key}</div>`;
+    const key = `<span class="mob-akey"><svg viewBox="0 0 60 14"><path d="M2 7H44" stroke-width="3"/><path d="M2 7H44" class="fl" stroke-width="1"/><path d="M44 2L56 7L44 12z"/></svg> Pfeilbreite = Menschen, die in ein Heim eines anderen Kantons ziehen (Wohnkanton → Kanton des Heims; ab ${MIN_SHOW} Personen)</span><span class="muted">Maus auf einen Kanton: nur seine Pfeile</span>`;
+    if (mode === 'flows') return `${legendHTML(BRS, (x) => `${fmt(x, { dec: 1 })} %`, `Bewohnende aus anderen Kantonen, ${Y[last]}`)}<div class="legend mob-key">${key}</div>`;
+    return `<div class="legend"><span>Saldo: aufgenommen − abgegeben</span><span>gibt ab</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>nimmt auf</span><span class="muted">−200 · −50 · 0 · +50 · +200</span></div><div class="legend mob-key">${key}</div>`;
   };
 
   const go = (st) => {

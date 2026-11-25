@@ -1,168 +1,177 @@
-// Landing chapter «Allein leben», step 2: time travel 2012 → latest year of the people 65+ who live alone.
-// The map colours every Gemeinde by its share (fixed classes), while light points rise where the number grows:
-// one point = 100 more people 65+ living alone, released over the year in the Bezirk where they are added
-// (Bezirk values are complete; inside the Bezirk a Gemeinde is picked by its people 65+). The card counts the
-// people and shows an index chart (number vs share, first year = 100). At the end the map turns into the change
-// of the share in percentage points (diverging colours), then the time travel starts again.
-import { S, region, fmtInt, fmt, classOf, dataUrl } from './store.js?v=20261125201421';
-import { legendHTML, reduced } from './map.js?v=20261125201421';
-import { main } from './ui.js?v=20261125201421';
+// Landing chapter «Allein leben», steps 2–4 (STATPOP households 2012 → latest year).
+// Step 2 «Gleicher Anteil, andere Menschen»: the share of people 65+ living alone hardly moves, because two trends
+//   cancel out – among 65–74 more live alone, among 75–84 and 85+ fewer. Animated lines per age group.
+// Step 3 «Wo die Zahl wächst»: every Gemeinde leaves the map as a circle (area = people 65+ living alone) and joins
+//   one of six piles by Gemeinde size; the years run and the piles grow – fastest in Gemeinden of 2000–20'000.
+// Step 4 «Der Ring um die Städte»: Gemeinden by size, circles = additional people 80+ since the first year.
+import { S, region, fmtInt, fmt, dataUrl } from './store.js?v=20261125204110';
+import { reduced } from './map.js?v=20261125204110';
+import { esc, main } from './ui.js?v=20261125204110';
 
 let AL = null;
 const load = () => (AL = AL || fetch(dataUrl('alleinleben.json')).then((r) => r.json()));
-const BR = [260, 290, 320, 350];                       // share classes in per mille: 26 · 29 · 32 · 35 %
-const RAMP = [0, 1, 2, 3, 4].map((k) => `var(--r${k})`);
-const DBR = [-40, -20, 0, 20, 40];                     // change in per mille points: −4 … +4 Prozentpunkte
-const DIV = ['#2166ac', '#67a9cf', '#c6dbef', '#fcbba1', '#ef8a62', '#b2182b'];
-const PER = 100, SPEED = 1.3, CAP = 420;               // people per light point · years per second · points at once
 const NS = 'http://www.w3.org/2000/svg';
+const AGES = [['65-74', '65–74', '#5aa9e6'], ['75-84', '75–84', '#8e7cc3'], ['85+', '85+', '#e8833a'], ['65+', 'alle ab 65', 'var(--ink)']];
+const CLS = ['#d7e6f5', '#a9c9ea', '#74a7da', '#4682c4', '#2a5ea6', '#173c73'];   // Gemeinde size, small → large
 const pct = (pm) => `${fmt(pm / 10, { dec: 1 })} %`;
+const plus = (x) => `${x >= 0 ? '+' : '−'}${fmt(Math.abs(x), { dec: 0 })} %`;
 
-/** the step card (step 2 of the chapter) */
 export function alleinSteps(y0, y1) {
-  return [{ title: `Zeitreise ${y0} → ${y1}`,
-    text: `Jeder Lichtpunkt steht für 100 Menschen ab 65 mehr, die allein leben – er steigt dort auf, wo sie dazukommen. Die Farbe zeigt den Anteil in jeder Gemeinde. Am Ende wird die Karte zur Bilanz: Wo ist der Anteil seit ${y0} gestiegen, wo gesunken?`,
-    extra: `<div class="al-big"><b class="num" data-al="year">${y0}</b><span data-al="mode">Anteil je Gemeinde</span></div>
-      <div class="age-counters"><div><b class="num" data-al="n">–</b><span>Menschen ab 65, die allein leben (Schweiz)</span></div><div><b class="num" data-al="grow">–</b><span>mehr als ${y0}</span></div></div>
-      <div class="age-mini al-mini"><span class="small muted">Index ${y0} = 100: <i class="al-k n"></i> Anzahl · <i class="al-k s"></i> Anteil</span><div data-al="chart"></div></div>
-      <p class="age-beat" data-al="beat"></p>
-      <div class="age-ctrl"><button class="btn small" type="button" data-al="play">Pause</button><button class="btn small ghost" type="button" data-al="restart">Von vorn</button></div>` }];
+  return [
+    { title: 'Gleicher Anteil, andere Menschen', text: `Warum bleibt der Anteil fast gleich? Zwei Entwicklungen heben sich auf: Zwischen 65 und 74 leben heute mehr Menschen allein als ${y0}. Ab 75 sind es anteilmässig weniger – Paare bleiben länger zusammen, weil auch die Männer älter werden. Weil aber immer mehr Menschen 85 werden, wächst die Zahl der Alleinlebenden trotzdem kräftig.`,
+      extra: '<div class="al-ages" data-al="ages"></div>' },
+    { title: 'Wo die Zahl wächst', text: `Jede Gemeinde wird zu einem Kreis – seine Fläche zeigt, wie viele Menschen ab 65 dort allein leben – und reiht sich nach ihrer Grösse ein. Die Städte haben am meisten Alleinlebende. Am schnellsten wächst die Zahl aber in Gemeinden mit 2000 bis 20'000 Einwohnerinnen und Einwohnern.`,
+      extra: `<div class="al-big"><b class="num" data-al="year">${y0}</b><span>Kreisfläche = Menschen ab 65, die allein leben</span></div>
+        <div class="age-ctrl"><button class="btn small" type="button" data-al="play">Pause</button><button class="btn small ghost" type="button" data-al="restart">Von vorn</button></div>` },
+    { title: 'Der Ring um die Städte', text: `Wo kamen seit ${y0} die meisten Menschen über 80 dazu? Die Kreise zeigen die Zunahme, die Farbe die Grösse der Gemeinde: Fast drei Viertel des Zuwachses entfallen auf Gemeinden mit 2000 bis 20'000 Einwohnern – Agglomerationen und Kleinstädte, wo Unterstützung im Alltag oft weniger dicht ist als in den Städten.`,
+      extra: '<div class="al-share" data-al="share"></div>' },
+  ];
 }
 
-/**
- * Chapter map. Step 0: the static map of the latest year (opts.staticView). Step 1: the time travel.
- * opts: { ctl, initStep, staticView: () => legend html, scope: element with the step card, legendEl: () => element }
- */
+/** chapter map; opts: { ctl, initStep, staticView, scope, legendEl } */
 export function alleinChapter(map, setTip, alive, opts = {}) {
-  let mode = 0, gen = 0;
+  let step = -1, gen = 0, stop = () => {};
   const q = (k) => (opts.scope || main()).querySelector(`[data-al="${k}"]`);
   const setLeg = (h) => { const e = opts.legendEl?.(); if (e) e.innerHTML = h; };
   const root = map.svg.firstElementChild;
-  const cleanFx = () => { root.querySelector('.al-fx')?.remove(); map.container.querySelector('.al-year')?.remove(); map.paths.forEach((p) => { p.style.transition = ''; }); };
+  const clean = () => { stop(); stop = () => {}; map.container.querySelector('.al-ov')?.remove(); root.querySelector('.al-pile')?.remove(); map.container.classList.remove('al-fade'); map.dots([]); root.querySelector('.dots')?.classList.remove('al-inc'); };
 
-  const still = () => { mode = 0; gen++; cleanFx(); return opts.staticView(); };
-
-  const anim = async () => {
-    const my = ++gen; mode = 1;
-    const A = await load();
-    if (!alive() || my !== gen) return;
-    cleanFx(); map.clear(); map.setLevel('gde');
-    const Y = A.years, Y0 = Y[0], Y1 = Y[Y.length - 1], n = A.ids.length, last = Y.length - 1;
-    const fx = document.createElementNS(NS, 'g'); fx.setAttribute('class', 'al-fx'); root.appendChild(fx);
-    const big = document.createElement('div'); big.className = 'al-year num'; big.setAttribute('aria-hidden', 'true'); map.container.appendChild(big);
-    // Bezirke: cumulative weights to place a point in a Gemeinde, carry of fractional points
-    const BZ = Object.values(A.bez).map((b) => { let s = 0; const cw = b.w.map((w) => (s += Math.max(1, w))); return { g: b.g, cw, tot: s, n: b.n, carry: Math.random() }; });
-    const ch = A.ch, idx = (arr, k) => arr[k] / arr[0] * 100;
-    const nAt = (y) => { const k = Math.min(last - 1, Math.floor(y - Y0)), f = Math.min(1, y - Y0 - k); return ch.n65[k] + (ch.n65[k + 1] - ch.n65[k]) * f; };
-    // index chart: number of people vs share (first year = 100)
-    const W = 300, H = 96, lo = 95, hi = Math.ceil(Math.max(idx(ch.n65, last), 105) / 5) * 5;
-    const sx = (y) => 6 + (y - Y0) / (Y1 - Y0) * (W - 12), sy = (v) => H - 16 - (v - lo) / (hi - lo) * (H - 28);
-    const pts = (arr, upto) => Y.filter((y) => y <= upto).map((y, k) => [y, idx(arr, k)]);
-    const d = (p) => p.map(([y, v], k) => `${k ? 'L' : 'M'}${sx(y).toFixed(1)} ${sy(v).toFixed(1)}`).join('');
-    const chart = q('chart');
-    if (chart) chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Index ${Y0} = 100: Menschen ab 65, die allein leben, Anzahl und Anteil">
-      <line class="ax" x1="6" x2="${W - 6}" y1="${sy(100)}" y2="${sy(100)}"/>
-      <path class="al-n" d=""/><path class="al-s" d=""/>
-      <text x="${sx(Y0)}" y="${H - 2}">${Y0}</text><text x="${sx(Y1)}" y="${H - 2}" text-anchor="end">${Y1}</text>
-      <text class="val al-vn" x="${sx(Y1)}" y="${sy(idx(ch.n65, last)) - 6}" text-anchor="end"></text>
-      <text class="val al-vs" x="${sx(Y1)}" y="${sy(idx(ch.al65, last)) + 13}" text-anchor="end"></text>
-      <circle class="dot al-dn" r="4" cx="${sx(Y0)}" cy="${sy(100)}"/></svg>`;
-    const cn = chart?.querySelector('.al-n'), cs = chart?.querySelector('.al-s'), cd = chart?.querySelector('.al-dn');
-    const grow = ch.n65[last] - ch.n65[0], growPct = (ch.n65[last] / ch.n65[0] - 1) * 100;
-    const beats = [
-      [Y0, `${Y0} leben ${fmtInt(ch.n65[0])} Menschen ab 65 allein – ${pct(ch.al65[0])} aller Menschen ab 65 in Privathaushalten.`],
-      [Y0 + 2.5, 'Die Lichtpunkte steigen vor allem in den Städten und Agglomerationen auf: Dort kommen die meisten älteren Menschen dazu, die allein leben.'],
-      [Y0 + 7, `Die Karte bleibt fast gleich gefärbt – der Anteil verändert sich kaum. Aber die Zahl wächst Jahr für Jahr.`],
-      [Y1, `${Y1}: ${fmtInt(ch.n65[last])} Menschen – ${fmt(growPct, { dec: 0 })} % mehr als ${Y0}. Der Anteil steigt nur von ${pct(ch.al65[0])} auf ${pct(ch.al65[last])}: Es gibt schlicht mehr ältere Menschen.`],
-    ];
-    const set = (k, v) => { const e = q(k); if (e) e.textContent = v; };
-    const legTime = () => `${legendHTML(BR.map((b) => b / 10), (x) => `${fmt(x, { dec: 0 })} %`, 'Anteil 65+ allein lebend')}
-      <div class="legend al-key"><span><i class="al-pt"></i> = 100 Menschen ab 65 mehr, die allein leben</span><span class="muted">grau: Wert unterdrückt oder Gemeinde fusioniert</span></div>`;
-    const legChange = () => `<div class="legend"><span>Veränderung des Anteils ${Y0}–${Y1}, Prozentpunkte</span><span>weniger</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>mehr</span><span class="muted">Stufen: −4 · −2 · 0 · +2 · +4</span></div>`;
-    setLeg(legTime());
-    const cls = new Int8Array(n).fill(-9);
-    const paintYear = (k) => {
-      for (let i = 0; i < n; i++) {
-        const v = A.a[k][i], c = v < 0 ? -1 : classOf(v, BR);
-        if (c !== cls[i]) { cls[i] = c; const p = map.paths.get(A.ids[i]); if (p) p.style.fill = c < 0 ? '' : RAMP[c]; }
-      }
+  // ---------------------------------------------------------------- step 2: lines by age group
+  const lines = async (my) => {
+    const D = await load(); if (!alive() || my !== gen) return;
+    const Y = D.years, Y0 = Y[0], Y1 = Y[Y.length - 1], last = Y.length - 1, A = D.ch;
+    const L = 70, R = 760, T = 50, B = 590, lo = 200, hi = 560;
+    const sx = (y) => L + (y - Y0) / (Y1 - Y0) * (R - L), sy = (v) => B - (v - lo) / (hi - lo) * (B - T);
+    const at = (arr, t) => { const k = Math.min(last - 1, Math.max(0, Math.floor(t - Y0))), f = Math.max(0, Math.min(1, t - Y0 - k)); return arr[k] + (arr[k + 1] - arr[k]) * f; };
+    const ov = document.createElement('div'); ov.className = 'al-ov besa-ov';
+    const grid = [20, 30, 40, 50].map((v) => `<line class="gl" x1="${L}" x2="${R}" y1="${sy(v * 10)}" y2="${sy(v * 10)}"/><text class="tk" x="${L - 8}" y="${sy(v * 10) + 4}" text-anchor="end">${v} %</text>`).join('');
+    ov.innerHTML = `<svg viewBox="0 0 1000 632" role="img" aria-label="Anteil der Menschen in Privathaushalten, die allein leben, nach Alter, ${Y0} bis ${Y1}">
+      ${grid}${Y.filter((y) => (y - Y0) % 3 === 0 || y === Y1).map((y) => `<text class="tk" x="${sx(y)}" y="${B + 20}" text-anchor="middle">${y}</text>`).join('')}
+      <text class="axl" x="${L - 50}" y="${T - 20}">Anteil allein lebend (in Privathaushalten)</text>
+      <text class="yr num" x="${R - 6}" y="${B - 14}" text-anchor="end">${Y0}</text>
+      ${AGES.map(([k, , c]) => `<path class="al-line${k === '65+' ? ' tot' : ''}" data-k="${k}" stroke="${c}" d=""/>`).join('')}
+      ${AGES.map(([k, lab, c]) => `<g class="al-head" data-k="${k}"><circle r="5" fill="${c}"/><text class="h1" x="12" y="-2">${lab}</text><text class="h2 num" x="12" y="14"></text></g>`).join('')}
+    </svg>`;
+    map.container.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on'));
+    const P = Object.fromEntries(AGES.map(([k]) => [k, ov.querySelector(`path[data-k="${k}"]`)]));
+    const Hd = Object.fromEntries(AGES.map(([k]) => [k, ov.querySelector(`g[data-k="${k}"]`)]));
+    const yr = ov.querySelector('.yr');
+    const box = q('ages');
+    if (box) box.innerHTML = `<table class="al-tab"><thead><tr><th>Alter</th><th class="r">${Y0}</th><th class="r">${Y1}</th><th class="r">allein lebend ${Y1}</th></tr></thead><tbody>${AGES.map(([k, lab, c]) => {
+      const d = A.al[k][last] - A.al[k][0];
+      return `<tr${k === '65+' ? ' class="tot"' : ''}><td><i style="background:${c}"></i>${lab}</td><td class="r num">${pct(A.al[k][0])}</td><td class="r num">${pct(A.al[k][last])} <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '▲' : '▼'}</span></td><td class="r num">${fmtInt(A.n[k][last])} <span class="muted">(${plus((A.n[k][last] / A.n[k][0] - 1) * 100)})</span></td></tr>`; }).join('')}</tbody></table>`;
+    const draw = (t) => {
+      AGES.forEach(([k]) => {
+        const pts = Y.filter((y) => y <= t).map((y, i) => [sx(y), sy(A.al[k][i])]); pts.push([sx(t), sy(at(A.al[k], t))]);
+        P[k].setAttribute('d', pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(''));
+        const v = at(A.al[k], t); Hd[k].setAttribute('transform', `translate(${sx(t).toFixed(1)},${sy(v).toFixed(1)})`);
+        Hd[k].querySelector('.h2').textContent = `${pct(v)} · ${fmtInt(Math.round(at(A.n[k], t)))} Pers.`;
+      });
+      yr.textContent = Math.floor(t + 1e-9);
     };
-    const paintChange = () => {
-      for (let i = 0; i < n; i++) {
-        const a = A.a[0][i], b = A.a[last][i], p = map.paths.get(A.ids[i]); if (!p) continue;
-        p.style.transition = 'fill 1.2s ease'; p.style.fill = a < 0 || b < 0 ? '' : DIV[classOf(b - a, DBR)];
-      }
-      cls.fill(-9);
-    };
-    const emit = (b) => {
-      if (fx.childElementCount > CAP) return;
-      const r = Math.random() * b.tot; let j = 0; while (b.cw[j] < r) j++;
-      const id = A.ids[b.g[j]], c = S.geo.c[id.slice(4)]; if (!c) return;
-      const e = document.createElementNS(NS, 'circle');
-      e.setAttribute('cx', (c[0] + (Math.random() - 0.5) * 5).toFixed(1)); e.setAttribute('cy', (c[1] + (Math.random() - 0.5) * 5).toFixed(1));
-      e.setAttribute('r', '1.9'); e.setAttribute('class', 'al-dot'); e.style.animationDuration = `${(2.2 + Math.random() * 1.4).toFixed(2)}s`;
-      e.addEventListener('animationend', () => e.remove()); fx.appendChild(e);
-    };
-    let y = reduced() ? Y1 : Y0, run = !reduced(), phase = reduced() ? 'change' : 'time', hold = 0, t0 = performance.now(), shownK = -1;
-    if (setTip) setTip((id) => {
-      const r = region(id); const i = A.ids.indexOf(id); if (!r || i < 0) return '';
-      if (phase === 'change') { const a = A.a[0][i], b = A.a[last][i]; return `${r.n} · 65+ allein: ${a < 0 || b < 0 ? '–' : `${pct(a)} (${Y0}) → ${pct(b)} (${Y1})`}`; }
-      const v = A.a[Math.min(last, Math.floor(y - Y0))][i]; return `${r.n} · 65+ allein ${Math.floor(y)}: ${v < 0 ? '–' : pct(v)}`;
-    });
-    const frame = () => {
-      const k = Math.min(last, Math.floor(y - Y0 + 1e-9));
-      if (k !== shownK) { shownK = k; paintYear(k); }
-      const yi = Y0 + k, nn = nAt(y);
-      set('year', yi); big.textContent = yi; set('n', fmtInt(Math.round(nn))); set('grow', `+${fmtInt(Math.round(nn - ch.n65[0]))}`);
-      set('beat', beats.reduce((s, b) => (y >= b[0] ? b[1] : s), beats[0][1])); set('mode', 'Anteil je Gemeinde');
-      if (cn) {
-        const up = Math.min(Y1, y), kk = Math.min(last - 1, Math.floor(up - Y0)), f = up - Y0 - kk;
-        const iv = (arr) => idx(arr, kk) + (idx(arr, Math.min(last, kk + 1)) - idx(arr, kk)) * f;
-        cn.setAttribute('d', d([...pts(ch.n65, up), [up, iv(ch.n65)]])); cs.setAttribute('d', d([...pts(ch.al65, up), [up, iv(ch.al65)]]));
-        cd.setAttribute('cx', sx(up)); cd.setAttribute('cy', sy(iv(ch.n65)));
-        chart.querySelector('.al-vn').textContent = up >= Y1 ? `Anzahl ${fmt(idx(ch.n65, last), { dec: 0 })}` : '';
-        chart.querySelector('.al-vs').textContent = up >= Y1 ? `Anteil ${fmt(idx(ch.al65, last), { dec: 0 })}` : '';
-      }
-    };
-    const toChange = () => {
-      phase = 'change'; hold = 0; paintChange(); setLeg(legChange()); big.textContent = `${Y0}→${Y1}`;
-      set('mode', 'Veränderung des Anteils'); set('year', `${Y0} → ${Y1}`);
-      const up = A.a[0].reduce((s, a, i) => s + (a >= 0 && A.a[last][i] >= 0 && A.a[last][i] - a > 0 ? 1 : 0), 0);
-      const both = A.a[0].reduce((s, a, i) => s + (a >= 0 && A.a[last][i] >= 0 ? 1 : 0), 0);
-      set('beat', `Bilanz ${Y0}–${Y1}: In ${fmtInt(up)} von ${fmtInt(both)} Gemeinden mit Werten ist der Anteil gestiegen (rot), in den übrigen gesunken (blau). Insgesamt leben ${fmtInt(grow)} Menschen ab 65 mehr allein.`);
-    };
-    const restart = () => { phase = 'time'; y = Y0; hold = 0; shownK = -1; cls.fill(-9); map.paths.forEach((p) => { p.style.transition = ''; }); BZ.forEach((b) => { b.carry = Math.random(); }); setLeg(legTime()); };
+    let t = reduced() ? Y1 : Y0, hold = 0, t0 = performance.now(), run = true;
     const tick = (now) => {
-      if (my !== gen) return;
-      if (!alive()) { cleanFx(); return; }
+      if (!run || my !== gen) return; if (!alive()) { clean(); return; }
       const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
-      if (phase === 'time') {
-        if (run) {
-          if (y >= Y1) { hold += dt; if (hold > 2.2) toChange(); }
-          else {
-            const y2 = Math.min(Y1, y + dt * SPEED), k = Math.min(last - 1, Math.floor(y - Y0));
-            BZ.forEach((b) => { b.carry += Math.max(0, b.n[k + 1] - b.n[k]) / PER * (y2 - y); while (b.carry >= 1) { b.carry -= 1; emit(b); } });
-            y = y2;
-          }
-        }
-        frame();
-      } else if (run) { hold += dt; if (hold > 7) restart(); }
-      requestAnimationFrame(tick);
+      if (t >= Y1) { hold += dt; if (hold > 5) { t = Y0; hold = 0; } } else t = Math.min(Y1, t + dt * 1.2);
+      draw(t); requestAnimationFrame(tick);
     };
-    if (phase === 'change') { y = Y1; frame(); toChange(); }
-    requestAnimationFrame(tick);
-    const pb = q('play'), rb = q('restart');
-    if (pb) { pb.textContent = run ? 'Pause' : 'Abspielen'; pb.onclick = () => { run = !run; t0 = performance.now(); pb.textContent = run ? 'Pause' : 'Abspielen'; }; }
-    if (rb) rb.onclick = () => { restart(); run = true; if (pb) pb.textContent = 'Pause'; };
+    draw(t); requestAnimationFrame(tick);
+    stop = () => { run = false; };
+    setLeg(`<div class="legend besa-ikey">${AGES.map(([, lab, c]) => `<span><i style="background:${c}"></i>${lab}</span>`).join('')}<span class="muted">Personen in Privathaushalten (ohne Heime) · BFS STATPOP</span></div>`);
   };
 
-  if (opts.ctl) {
-    opts.ctl.go = (st) => {
-      if (st && mode !== 1) anim();
-      else if (!st && mode !== 0) setLeg(still());
+  // ---------------------------------------------------------------- step 3: piles by Gemeinde size
+  const piles = async (my) => {
+    const D = await load(); if (!alive() || my !== gen) return;
+    const Y = D.years, Y0 = Y[0], Y1 = Y[Y.length - 1], last = Y.length - 1, nc = D.labels.length;
+    const vb = map.svg.viewBox.baseVal, W = vb.width, H = vb.height;
+    map.reset(); map.clear(); map.setLevel('gde'); map.container.classList.add('al-fade');
+    const top = 92, base = H - 70, colW = (W - 80) / nc, cx = (j) => 40 + colW * (j + 0.5);
+    // radius scale: the largest pile (latest year) fills about 60 % of its column
+    const tot = D.agg.map((_, j) => D.ids.reduce((s, _i, i) => s + (D.cls[i] === j && D.n[last][i] > 0 ? D.n[last][i] : 0), 0));
+    const k = Math.sqrt(Math.min(...tot.map((x) => (colW - 14) * (base - top) * 0.38 / (Math.PI * Math.max(1, x)))));
+    const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'al-pile'); root.appendChild(g);
+    const heads = D.agg.map((a, j) => `<g class="al-colh" transform="translate(${cx(j)},${top - 58})"><text class="c1" text-anchor="middle">${a.label}</text>
+      <text class="c2" y="16" text-anchor="middle">${fmtInt(a.gde)} Gemeinden</text><text class="c3 num" data-j="${j}" y="${base - top + 92}" text-anchor="middle"></text><text class="c4 num" data-j="${j}" y="${base - top + 108}" text-anchor="middle"></text></g>`).join('');
+    g.innerHTML = `<line class="al-base" x1="20" x2="${W - 20}" y1="${base}" y2="${base}"/>${heads}<text class="al-pyr num" x="${W / 2}" y="${top + 52}" text-anchor="middle">${Y0}</text>`;
+    const nodes = [];
+    D.ids.forEach((id, i) => {
+      const c = S.geo.c[id.slice(4)]; if (!c || D.n[last][i] < 0) return;
+      const e = document.createElementNS(NS, 'circle'); e.dataset.id = id; e.setAttribute('fill', CLS[D.cls[i]]); g.appendChild(e);
+      nodes.push({ i, j: D.cls[i], x: c[0], y: c[1], e, r: 0 });
+    });
+    const val = (nd, t) => { const kk = Math.min(last - 1, Math.max(0, Math.floor(t - Y0))), f = Math.max(0, Math.min(1, t - Y0 - kk));
+      const a = D.n[kk][nd.i], b = D.n[kk + 1][nd.i]; return a < 0 || b < 0 ? Math.max(a, b, 0) : a + (b - a) * f; };
+    const setR = (t) => nodes.forEach((nd) => { nd.r = Math.max(0.6, k * Math.sqrt(val(nd, t))); });
+    let t = reduced() ? Y1 : Y0; setR(t);
+    const sim = d3.forceSimulation(nodes).alphaDecay(0.02).velocityDecay(0.35)
+      .force('x', d3.forceX((d) => cx(d.j)).strength((d) => 0.07 + 0.012 * d.r))
+      .force('y', d3.forceY(base).strength((d) => 0.012 + 0.02 * (d.r / 12)))
+      .force('c', d3.forceCollide((d) => d.r + 0.4).iterations(2))
+      .on('tick', () => render());
+    function render() { nodes.forEach((d) => { if (d.y > base - d.r) d.y = base - d.r; d.e.setAttribute('cx', d.x.toFixed(1)); d.e.setAttribute('cy', d.y.toFixed(1)); d.e.setAttribute('r', d.r.toFixed(2)); }); }
+    if (reduced()) { sim.stop(); for (let n = 0; n < 300; n++) sim.tick(); render(); }
+    const counters = (tt) => D.agg.forEach((a, j) => {
+      const at = (arr) => { const kk = Math.min(last - 1, Math.floor(tt - Y0)), f = Math.min(1, tt - Y0 - kk); return arr[kk] + (arr[kk + 1] - arr[kk]) * f; };
+      g.querySelector(`.c3[data-j="${j}"]`).textContent = `80+: ${plus((at(a.b80) / a.b80[0] - 1) * 100)}`;
+      g.querySelector(`.c4[data-j="${j}"]`).textContent = `allein: ${plus((at(a.al) / a.al[0] - 1) * 100)}`;
+    });
+    if (setTip) setTip((id) => { const r = region(id); const i = D.ids.indexOf(id); if (!r || i < 0) return '';
+      return `${esc(r.n)} · ${D.labels[D.cls[i]]} Einw. · 65+ allein: ${fmtInt(D.n[0][i])} (${Y0}) → ${fmtInt(D.n[last][i])} (${Y1})`; });
+    let phase = reduced() ? 'done' : 'fly', pt = 0, hold = 0, t0 = performance.now(), run = true, alive2 = true, shownY = null;
+    counters(t); g.querySelector('.al-pyr').textContent = Math.floor(t);
+    const tick = (now) => {
+      if (!alive2 || my !== gen) return; if (!alive()) { clean(); return; }
+      const dt = Math.min(0.1, (now - t0) / 1000); t0 = now;
+      if (!run) { requestAnimationFrame(tick); return; }
+      if (phase === 'fly') { pt += dt; if (pt > 3) phase = 'grow'; }
+      else if (phase === 'grow') {
+        if (t >= Y1) { hold += dt; if (hold > 5) { t = Y0; hold = 0; setR(t); sim.alpha(0.5).restart(); } }
+        else { t = Math.min(Y1, t + dt * 0.9); setR(t); sim.force('c').radius((d) => d.r + 0.4); if (sim.alpha() < 0.2) sim.alpha(0.25).restart(); }
+        const yi = Math.floor(t + 1e-9); if (yi !== shownY) { shownY = yi; g.querySelector('.al-pyr').textContent = yi; const e = q('year'); if (e) e.textContent = yi; }
+        counters(t);
+      }
+      requestAnimationFrame(tick);
     };
-  }
-  const leg = still();
-  if (opts.initStep && opts.initStep()) setTimeout(() => opts.ctl?.go(opts.initStep()), 0);
+    requestAnimationFrame(tick);
+    stop = () => { alive2 = false; sim.stop(); };
+    const pb = q('play'), rb = q('restart');
+    if (pb) { pb.textContent = 'Pause'; pb.onclick = () => { run = !run; if (run) sim.restart(); else sim.stop(); t0 = performance.now(); pb.textContent = run ? 'Pause' : 'Abspielen'; }; }
+    if (rb) rb.onclick = () => { t = Y0; hold = 0; run = true; phase = 'grow'; setR(t); sim.alpha(0.6).restart(); if (pb) pb.textContent = 'Pause'; };
+    setLeg(`<div class="legend besa-ikey"><span class="muted">Gemeindegrösse (Einwohner ${Y1}):</span>${D.labels.map((l, j) => `<span><i style="background:${CLS[j]}"></i>${l}</span>`).join('')}</div>
+      <div class="legend"><span class="muted">Kreisfläche = Menschen ab 65, die allein leben · unten: Zunahme seit ${Y0} (80+ alle Gemeinden; allein lebend: Gemeinden mit Werten in allen Jahren) · Gemeinden ohne Werte (Datenschutz) fehlen</span></div>`);
+  };
+
+  // ---------------------------------------------------------------- step 4: map of the 80+ increase
+  const ring = async (my) => {
+    const D = await load(); if (!alive() || my !== gen) return;
+    const Y = D.years, Y0 = Y[0], Y1 = Y[Y.length - 1];
+    map.clear(); map.setLevel('gde');
+    D.ids.forEach((id, i) => { const p = map.paths.get(id); if (p) p.style.fill = CLS[D.cls[i]]; });
+    const inc = D.ids.map((_, i) => Math.max(0, D.b80[1][i] - D.b80[0][i]));
+    const mx = Math.max(...inc), kk = 11 / Math.sqrt(mx);
+    map.dots(D.ids.map((id, i) => ({ id, r: (kk * Math.sqrt(inc[i])).toFixed(2) })).filter((p) => p.r > 0.3));
+    root.querySelector('.dots')?.classList.add('al-inc');
+    const watch = () => { if (my !== gen) return; if (!alive()) { clean(); return; } setTimeout(watch, 400); };   // leave no circles behind
+    watch();
+    if (setTip) setTip((id) => { const r = region(id); const i = D.ids.indexOf(id); if (!r || i < 0) return '';
+      return `${esc(r.n)} · ${D.labels[D.cls[i]]} Einw. · Menschen ab 80: ${fmtInt(D.b80[0][i])} (${Y0}) → ${fmtInt(D.b80[1][i])} (${Y1}), ${D.b80[1][i] >= D.b80[0][i] ? '+' : ''}${fmtInt(D.b80[1][i] - D.b80[0][i])}`; });
+    const d80 = D.agg.map((a) => a.b80[a.b80.length - 1] - a.b80[0]), s = d80.reduce((a, b) => a + b, 0);
+    const box = q('share');
+    if (box) box.innerHTML = `<span class="small muted">Anteil am Zuwachs der Menschen über 80, ${Y0}–${Y1}</span>${D.agg.map((a, j) => `<div class="al-bar"><span>${a.label}</span><i style="width:${(d80[j] / s * 100 * 2.2).toFixed(1)}%;background:${CLS[j]}"></i><b class="num">${fmt(d80[j] / s * 100, { dec: 0 })} %</b><span class="muted">· ${fmt(a.pop / D.agg.reduce((x, y) => x + y.pop, 0) * 100, { dec: 0 })} % der Bevölkerung</span></div>`).join('')}`;
+    setLeg(`<div class="legend besa-ikey"><span class="muted">Gemeindegrösse:</span>${D.labels.map((l, j) => `<span><i style="background:${CLS[j]}"></i>${l}</span>`).join('')}</div>
+      <div class="legend"><span><i class="al-incpt"></i> Kreisfläche = zusätzliche Menschen über 80, ${Y0}–${Y1} (grösster Kreis: +${fmtInt(mx)})</span></div>`);
+  };
+
+  const go = (st) => {
+    if (st === step) return; step = st; const my = ++gen; clean();
+    if (st === 1) lines(my); else if (st === 2) piles(my); else if (st === 3) ring(my);
+    else setLeg(opts.staticView());
+  };
+  if (opts.ctl) opts.ctl.go = go;
+  step = 0;
+  const leg = opts.staticView();
+  if (opts.initStep && opts.initStep()) setTimeout(() => go(opts.initStep()), 0);
   return leg;
 }

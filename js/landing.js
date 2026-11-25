@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125201421';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125204110';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,14 +7,14 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261125201421';
-import { omnibox } from './search.js?v=20261125201421';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125201421';
-import { alleinChapter, alleinSteps } from './allein.js?v=20261125201421';
-import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125201421';
-import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125201421';
-import { esc, main } from './ui.js?v=20261125201421';
-import { loadProg, pval, roundProg } from './prog.js?v=20261125201421';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125204110';
+import { omnibox } from './search.js?v=20261125204110';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125204110';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125204110';
+import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125204110';
+import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125204110';
+import { esc, main } from './ui.js?v=20261125204110';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125204110';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -69,7 +69,7 @@ export function render() {
     src: `BAG Kennzahlen Pflegeheime und Spitex ${M.jahr} · BFS Spitex-Statistik 2012–${M.jahr} · BFS STATPOP · Tagesverlauf, Dienstpläne und Wege modelliert`,
     thema: 'inanspruchnahme', q: 'spitex', steps: tagpflegeSteps(), ctl: {}, cap: 'Ein Tag Pflege' };
   tagCh.map = (m, t, alive) => tagpflegeChapter(m, t, alive, { scope: main().querySelector('.story-card[data-ch="tag"]'), setCap: (x) => { const c = document.getElementById('storyCap'); if (c) c.textContent = x; }, ctl: tagCh.ctl, initStep: () => tagCh.s || 0 });
-  const alCh = { id: 'allein', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag. Weiter scrollen: die Zeitreise ${y0} → ${y1}.`,
+  const alCh = { id: 'allein', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag. Weiter scrollen: was hinter diesem Anteil steckt – und wo die Zahl wächst.`,
     src: `BFS STATPOP ${M.pop_jahr || M.jahr}, Haushalte (Zeitreihe ${y0}–${y1})`, thema: 'haushalte', q: 'allein', cap: `Anteil der Menschen ab 65, die allein leben, ${M.pop_jahr || M.jahr}`,
     steps: alleinSteps(y0, y1), ctl: {} };
   alCh.map = (m, t, alive) => alleinChapter(m, t, alive, { ctl: alCh.ctl, initStep: () => alCh.s || 0, staticView: () => colourBy(m, 'al65', 'gde', t),
