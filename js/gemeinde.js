@@ -1,13 +1,13 @@
 // Workflow A "Gemeinde zuerst": region header, portrait tiles, topic pages with comparison switch.
 import { S, val, region, parents, detail, fmt, fmtUnit, fmtInt, plusMinus, shortName, regionLabel, compareWord,
-  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261115214001';
-import { PRO_SUBS, INTRO, lean, IND_GROUPS, CARD_LOGIC_SUBS, cardLogic } from './context.js?v=20261115214001';
-import { createMap } from './map.js?v=20261115214001';
-import { inkWord, indicatorCard, indicatorGroupCard, groupOf, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261115214001';
-import { omnibox } from './search.js?v=20261115214001';
-import { esc, main } from './ui.js?v=20261115214001';
-import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261115214001';
-import { openReportDialog } from './report.js?v=20261115214001';
+  prefs, setPrefs, groupMembers, groupLabel, groupLabelFor, ownKey, ownList, ebeneLabel, srcLink, wappenImg, isPro, setMode } from './store.js?v=20261125191137';
+import { PRO_SUBS, INTRO, lean, IND_GROUPS, CARD_LOGIC_SUBS, cardLogic } from './context.js?v=20261125191137';
+import { createMap } from './map.js?v=20261125191137';
+import { inkWord, indicatorCard, indicatorGroupCard, groupOf, chartCard, pyramid, indexLines, shareBars, stackedMix, bewChart, peerScatter, aphLines, aphRate, APH_TS_OPTS, histLines } from './cards.js?v=20261125191137';
+import { omnibox } from './search.js?v=20261125191137';
+import { esc, main } from './ui.js?v=20261125191137';
+import { ausblickSection, ausblickPage, ausblickTiles } from './prog.js?v=20261125191137';
+import { openReportDialog } from './report.js?v=20261125191137';
 
 const ZEITEN = ['rueckblick', 'heute', 'ausblick'];
 
@@ -264,9 +264,11 @@ async function topic(page, r, d, subId, zeitReq, rerender) {
   const zeit = zs.includes(zeitReq) ? zeitReq : zs.includes(prefs().zeit) && !zeitReq ? prefs().zeit : 'heute';
   if (zeitReq) setPrefs({ zeit });
   const zbar = zs.length > 1 ? `<nav class="zeit no-print" aria-label="Zeitansicht">${zs.map((z) =>
-    `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(S.meta.zeit_label[z])}</a>`).join('')}</nav>` : '';
+    `<a class="zt${z === zeit ? ' on' : ''}" href="#/gemeinde/${r.id}/${subId}/${z}"${z === zeit ? ' aria-current="page"' : ''}><span class="zi">${z === 'rueckblick' ? '◀' : z === 'heute' ? '●' : '▶'}</span>${esc(((S.meta.zeit_label_sub || {})[subId] || S.meta.zeit_label)[z])}</a>`).join('')}</nav>` : '';
   let mode = curMode(r);
-  const intro = !isPro() && INTRO[subId] ? `<p class="lead-ctx">${INTRO[subId]}</p>` : '';
+  const znote = (S.meta.zeit_note || {})[subId];
+  const intro = (!isPro() && INTRO[subId] ? `<p class="lead-ctx">${INTRO[subId]}</p>` : '')
+    + (znote ? `<p class="small muted zeit-note">${esc(znote)}</p>` : '');
   if (zeit === 'ausblick') {      // forecasts: the same «Vergleichen mit» row; the forecast cards rank the group
     page.innerHTML = `<div class="page-head"><div><span class="eyebrow">${esc(sub.thema.label)}</span><h2>${esc(sub.label)}</h2></div></div>${intro}
       <div class="viewbar">${zbar}${cmpSelect(r)}</div><div class="own-row no-print" id="ownBox" hidden></div><div id="ausblick"></div>`;
@@ -399,17 +401,18 @@ async function compareSeries(r, d, mode) {
 
 async function special(box, r, d, subId, mode = 'kt') {
   const M = S.meta; const [y0, y1] = M.alter_jahre;
+  const [p0, p1] = M.pop_jahre || M.alter_jahre;   // STATPOP series (may run one year past the care data)
   const series = await compareSeries(r, d, mode);
   const grp = series.find((s) => s.grp);
   if (subId === 'alter') {
     const ref = grp && grp.d.pyr ? grp : series[series.length - 1];
     const refName = ref.grp ? ref.name.replace(/ \(\d+\)$/, '') : 'Schweiz';
-    const c = chartCard(`Altersaufbau ${y1}`, `Balken: ${esc(shortName(r.id))} ${y1}, ${inkWord()} Linie: ${y0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${y1}. Anteile an der Bevölkerung in Prozent.`, 'statpop', false);   // half width
+    const c = chartCard(`Altersaufbau ${p1}`, `Balken: ${esc(shortName(r.id))} ${p1}, ${inkWord()} Linie: ${p0}, gepunktet: ${esc(ref.grp ? ref.name : 'Schweiz')} ${p1}. Anteile an der Bevölkerung in Prozent.`, 'statpop', false);   // half width
     c.setHow(`Ständige Wohnbevölkerung am 31.12. nach 5-Jahres-Altersgruppen und Geschlecht, als Anteil an der gesamten Bevölkerung der Region. Die Anteile machen Regionen unterschiedlicher Grösse vergleichbar.`);
-    box.appendChild(c.card); pyramid(c.div, d, ref.d, [y0, y1], refName);
+    box.appendChild(c.card); pyramid(c.div, d, ref.d, [p0, p1], refName);
   } else if (subId === 'entwicklung') {
-    const c = chartCard(`Entwicklung ${y0}–${y1}`, '', 'statpop', false);   // half width, lean style like the report
-    c.setHow(`Ständige Wohnbevölkerung am 31.12. jedes Jahres, als Index: ${y0} = 100. 150 heisst 50 % mehr als ${y0}. Alle Jahre auf dem heutigen Gemeindestand (fusionierte Gemeinden zusammengezählt).`);
+    const c = chartCard(`Entwicklung ${p0}–${p1}`, '', 'statpop', false);   // half width, lean style like the report
+    c.setHow(`Ständige Wohnbevölkerung am 31.12. jedes Jahres, als Index: ${p0} = 100. 150 heisst 50 % mehr als ${p0}. Alle Jahre auf dem heutigen Gemeindestand (fusionierte Gemeinden zusammengezählt).`);
     const n = d.ts.y.length - 1;
     const seg = document.createElement('div'); seg.className = 'seg no-print'; seg.setAttribute('role', 'group');
     const opts = isPro() ? { b80: 'ab 80 Jahren', b65: 'ab 65 Jahren', bev: 'Gesamte Bevölkerung' } : { b80: 'ab 80 Jahren', bev: 'Gesamte Bevölkerung' };
@@ -417,8 +420,8 @@ async function special(box, r, d, subId, mode = 'kt') {
     c.card.querySelector('.card-head').after(seg);
     const drawK = (k) => {
       const v0 = d.ts[k][0]; const v1 = d.ts[k][n];
-      c.setSub(`In ${esc(shortName(r.id))} ist die Zahl der Menschen ${k === 'bev' ? '' : opts[k] + ' '}von ${fmtInt(v0)} (${y0}) auf <b>${fmtInt(v1)}</b> (${y1}) ${v1 >= v0 ? 'gestiegen' : 'gesunken'} – <b>${plusMinus(v0 ? (v1 / v0 - 1) * 100 : 0)} %</b>.`);
-      indexLines(c.div, series, k, [y0, y1]);
+      c.setSub(`In ${esc(shortName(r.id))} ist die Zahl der Menschen ${k === 'bev' ? '' : opts[k] + ' '}von ${fmtInt(v0)} (${p0}) auf <b>${fmtInt(v1)}</b> (${p1}) ${v1 >= v0 ? 'gestiegen' : 'gesunken'} – <b>${plusMinus(v0 ? (v1 / v0 - 1) * 100 : 0)} %</b>.`);
+      indexLines(c.div, series, k, [p0, p1]);
       seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
     };
     seg.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b) drawK(b.dataset.k); });
@@ -459,7 +462,7 @@ async function special(box, r, d, subId, mode = 'kt') {
     const sub = subId.slice(5);
     histCards(box, r, d, series, (M.hist || []).filter((x) => S.ind.get(x).sub === sub));
   } else if (subId === 'haushalte' && d.hh) {
-    const c = chartCard(`Privathaushalte nach Grösse, ${M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte', false);   // half width
+    const c = chartCard(`Privathaushalte nach Grösse, ${M.pop_jahr || M.jahr}`, 'Anteil der Haushalte mit 1, 2, … Personen.', 'haushalte', false);   // half width
     c.setHow('Privathaushalte nach Anzahl Personen, in Prozent aller Privathaushalte der Region. Kollektivhaushalte wie Alters- und Pflegeheime zählen nicht dazu.');
     box.appendChild(c.card);
     shareBars(c.div, ['1', '2', '3', '4', '5', '6 und mehr'], series.filter((s) => s.d.hh).map((s) => ({ ...s, values: s.d.hh })), '%', 'Personen im Haushalt');

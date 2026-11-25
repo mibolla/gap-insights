@@ -1,9 +1,9 @@
 // Themen overview, one Thema (list of questions + Swiss values), Favoriten, Daten & Methodik.
-import { S, val, mappe, setPrefs, prefs, shortName } from './store.js?v=20261115214001';
-import { indicatorCard, indicatorItem, indicatorGroupCard, groupOf } from './cards.js?v=20261115214001';
-import { exportItems } from './export.js?v=20261115214001';
-import { omnibox } from './search.js?v=20261115214001';
-import { esc, main, toast } from './ui.js?v=20261115214001';
+import { S, val, mappe, setPrefs, prefs, shortName, fmtInt } from './store.js?v=20261125191137';
+import { indicatorCard, indicatorItem, indicatorGroupCard, groupOf } from './cards.js?v=20261125191137';
+import { exportItems } from './export.js?v=20261125191137';
+import { omnibox } from './search.js?v=20261125191137';
+import { esc, main, toast } from './ui.js?v=20261125191137';
 
 export function themen() {
   main().innerHTML = `<div class="wrap page"><div class="page-head"><div><span class="eyebrow">Frage zuerst</span><h2>Themen und Fragen</h2></div></div>
@@ -87,12 +87,12 @@ export function daten(anchor) {
     <article class="card"><h3>Datenquellen</h3><div class="src-grid">${Object.values(M.sources).map((s) => `<div class="src-row"><span class="pub">${esc(s.publisher)}</span>
       <span>${esc(s.name)} · <span class="num">${esc(s.year)}</span><br><span class="use">${esc(s.use)}</span></span><a href="${s.url}" target="_blank" rel="noopener">↗</a></div>`).join('')}</div></article>
     <article class="card prose"><h3>Wie die Zahlen entstehen</h3>
-      <p><b>Gemeinden.</b> Alle Werte beziehen sich auf den Gemeindestand vom 1.1.${M.jahr} (2131 Gemeinden, 143 Bezirke, 26 Kantone). Die Bevölkerungszahlen ${M.alter_jahre[0]}–${M.alter_jahre[1]} veröffentlicht das BFS rückwirkend auf diesem Stand.</p>
+      <p><b>Gemeinden.</b> Alle Werte beziehen sich auf den Gemeindestand vom 1.1.${M.gde_stand || M.jahr} (${fmtInt(M.n_gde || 2131)} Gemeinden, 143 Bezirke, 26 Kantone). Die Bevölkerungszahlen ${(M.pop_jahre || M.alter_jahre)[0]}–${(M.pop_jahre || M.alter_jahre)[1]} veröffentlicht das BFS rückwirkend auf diesem Stand. Daten auf einem älteren Gemeindestand (Pflegeheime, Spitex und Spitäler über ihre Adresse, Prognosemodelle) sind für fusionierte Gemeinden zusammengezählt.</p>
       <p><b>Pflegeheime.</b> Jedes Heim wird über die Postleitzahl seiner Adresse einer Gemeinde zugeordnet. Plätze pro Einwohner sind deshalb Standortwerte: Ein Heim versorgt auch Nachbargemeinden. Wie im ursprünglichen CoP-Dashboard werden 80 untypische Betriebe (mittlere Aufenthaltsdauer ab 8 Jahren oder Eintrittsalter bis 65) nicht mitgezählt.</p>
       <p><b>Spitex.</b> Organisationen sind über ihre Adresse einer Gemeinde zugeordnet. Organisationen ohne brauchbare Adresse oder mit Sitz ausserhalb des Bewilligungskantons werden nach Bevölkerung auf die Gemeinden ihres Kantons verteilt. Werte für einzelne Gemeinden sind deshalb Näherungen; Kantonswerte sind genau.</p>
-      <p><b>Haushalte.</b> Privathaushalte nach Grösse stammen aus STATPOP ${M.jahr}. Werte zum Alleinleben im Alter stammen aus einer BFS-Tabelle mit dem Gemeindestand 2025; für 25 Gemeinden, die per 1.1.2025 fusioniert haben, liegt dort kein Wert vor. Sehr kleine Zahlen werden vom BFS aus Datenschutzgründen gerundet oder unterdrückt.</p>
+      <p><b>Haushalte.</b> Privathaushalte nach Grösse stammen aus STATPOP ${M.pop_jahr || M.jahr}. Werte zum Alleinleben im Alter stammen aus einer BFS-Tabelle mit dem Gemeindestand 2025; für 25 Gemeinden, die per 1.1.2025 fusioniert haben, liegt dort kein Wert vor. Die Haushaltsdaten liegen als Zeitreihe ${(M.pop_jahre || M.alter_jahre)[0]}–${(M.pop_jahre || M.alter_jahre)[1]} vor; die App zeigt ${M.jahr}. Sehr kleine Zahlen werden vom BFS aus Datenschutzgründen gerundet oder unterdrückt.</p>
       <p><b>Vergleiche.</b> Die Sätze vergleichen mit dem Kanton und der Schweiz: «etwa gleich» bei weniger als 3 % Unterschied (bei Anteilen 0.3 Prozentpunkte), «deutlich» ab 15 % (bei Anteilen 3 Prozentpunkte). Sie bewerten nicht, ob ein Wert gut oder schlecht ist.</p>
-      <p><b>Jahre.</b> Spitex, Pflegeheime, Haushalte und Altersstruktur: ${M.jahr}. Bevölkerungsbewegungen: Durchschnitt ${M.periode[0]}–${M.periode[1]}. Datenstand der App: ${M.built}.</p>
+      <p><b>Jahre.</b> Bevölkerung, Altersstruktur und Haushalte: ${M.pop_jahr || M.jahr} (Entwicklung ab ${(M.pop_jahre || M.alter_jahre)[0]}). Spitex und Pflegeheime: ${M.jahr} – die BAG-Kennzahlen ${M.pop_jahr || M.jahr} sind noch nicht veröffentlicht; Werte pro Einwohner beziehen sich deshalb auf die Bevölkerung ${M.jahr}. Prognosen: Basisjahr ${M.jahr}. Bevölkerungsbewegungen: Durchschnitt ${M.periode[0]}–${M.periode[1]}. Datenstand der App: ${M.built}.</p>
       <p><b>Wappen.</b> Die Gemeinde- und Kantonswappen stammen aus der einheitlichen Wappenreihe auf <a href="https://commons.wikimedia.org/wiki/Category:Coats_of_arms_of_municipalities_of_Switzerland" target="_blank" rel="noopener">Wikimedia Commons</a>, zugeordnet über die BFS-Gemeindenummer in Wikidata. Die Dateien sind dort als gemeinfrei gekennzeichnet; die Wappen selbst sind Hoheitszeichen der Gemeinden und Kantone. Gemeinden ohne Wappen auf Commons zeigen das Kantonswappen.</p>
       <p><b>Für Fachleute.</b> Die frei kombinierbaren Blasendiagramme aller Kennzahlen finden Sie im CoP-Dashboard (MAIN_CoP_Dashboard.html); das vollständige Datenmodell mit allen Attributen steht in <span class="num">data/unified/REF/REF_attribute.csv</span>.</p>
     </article>

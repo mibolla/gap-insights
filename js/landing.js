@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261115214001';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125191137';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,11 +7,12 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261115214001';
-import { omnibox } from './search.js?v=20261115214001';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261115214001';
-import { esc, main } from './ui.js?v=20261115214001';
-import { loadProg, pval, roundProg } from './prog.js?v=20261115214001';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125191137';
+import { omnibox } from './search.js?v=20261125191137';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125191137';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125191137';
+import { esc, main } from './ui.js?v=20261125191137';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125191137';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -37,7 +38,7 @@ function colourBy(map, indId, level = 'gde', setTip = null) {
 
 export function render() {
   teardown();
-  const M = S.meta; const [y0, y1] = M.alter_jahre;
+  const M = S.meta; const [y0, y1] = M.pop_jahre || M.alter_jahre;   // used for the STATPOP chapter only
   const ch = (k) => val(k, 'CH');
   const last = prefs().last;
   const lastR = last && region(last);
@@ -50,12 +51,12 @@ export function render() {
 
   // scroll-driven chapters: each step is its own card; scrolling to it calls ctl.go(step)
   const ageCh = { n: '', title: 'Die Schweiz wird älter', big: '<span class="age-year" data-age="year">2012</span>',
-      text: 'Drei Jahre pro Sekunde: Jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80 – bis 2024 beobachtet, danach das mittlere BFS-Szenario. Je dunkler, desto älter. Weiter scrollen: die Kantone im Rennen.',
+      text: `Drei Jahre pro Sekunde: Jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80 – bis ${y1} beobachtet, danach das mittlere BFS-Szenario. Je dunkler, desto älter. Weiter scrollen: die Kantone im Rennen.`,
       extra: `<p class="age-beat" data-age="beat"></p>
         <div data-age="ktblock" hidden><div class="age-counters"><div><b class="num" data-age="chv">–</b><span>Anteil ab 80 in der Schweiz</span></div><div><b class="num" data-age="grow">–</b><span>Zunahme seit 2012, in Prozentpunkten</span></div></div></div>
         <div data-age="gdeblock"><div class="age-counters"><div><b class="num" data-age="n">–</b><span>Gemeinden mit mindestens 10 % ab 80</span></div><div><b class="num" data-age="med">–</b><span>Anteil ab 80 in der mittleren Gemeinde</span></div></div>
         <div class="age-mini"><span class="small muted">Gemeinden mit mindestens 10 % ab 80</span><div data-age="chart"></div></div></div>`,
-      src: 'BFS STATPOP 2012–2024 · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)', steps: [{ title: 'Die Kantone im Rennen', text: 'Die Kantone fliegen aus der Karte in ein Balkenrennen 2012 → 2055 – sortiert nach dem Anteil der Menschen ab 80, mit Spuren alle fünf Jahre. Die violette Linie ist die Schweiz: Start 2012, Marke 2024, Ziel 2055.' }], ctl: {},
+      src: `BFS STATPOP ${y0}–${y1} · BFS-Szenarien 2025–2055, mittel, regionalisiert (HSLU)`, steps: [{ title: 'Die Kantone im Rennen', text: `Die Kantone fliegen aus der Karte in ein Balkenrennen 2012 → 2055 – sortiert nach dem Anteil der Menschen ab 80, mit Spuren alle fünf Jahre. Die violette Linie ist die Schweiz: Start 2012, Marke ${y1}, Ziel 2055.` }], ctl: {},
       thema: 'alter', q: 'zukunft80', cap: 'Anteil der Menschen ab 80 je Gemeinde, 2012–2055' };
   ageCh.map = (m, t, alive) => ageChapter(m, t, alive, { scope: document.getElementById('story'), stepMode: true, ctl: ageCh.ctl, initStep: () => ageCh.s || 0 });
   const tagCh = { id: 'tag', title: 'Ein Tag Pflege', big: '<span data-tp="visits">0</span>',
@@ -66,13 +67,17 @@ export function render() {
     src: `BAG Kennzahlen Pflegeheime und Spitex ${M.jahr} · BFS Spitex-Statistik 2012–${M.jahr} · BFS STATPOP · Tagesverlauf, Dienstpläne und Wege modelliert`,
     thema: 'inanspruchnahme', q: 'spitex', steps: tagpflegeSteps(), ctl: {}, cap: 'Ein Tag Pflege' };
   tagCh.map = (m, t, alive) => tagpflegeChapter(m, t, alive, { scope: main().querySelector('.story-card[data-ch="tag"]'), setCap: (x) => { const c = document.getElementById('storyCap'); if (c) c.textContent = x; }, ctl: tagCh.ctl, initStep: () => tagCh.s || 0 });
+  const alCh = { id: 'allein', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag. Weiter scrollen: die Zeitreise ${y0} → ${y1}.`,
+    src: `BFS STATPOP ${M.pop_jahr || M.jahr}, Haushalte (Zeitreihe ${y0}–${y1})`, thema: 'haushalte', q: 'allein', cap: `Anteil der Menschen ab 65, die allein leben, ${M.pop_jahr || M.jahr}`,
+    steps: alleinSteps(y0, y1), ctl: {} };
+  alCh.map = (m, t, alive) => alleinChapter(m, t, alive, { ctl: alCh.ctl, initStep: () => alCh.s || 0, staticView: () => colourBy(m, 'al65', 'gde', t),
+    scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
   const chapters = [
     { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
       src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
     ageCh,
     tagCh,
-    { n: 'Kapitel 2', title: 'Allein leben', big: `${fmt(ch('al65'), 'al65')} %`, text: `der Menschen ab 65, die in einem Privathaushalt leben, leben allein. Bei den über 85-Jährigen sind es ${fmt(ch('al85'), 'al85')} %. Das ist wichtig für die Planung von Unterstützung im Alltag.`,
-      src: `BFS STATPOP ${M.jahr}, Haushalte`, map: (m, t) => colourBy(m, 'al65', 'gde', t), thema: 'haushalte', q: 'allein', cap: 'Anteil der Menschen ab 65, die allein leben' },
+    alCh,
     { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
       src: `BAG / SOMED ${M.jahr}`, map: (m, t, alive) => { const l = colourBy(m, 'aph_pl80', 'kt', t); heimPoints(m, alive); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
     (() => { const H = M.heime; const far = region(H.max_gde);
@@ -123,7 +128,7 @@ export function render() {
         <div id="heroLegend" class="small"></div>
       </div>
     </div>
-    <div class="srcstrip"><span>Daten: BFS · BAG · swisstopo · Stand ${M.jahr} · <a href="#sources">Datengrundlage</a></span><a class="scrollcue" href="#story">↓ Entdecken, was die Daten zeigen</a></div>
+    <div class="srcstrip"><span>Daten: BFS · BAG · swisstopo · Bevölkerung ${M.pop_jahr || M.jahr}, Pflege ${M.jahr} · <a href="#sources">Datengrundlage</a></span><a class="scrollcue" href="#story">↓ Entdecken, was die Daten zeigen</a></div>
   </section>
 
   <section class="story wrap" id="story" aria-labelledby="storyTitle">
@@ -140,7 +145,7 @@ export function render() {
           <button class="btn small primary" type="button" data-us="${c.q}">Und bei uns?</button>` : `<a class="btn small" href="${c.ext}" target="_blank" rel="noopener">${esc(c.extLabel)} ↗</a>`}</div>
         </article>${(c.steps || []).map((st, i) => `
         <article class="story-card step" data-k="${k}" data-s="${i + 1}">
-          <span class="n">Kapitel ${k + 1} · Schritt ${i + 2} von ${c.steps.length + 1}</span><h3>${st.title}</h3><p>${st.text}</p>
+          <span class="n">Kapitel ${k + 1} · Schritt ${i + 2} von ${c.steps.length + 1}</span><h3>${st.title}</h3><p>${st.text}</p>${st.extra || ''}
           ${i < c.steps.length - 1 ? '<p class="scrollhint" aria-hidden="true"><span>↓</span> Weiter scrollen</p>' : '<p class="small muted">Ende des Kapitels – weiter mit dem nächsten Kapitel.</p>'}
         </article>`).join('')}`).join('')}
       </div>
@@ -192,7 +197,7 @@ export function render() {
 
   // ---- rotating facts linked to the map
   // entries 2 and 3: the animated story «Die Schweiz wird älter» (Gemeinden 2012 → 2055, then the Kanton race) on the hero map
-  const AGE_SRC = 'BFS STATPOP 2012–2024 · BFS-Szenario mittel bis 2055';
+  const AGE_SRC = `BFS STATPOP ${(M.pop_jahre || M.alter_jahre).join('–')} · BFS-Szenario mittel bis 2055`;
   const facts = [M.facts[0],
     { mode: 'age', tag: 'Zeitreise', src: AGE_SRC, html: 'Die Schweiz wird älter: <b class="age-y" data-age="year">2012</b> – jede Gemeinde färbt sich nach dem Anteil der Menschen ab 80. Erreicht eine Gemeinde 10 %, leuchtet sie auf.' },
     { mode: 'agebars', tag: 'Zeitreise', src: AGE_SRC, html: 'Die Kantone im Rennen: <b class="age-y" data-age="year">2012</b> – wo leben anteilmässig am meisten Menschen ab 80? Die violette Linie ist die Schweiz.' },
@@ -535,7 +540,7 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
     const fs = Math.max(9.5, Math.min(12.5, rowH * 0.72));
     const yT = top - 5, yB = top + nk * rowH + 3, xs = L.sx(A.ch[0]), i24 = Y.indexOf(A.obs_to);
     ov.innerHTML = `<defs><linearGradient id="ageBand${uid}" x1="0" x2="1"><stop offset="0" style="stop-color:var(--a3);stop-opacity:.06"/><stop offset="1" style="stop-color:var(--a6);stop-opacity:.3"/></linearGradient></defs>
-      <text class="hd" x="${x0}" y="14">Anteil ab 80 nach Kanton</text><text class="hd yr" x="${x1 + 44}" y="14" text-anchor="end"></text>
+      <text class="hd" x="${x0}" y="14">Anteil ab 80 nach Kanton</text><text class="yr num" x="${x1 + 44}" y="24" text-anchor="end"></text>
       <g class="rows">${K.ids.map((id, j) => `<g class="row" data-j="${j}"><title></title>
         <image class="wap" href="${wappen(id)}" x="4" y="${rowH * 0.04}" width="${icon}" height="${rowH * 0.92}" preserveAspectRatio="xMidYMid meet"/>
         <text class="ab" x="${icon + 8}" y="${rowH / 2}" dy=".35em" style="font-size:${fs}px">${id.slice(3)}</text>
@@ -563,7 +568,7 @@ async function ageChapter(map, setTip = null, alive = () => true, opts = {}) {
   };
   const drawBars = (yy, grow = false) => {
     const yi = Math.floor(yy);
-    ov.querySelector('.yr').textContent = `${yi}${yi > A.obs_to ? ' · Szenario' : ''}`;
+    ov.querySelector('.yr').innerHTML = `${yi > A.obs_to ? '<tspan class="yr-s" dx="0">Szenario </tspan>' : '<tspan class="yr-s">beobachtet </tspan>'}<tspan>${yi}</tspan>`;
     // Schweiz: fixed start (2012), moving line, growth band, pins at 2012, 2024 and the end
     const cv = chAt(yy), cx = L.sx(cv), xs = L.sx(A.ch[0]), end = yy >= Y1 - 1e-6;
     ov.querySelector('.chx .band').setAttribute('width', Math.max(0, cx - xs));

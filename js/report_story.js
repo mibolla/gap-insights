@@ -1,9 +1,9 @@
 // Gemeindebericht: one function per chapter. Each returns {lead, body} as HTML strings (or null to skip).
 // Anatomy of a chapter: Leitfrage -> Kernaussage (lead) -> chart -> explanation -> comparison -> source.
-import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261115214001';
-import { roundProg, model, pval } from './prog.js?v=20261115214001';
-import { esc } from './ui.js?v=20261115214001';
-import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261115214001';
+import { S, val, fmt, fmtUnit, fmtInt, compareWord, groupMembers } from './store.js?v=20261125191137';
+import { roundProg, model, pval } from './prog.js?v=20261125191137';
+import { esc } from './ui.js?v=20261125191137';
+import { hbars, groupedBars, stacked, lines, fan, pyramid, dotStrip, num } from './report_svg.js?v=20261125191137';
 
 const pj = (dd, key, v, year) => { const p = dd && dd.prog; if (!p) return null; const k = p.y.indexOf(+year); return k < 0 ? null : p[v][key][k]; };
 const pct = (a, b) => (a == null || !b ? null : (a / b - 1) * 100);
@@ -67,7 +67,7 @@ export function blick(ctx) {
   const w65 = compareWord(val('a65', id), val('a65', ctx.kt), 'a65');
   const facts = [
     { t: 'heute', s: `${esc(name)} zählt <b>${fmtInt(ctx.r.pop)}</b> Einwohnerinnen und Einwohner; <b>${fmtInt(k.b80)}</b> von ihnen sind 80 oder älter (${U('a80', id)}).`, c: cs(ctx, (x) => U('a80', x)) },
-    { t: 'heute', s: `<b>${U('a65', id)}</b> der Bevölkerung sind 65 oder älter – ${esc(w65 || 'ähnlich wie')} ${ctx.L.im}.`, c: cs(ctx, (x) => U('a65', x)) },
+    { t: 'heute', tag: `Heute ${S.meta.pop_jahr || S.meta.jahr}`, s: `<b>${U('a65', id)}</b> der Bevölkerung sind 65 oder älter – ${esc(w65 || 'ähnlich wie')} ${ctx.L.im}.`, c: cs(ctx, (x) => U('a65', x)) },
     d.aph && d.aph.heime
       ? { t: 'heute', s: `${cap(esc(ctx.L.in_name))} gibt es <b>${fmtInt(d.aph.heime)} Pflegeheim${d.aph.heime === 1 ? '' : 'e'}</b> mit ${fmtInt(d.aph.plaetze)} Plätzen${d.spitex && d.spitex.length ? ` und ${d.spitex.length} Spitex-Organisation${d.spitex.length === 1 ? '' : 'en'} mit Sitz hier` : ''}.`, c: `Plätze pro 1000 80+: ${U('aph_pl80', id)} · ${ctx.L.refLab} ${U('aph_pl80', ctx.kt)}` }
       : { t: 'heute', s: `${esc(name)} hat <b>kein eigenes Pflegeheim</b>; die Versorgung läuft über Heime der Region.`, c: ctx.L.mid ? `Bezirk ${esc(ctx.r.bn)}: ${U('aph_pl80', ctx.L.mid)} Plätze pro 1000 80+` : `${ctx.L.refLab}: ${U('aph_pl80', ctx.kt)} Plätze pro 1000 80+` },
@@ -82,13 +82,13 @@ export function blick(ctx) {
   const TAG = { heute: `Heute ${S.meta.jahr}`, rueckblick: `Rückblick seit ${a0}`, ausblick: `Prognose ${j}` };
   return {
     lead: `${esc(name)} wird älter: ${k.g80j != null && k.g80j > 0 ? `bis ${j} wächst die Zahl der Menschen ab 80 um rund ${sign(k.g80j)}` : `die Zahl der Menschen ab 80 bleibt bis ${j} etwa gleich`}.`,
-    body: `<ol class="facts">${facts.filter(Boolean).map((f) => `<li class="${f.t}"><span class="ftag">${TAG[f.t]}</span><p>${f.s}</p><span class="fc">${f.c}</span></li>`).join('')}</ol>`,
+    body: `<ol class="facts">${facts.filter(Boolean).map((f) => `<li class="${f.t}"><span class="ftag">${f.tag || TAG[f.t]}</span><p>${f.s}</p><span class="fc">${f.c}</span></li>`).join('')}</ol>`,
   };
 }
 
 // ------------------------------------------------------------------ 2 · Wer lebt hier?
 export function bevoelkerung(ctx) {
-  const { name, id, d, dK, full } = ctx; const yr = String(S.meta.jahr);
+  const { name, id, d, dK, full } = ctx; const yr = String(S.meta.pop_jahr || S.meta.jahr);
   const w = compareWord(val('a65', id), val('a65', ctx.kt), 'a65');
   const lead = `Die Bevölkerung ${esc(ctx.L.of_name)} ist ${dir(w, 'älter', 'jünger', 'etwa gleich alt')} als ${esc(ctx.L.imName)}: <b>${U('a65', id)}</b> sind 65 oder älter (${cs(ctx, (x) => U('a65', x), ', ')}).`;
   const a = d.pyr[yr]; const ref = dK.pyr[yr];

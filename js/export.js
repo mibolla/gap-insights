@@ -1,7 +1,7 @@
 // Export of charts and their numbers: PNG, PDF, PowerPoint, Excel, CSV.
-import { lightFigure } from './cards.js?v=20261115214001';
+import { lightFigure } from './cards.js?v=20261125191137';
 // Libraries are loaded only when the user exports (keeps the app fast).
-import { toast, esc } from './ui.js?v=20261115214001';
+import { toast, esc } from './ui.js?v=20261125191137';
 
 const LIBS = {
   xlsx: { url: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', global: 'XLSX' },

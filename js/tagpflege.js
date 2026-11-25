@@ -3,8 +3,8 @@
 // Step 1/2: staff per Bezirk (Heim | Spitex) → the Kantone fly into a scatter and become Wappen
 // Step 3/4: services per Bezirk → scatter with Wappen · Step 5: time travel of the services 2012 → reporting year
 // Data: data/tagpflege.json (cop/s8_tagpflege.py), heime.json, spitex.json, geo.json; daily rosters and visit routes are modelled.
-import { S, dataUrl, region, wappen } from './store.js?v=20261115214001';
-import { reduced } from './map.js?v=20261115214001';
+import { S, dataUrl, region, wappen } from './store.js?v=20261125191137';
+import { reduced } from './map.js?v=20261125191137';
 
 let TP = null, HE = null, SX = null;
 const load = () => Promise.all([
@@ -126,19 +126,21 @@ export async function tagpflegeChapter(map, setTip, alive, opts = {}) {
   const kCls = (v, br) => br.filter((b) => v > b).length;
   const KS = T.kt, KTL = KTS.filter((k) => KS[k] && T.lts.kt[k]);
   const KTN = Object.fromEntries(KTL.map((k) => [k, region(`KT:${k}`)?.n || k]));
+  const KC = T.kt_ch || [N.heim_vzae, N.spx_vzae, N.bev80, N.heim_tage, N.spx_std];   // Swiss reference of the Kanton scatter (BFS)
+  const KJ = T.kt_jahr ? ` ${T.kt_jahr} (BFS)` : '';
   const VIEWS = [
-    { mapTitle: 'Pflegepersonal pro 1000 Menschen ab 80, nach Bezirk', scTitle: 'Personal: Heim und Spitex im Vergleich, nach Kanton', legLabel: 'Vollzeitstellen pro 1000 ab 80, Quintile der Bezirke',
+    { mapTitle: 'Pflegepersonal pro 1000 Menschen ab 80, nach Bezirk', scTitle: `Personal: Heim und Spitex im Vergleich, nach Kanton${KJ}`, legLabel: 'Vollzeitstellen pro 1000 ab 80, Quintile der Bezirke',
       xLab: 'Pflegeheime: Vollzeitstellen pro 1000 Menschen ab 80 →', yLab: 'Spitex: Vollzeitstellen pro 1000 Menschen ab 80 →', XR: [120, 300], XS: 30, YR: [20, 110], YS: 20,
       bez: [(b) => b[0] / b[2] * 1000, (b) => b[1] / b[2] * 1000], kt: [(v) => v[0] / v[2] * 1000, (v) => v[1] / v[2] * 1000],
-      ch: [N.heim_vzae / N.bev80 * 1000, N.spx_vzae / N.bev80 * 1000], corner: ['viel Personal im Heim und bei der Spitex', 'wenig von beidem'] },
-    { mapTitle: 'Leistungen pro Mensch ab 80 und Jahr, nach Bezirk', scTitle: 'Leistungen: Heim und Spitex im Vergleich, nach Kanton', legLabel: 'pro Mensch ab 80 und Jahr, Quintile der Bezirke',
+      ch: [KC[0] / KC[2] * 1000, KC[1] / KC[2] * 1000], chMap: [N.heim_vzae / N.bev80 * 1000, N.spx_vzae / N.bev80 * 1000], corner: ['viel Personal im Heim und bei der Spitex', 'wenig von beidem'] },
+    { mapTitle: 'Leistungen pro Mensch ab 80 und Jahr, nach Bezirk', scTitle: `Leistungen: Heim und Spitex im Vergleich, nach Kanton${KJ}`, legLabel: 'pro Mensch ab 80 und Jahr, Quintile der Bezirke',
       tTitle: `Leistungen ${T.lts.years[0]} → ${T.lts.years[T.lts.years.length - 1]}: weniger Heim, mehr Spitex – blass = ${T.lts.years[0]}, kräftig = heute`,
       xLab: 'Pflegeheime: Pflegetage pro Mensch ab 80 und Jahr →', yLab: 'Spitex: Stunden pro Mensch ab 80 und Jahr →', XR: [40, 140], XS: 20, YR: [20, 100], YS: 20, time: true,
       bez: [(b) => b[3] / b[2], (b) => b[4] / b[2]], kt: [(v) => v[3] / v[2], (v) => v[4] / v[2]],
-      ch: [N.heim_tage / N.bev80, N.spx_std / N.bev80], corner: ['viel Pflege im Heim und viel Spitex', 'wenig von beidem'], units: ['Tage', 'Std.'] },
+      ch: [KC[3] / KC[2], KC[4] / KC[2]], chMap: [N.heim_tage / N.bev80, N.spx_std / N.bev80], corner: ['viel Pflege im Heim und viel Spitex', 'wenig von beidem'], units: ['Tage', 'Std.'] },
   ];
   VIEWS.forEach((V) => { V.ser = [0, 1].map((m) => { const v = BV.map(V.bez[m]); const so = [...v].sort((a, b) => a - b);
-    return { key: m ? 'Spitex' : 'Pflegeheime', col: m ? '#6eebd6' : '#f4a94c', v, ch: V.ch[m], lo: so[0], hi: so[so.length - 1], br: [0.2, 0.4, 0.6, 0.8].map((x) => so[Math.floor(x * (so.length - 1))]), unit: V.units ? V.units[m] : '' }; }); });
+    return { key: m ? 'Spitex' : 'Pflegeheime', col: m ? '#6eebd6' : '#f4a94c', v, ch: (V.chMap || V.ch)[m], lo: so[0], hi: so[so.length - 1], br: [0.2, 0.4, 0.6, 0.8].map((x) => so[Math.floor(x * (so.length - 1))]), unit: V.units ? V.units[m] : '' }; }); });
   const LT = T.lts, LY = LT.years, Y1 = LY[LY.length - 1];
   const ltAt = (arr, yr) => { const k = Math.max(0, Math.min(LY.length - 2, Math.floor(yr - LY[0]))), f = Math.max(0, Math.min(1, yr - LY[k])); const a = arr[k], b = arr[k + 1]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; };
   const MAPS = { sc: 0.47 }; MAPS.oy = (H - 632 * MAPS.sc) / 2 + 26; MAPS.ox = [14, 14 + W / 2];

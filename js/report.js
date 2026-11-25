@@ -1,9 +1,9 @@
 // Gemeindebericht: options dialog and assembly of a self-contained HTML report (inline CSS + SVG, no scripts needed).
-import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261115214001';
-import { loadProg, roundProg } from './prog.js?v=20261115214001';
-import { esc, toast } from './ui.js?v=20261115214001';
-import * as story from './report_story.js?v=20261115214001';
-import { locatorKanton, locatorCH } from './report_svg.js?v=20261115214001';
+import { S, region, detail, fmtInt, fmt, setPrefs, prefs, wappen, groupMembers, groupLabelFor, shortName } from './store.js?v=20261125191137';
+import { loadProg, roundProg } from './prog.js?v=20261125191137';
+import { esc, toast } from './ui.js?v=20261125191137';
+import * as story from './report_story.js?v=20261125191137';
+import { locatorKanton, locatorCH } from './report_svg.js?v=20261125191137';
 
 const FN = { blick: story.blick, bevoelkerung: story.bevoelkerung, entwicklung: story.entwicklung, wohnen: story.wohnen,
   versorgung: story.versorgung, ausblick: story.ausblick, vergleich: story.vergleich, planung: story.planung };
@@ -182,13 +182,13 @@ export async function buildReport(id, { level = 'kompakt', j = S.meta.prog.defau
     <h1>${wap ? `<img class="wappen" src="${wap}" alt="Wappen ${esc(L.name)}">` : ''}${esc(title)}</h1>
     <p class="sub">${esc(fill(R.subtitle, ctx))}</p>
     <p class="where">${esc(L.where)}</p>
-    <div class="kf"><span><b>${fmtInt(r.pop)}</b>Einwohner ${S.meta.jahr}</span><span><b>${fmt(story.keyNumbers(ctx).b80 / r.pop * 100, { dec: 1 })} %</b>ab 80 Jahren</span>
+    <div class="kf"><span><b>${fmtInt(r.pop)}</b>Einwohner ${S.meta.pop_jahr || S.meta.jahr}</span><span><b>${fmt(story.keyNumbers(ctx).b80 / r.pop * 100, { dec: 1 })} %</b>ab 80 Jahren</span>
       <span><b>${d.aph && d.aph.heime ? fmtInt(d.aph.plaetze) : '–'}</b>Pflegeheimplätze</span><span><b>${fmtInt(roundProg(story.keyNumbers(ctx).b80j, 'Personen'))}</b>ab 80 im Jahr ${j} (rund)</span></div>
   </div>
   <div class="cover-maps">${locatorKanton(id)}${locatorCH(id)}</div>
 </div>
 <dl class="meta"><div><dt>Umfang</dt><dd>${esc(lv.label)} (${esc(lv.pages)})</dd></div><div><dt>Ausblick</dt><dd>BFS-Szenario ${esc(v)}, Zieljahr ${j}</dd></div><div><dt>Vergleich</dt><dd>${esc(gl)}${grp.length ? ` (${grp.length})` : ''}</dd></div>
-  <div><dt>Datenstand</dt><dd>${S.meta.jahr} (Zeitreihen ab ${S.meta.alter_jahre[0]})</dd></div><div><dt>Erstellt</dt><dd>${esc(today)}</dd></div>
+  <div><dt>Datenstand</dt><dd>Bevölkerung ${S.meta.pop_jahr || S.meta.jahr}, Pflege ${S.meta.jahr} (Zeitreihen ab ${S.meta.alter_jahre[0]})</dd></div><div><dt>Erstellt</dt><dd>${esc(today)}</dd></div>
   <div><dt>In der App</dt><dd><a href="${esc(link)}">${esc(L.name)} in GAP-Insights öffnen</a></dd></div></dl>
 </header>
 <div class="layout">
