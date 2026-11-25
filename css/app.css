@@ -888,7 +888,6 @@ details.how p { margin-top: 6px; }
 
 /* landing «Ins Heim in einen anderen Kanton» (js/flows.js) */
 .mob-fx { pointer-events: none; }
-.mob-fx marker path { fill: #f5a623; }
 .mob-arrow { transition: opacity .35s; }
 .mob-arrow .body { fill: none; stroke: #f5a623; stroke-opacity: 1; stroke-linecap: round; }
 .mob-arrow .flow { fill: none; stroke: #fff3d6; stroke-opacity: .9; stroke-linecap: round; stroke-dasharray: 2 9; animation: mobFlow 1.1s linear infinite; }
@@ -903,7 +902,8 @@ details.how p { margin-top: 6px; }
 .mob-top .arr { color: var(--faint); margin: 0 2px; }
 .mob-top li b { float: right; }
 .mob-arrow { transition: opacity .45s ease; }
-.mob-arrow .body { transition: stroke .45s ease, stroke-width .45s ease; }
+.mob-arrow .body { transition: stroke .45s ease, stroke-width .45s ease; stroke-linecap: butt; }
+.mob-arrow .head { fill: #f5a623; stroke: none; transition: fill .45s ease; }
 .mob-labs g.in rect { stroke: #e0605a; } .mob-labs g.out rect { stroke: #4a90d9; }
 .mob-labs g.in text { fill: #e0605a; } .mob-labs g.out text { fill: #4a90d9; }
 .mob-akey i { display: inline-block; width: 14px; height: 6px; border-radius: 2px; margin: 0 2px 0 6px; vertical-align: middle; }
@@ -911,15 +911,15 @@ details.how p { margin-top: 6px; }
 .map.tip-side .map-tip .tr.in b { color: #e0605a; } .map.tip-side .map-tip .tr.out b { color: #4a90d9; }
 .mob-race { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .mob-race svg { width: 100%; height: auto; overflow: visible; }
-.mob-race .z { stroke: var(--line); }
-.mob-race g { transition: transform .7s cubic-bezier(.3, .7, .2, 1); }
-.mob-race text { font-size: 10.5px; fill: var(--ink); }
-.mob-race .rk { fill: var(--faint); }
-.mob-race .kt { font-weight: 600; }
-.mob-race g.fk .kt, .mob-race g.fk .v { font-weight: 800; }
-.mob-race rect.pos { fill: #e0605a; } .mob-race rect.neg { fill: #4a90d9; }
-.mob-race rect { transition: x .3s, width .3s; }
-@media (prefers-reduced-motion: reduce) { .mob-arrow .flow, .mob-bub circle.rip { animation: none; } .mob-race g, .mob-arrow, .mob-arrow .body { transition: none; } }
+.mob-race .gl { stroke: var(--line); stroke-width: .6; } .mob-race .z0 { stroke: var(--faint); stroke-width: 1; }
+.mob-race .tk { font-size: 9px; fill: var(--faint); }
+.mob-race .lab { font-size: 9px; font-weight: 700; } .mob-race .lab.in { fill: #e0605a; } .mob-race .lab.out { fill: #4a90d9; }
+.mob-race .ln { fill: none; stroke: var(--faint); stroke-width: 1; opacity: .55; stroke-linejoin: round; }
+.mob-race .ln.fk { stroke-width: 2.4; opacity: 1; } .mob-race .ln.fk.pos { stroke: #e0605a; } .mob-race .ln.fk.neg { stroke: #4a90d9; }
+.mob-race .hd circle { fill: var(--faint); } .mob-race .hd.fk circle { fill: var(--ink); }
+.mob-race .hd .ld { stroke: var(--faint); stroke-width: .6; }
+.mob-race .hd .v { font-size: 9.5px; font-weight: 700; fill: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .mob-arrow .flow, .mob-bub circle.rip { animation: none; } .mob-arrow, .mob-arrow .body { transition: none; } }
 .mob-bub circle.port { fill: none; stroke: var(--ink); stroke-opacity: .25; stroke-width: .6; stroke-dasharray: 1.5 2; }
 .mob-bub circle.net { fill: #9aa5b1; fill-opacity: .42; stroke-width: 1.1; }
 .mob-bub .pos circle.net { fill: #e0605a; stroke: #e0605a; } .mob-bub .neg circle.net { fill: #4a90d9; stroke: #4a90d9; }

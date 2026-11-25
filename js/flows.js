@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out). Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125221818';
-import { reduced } from './map.js?v=20261125221818';
-import { esc, main } from './ui.js?v=20261125221818';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125222701';
+import { reduced } from './map.js?v=20261125222701';
+import { esc, main } from './ui.js?v=20261125222701';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -53,7 +53,6 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     root.querySelector('.mob-fx')?.remove();
     const fx = document.createElementNS(NS, 'g'); fx.setAttribute('class', 'mob-fx'); root.appendChild(fx);
     const MK = { ...Object.fromEntries(ICOL.map((c, i) => [`i${i}`, c])), in: C_IN, out: C_OUT };
-    fx.innerHTML = `<defs>${Object.entries(MK).map(([k, c]) => `<marker id="mobH-${k}" viewBox="0 0 10 10" refX="9.5" refY="5" markerWidth="2.4" markerHeight="2.4" orient="auto" markerUnits="strokeWidth"><path d="M0 0L10 5L0 10z" fill="${c}"/></marker>`).join('')}</defs>`;
     const at = (arr, y) => { const k = Math.min(last - 1, Math.max(0, Math.floor(y - Y[0]))), f = Math.max(0, Math.min(1, y - Y[0] - k)); return arr[k] + (arr[k + 1] - arr[k]) * f; };
     // collector bubbles: every Kanton gets a circle; arrows arrive on its border, each at its own port
     const PAIRS = D.flows.filter((f) => Math.max(...f[2]) >= MIN_PAIR && A[f[0]] && A[f[1]]);
@@ -102,8 +101,12 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       const c0 = [s0[0] + Math.cos(a0) * k1, s0[1] + Math.sin(a0) * k1], c1 = [s1[0] + Math.cos(a1) * k1, s1[1] + Math.sin(a1) * k1];
       const d0 = `M${s0[0].toFixed(1)} ${s0[1].toFixed(1)}C${c0[0].toFixed(1)} ${c0[1].toFixed(1)} ${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${s1[0].toFixed(1)} ${s1[1].toFixed(1)}`;
       const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'mob-arrow');
-      g.innerHTML = `<path class="body" d="${d0}"/><path class="flow" d="${d0}"/>`;
-      f.g = g; f.body = g.firstChild; f.flow = g.lastChild;
+      g.innerHTML = `<path class="body" d="${d0}"/><path class="flow" d="${d0}"/><path class="head"/>`;
+      f.g = g; [f.body, f.flow, f.head] = g.children;
+      // the arrowhead is its own triangle (SVG markers do not always repaint when their colour changes):
+      // tip on the circle border, the body ends at the base of the head
+      const dl = Math.hypot(s1[0] - c1[0], s1[1] - c1[1]) || 1;
+      Object.assign(f, { s0, c0, c1, s1, dir: [(s1[0] - c1[0]) / dl, (s1[1] - c1[1]) / dl], w: -1 });
       f.mid = [0.125 * s0[0] + 0.375 * c0[0] + 0.375 * c1[0] + 0.125 * s1[0], 0.125 * s0[1] + 0.375 * c0[1] + 0.375 * c1[1] + 0.125 * s1[1]];
     });
     F.sort((a2, b2) => Math.max(...b2.ns) - Math.max(...a2.ns));
@@ -127,9 +130,17 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       F.forEach((f, i) => {
         const n = cur[i], on = !focus || f.o === focus || f.d === focus, vis = n >= MIN_SHOW;
         f.g.style.opacity = !vis ? 0 : on ? 1 : 0.06;
-        const w = W_OF(n).toFixed(2); f.body.style.strokeWidth = w; f.flow.style.strokeWidth = Math.max(0.5, W_OF(n) * 0.3).toFixed(2);
+        const wn = W_OF(n);
+        if (Math.abs(wn - f.w) > 0.02) {               // geometry follows the width: body to the base, head scaled
+          f.w = wn; const hl = wn * 1.9 + 2.5, hw = wn * 1.15 + 1.8, [dx, dy] = f.dir;
+          const b = [f.s1[0] - dx * hl, f.s1[1] - dy * hl], c1 = [f.c1[0] - dx * hl, f.c1[1] - dy * hl];
+          const d = `M${f.s0[0].toFixed(1)} ${f.s0[1].toFixed(1)}C${f.c0[0].toFixed(1)} ${f.c0[1].toFixed(1)} ${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${(b[0] + dx * 0.6).toFixed(1)} ${(b[1] + dy * 0.6).toFixed(1)}`;
+          f.body.setAttribute('d', d); f.flow.setAttribute('d', d);
+          f.head.setAttribute('d', `M${f.s1[0].toFixed(1)} ${f.s1[1].toFixed(1)}L${(b[0] - dy * hw).toFixed(1)} ${(b[1] + dx * hw).toFixed(1)}L${(b[0] + dy * hw).toFixed(1)} ${(b[1] - dx * hw).toFixed(1)}Z`);
+          f.body.style.strokeWidth = wn.toFixed(2); f.flow.style.strokeWidth = Math.max(0.5, wn * 0.3).toFixed(2);
+        }
         const mk = focus && on ? (f.d === focus ? 'in' : 'out') : `i${classOf(n, IBR)}`;
-        if (mk !== f.mk) { f.mk = mk; f.body.style.stroke = MK[mk]; f.body.setAttribute('marker-end', `url(#mobH-${mk})`); }
+        if (mk !== f.mk) { f.mk = mk; f.body.style.stroke = MK[mk]; f.head.style.fill = MK[mk]; }
       });
       D.kts.forEach((k) => { const b2 = bub[k]; if (!b2) return;
         const n = at(NET[k], y), r = Math.min(R[k], RN(n)).toFixed(1), on = !focus || focus === k || F.some((f) => (f.o === focus && f.d === k) || (f.d === focus && f.o === k));
@@ -153,24 +164,45 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       [2011, 'Luzern → Obwalden und Basel-Landschaft → Basel-Stadt beginnen zu wachsen; die Wege nach Bern werden schmaler.'],
       [2017, 'Obwalden wird zum Heimkanton der Zentralschweiz: Luzerner und Nidwaldner ziehen in seine Heime.'],
       [Y[last], `${Y[last]}: Obwalden nimmt netto ${fmtInt(Math.round(NET.OW[last]))} Menschen auf – fast doppelt so viele wie Bern. Basel-Stadt nimmt auf statt abzugeben, Zürich ist ausgeglichen.`]];
-    const RK = D.kts, rowH = 17, RW = 380, xz = 200, half = 118, nmax = Math.max(...RK.flatMap((k) => NET[k].map(Math.abs)));
-    let rorder = '';
-    if (mode === 'time' && rb0) rb0.innerHTML = `<span class="small muted">Rennen der Kantone: Saldo aufgenommen − abgegeben</span>
-      <svg viewBox="0 0 ${RW} ${RK.length * rowH + 4}"><line class="z" x1="${xz}" x2="${xz}" y1="0" y2="${RK.length * rowH + 4}"/>
-      ${RK.map((k) => `<g data-k="${k}" class="${FOCUS.has(k) ? 'fk' : ''}" style="transform:translate(0px,0px)"><text class="rk" x="14" y="${rowH * 0.72}" text-anchor="end"></text>
-        <image href="${wappen(`KT:${k}`)}" x="19" y="1.5" width="${rowH - 3}" height="${rowH - 3}"/><text class="kt" x="${21 + rowH}" y="${rowH * 0.72}">${k}</text>
-        <rect y="3" height="${rowH - 6}" rx="2"/><text class="v num" x="${RW - 2}" y="${rowH * 0.72}" text-anchor="end"></text></g>`).join('')}</svg>`;
-    const rows = Object.fromEntries(RK.map((k) => [k, rb0?.querySelector(`g[data-k="${k}"]`)]));
+    // «Rennen der Kantone» as time series: one balance line per Kanton, Wappen at the line head
+    const RK = D.kts.filter((k) => NET[k]), RW = 380, RH = 300, L0 = 34, R0 = RW - 70, T0 = 10, B0 = RH - 20;
+    const all = RK.flatMap((k) => NET[k]), vmin = Math.min(...all), vmax = Math.max(...all);
+    const lo = Math.floor(vmin / 100) * 100, hi = Math.ceil(vmax / 100) * 100;
+    const rx = (yy) => L0 + (yy - Y[0]) / (Y[last] - Y[0]) * (R0 - L0), ry = (v) => B0 - (v - lo) / (hi - lo) * (B0 - T0);
+    if (mode === 'time' && rb0) rb0.innerHTML = `<span class="small muted">Rennen der Kantone: Saldo aufgenommen − abgegeben, ${Y[0]}–${Y[last]}</span>
+      <svg viewBox="0 0 ${RW} ${RH}" role="img" aria-label="Saldo der Kantone ${Y[0]} bis ${Y[last]}">
+      ${Array.from({ length: Math.floor((hi - Math.ceil(lo / 200) * 200) / 200) + 1 }, (_, i) => Math.ceil(lo / 200) * 200 + i * 200).map((v) => `<line class="${v === 0 ? 'z0' : 'gl'}" x1="${L0}" x2="${R0}" y1="${ry(v)}" y2="${ry(v)}"/><text class="tk" x="${L0 - 4}" y="${ry(v) + 3}" text-anchor="end">${v > 0 ? '+' : ''}${fmtInt(v)}</text>`).join('')}
+      <text class="tk" x="${L0}" y="${RH - 4}">${Y[0]}</text><text class="tk" x="${R0}" y="${RH - 4}" text-anchor="end">${Y[last]}</text>
+      <text class="lab in" x="${L0 + 4}" y="${T0 + 10}">nimmt auf</text><text class="lab out" x="${L0 + 4}" y="${B0 - 4}">gibt ab</text>
+      ${RK.map((k) => `<path class="ln${FOCUS.has(k) ? ' fk' : ''}" data-k="${k}" d=""/>`).join('')}
+      ${RK.map((k) => `<g class="hd${FOCUS.has(k) ? ' fk' : ''}" data-k="${k}"><line class="ld"/><circle r="2.2"/><image href="${wappen(`KT:${k}`)}" width="13" height="13"/><text class="v num" x="16" y="10"></text></g>`).join('')}
+      </svg>`;
+    const LN = Object.fromEntries(RK.map((k) => [k, rb0?.querySelector(`path[data-k="${k}"]`)]));
+    const HD = Object.fromEntries(RK.map((k) => [k, rb0?.querySelector(`g.hd[data-k="${k}"]`)]));
     const counters = () => {
       const set = (k, v) => { const e = q(k); if (e) e.textContent = v; };
       set('year', Math.min(Y[last], Math.floor(y + 1e-9))); set('beat', beats.reduce((s2, b2) => (y >= b2[0] ? b2[1] : s2), beats[0][1]));
       if (mode !== 'time' || !rb0) return;
-      const v = Object.fromEntries(RK.map((k) => [k, at(NET[k], y)]));
-      const o = [...RK].sort((a2, b2) => v[b2] - v[a2]);
-      if (o.join() !== rorder) { rorder = o.join(); o.forEach((k, r) => { if (rows[k]) { rows[k].style.transform = `translate(0px,${(r * rowH + 2).toFixed(1)}px)`; rows[k].querySelector('.rk').textContent = r + 1; } }); }
-      RK.forEach((k) => { const g2 = rows[k]; if (!g2) return; const w = Math.abs(v[k]) / nmax * half, rc = g2.querySelector('rect');
-        rc.setAttribute('x', (v[k] >= 0 ? xz : xz - w).toFixed(1)); rc.setAttribute('width', Math.max(0.5, w).toFixed(1)); rc.setAttribute('class', v[k] >= 0 ? 'pos' : 'neg');
-        g2.querySelector('.v').textContent = `${v[k] >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(v[k])))}`; });
+      const x = rx(Math.min(y, Y[last])), v = Object.fromEntries(RK.map((k) => [k, at(NET[k], y)]));
+      RK.forEach((k) => {
+        const pts = Y.filter((yy) => yy <= y).map((yy, i) => [rx(yy), ry(NET[k][i])]); pts.push([x, ry(v[k])]);
+        LN[k].setAttribute('d', pts.map(([a2, b2], i) => `${i ? 'L' : 'M'}${a2.toFixed(1)} ${b2.toFixed(1)}`).join(''));
+        LN[k].setAttribute('class', `ln${FOCUS.has(k) ? ' fk' : ''} ${v[k] >= 0 ? 'pos' : 'neg'}`);
+      });
+      // heads: Wappen for Kantone with a clear balance (or the four of the story), spread vertically so they do not overlap
+      const big = RK.filter((k) => FOCUS.has(k) || Math.abs(v[k]) >= 60).sort((a2, b2) => v[b2] - v[a2]);
+      const pos = big.map((k) => ry(v[k]) - 6.5);
+      for (let it = 0; it < 30; it++) for (let i = 1; i < pos.length; i++) if (pos[i] - pos[i - 1] < 13.5) { const d = (13.5 - (pos[i] - pos[i - 1])) / 2; pos[i - 1] -= d; pos[i] += d; }
+      const py = Object.fromEntries(big.map((k, i) => [k, pos[i]]));
+      RK.forEach((k) => {
+        const g2 = HD[k]; if (!g2) return; const yy = ry(v[k]), show = k in py;
+        g2.setAttribute('transform', `translate(${(x + 6).toFixed(1)},0)`);
+        g2.querySelector('circle').setAttribute('cx', -6); g2.querySelector('circle').setAttribute('cy', yy.toFixed(1));
+        const im = g2.querySelector('image'), ld = g2.querySelector('.ld'), tx = g2.querySelector('.v');
+        im.style.display = show ? '' : 'none'; ld.style.display = show ? '' : 'none'; tx.style.display = show && FOCUS.has(k) ? '' : 'none';
+        if (show) { im.setAttribute('x', 2); im.setAttribute('y', py[k].toFixed(1)); ld.setAttribute('x1', -6); ld.setAttribute('y1', yy.toFixed(1)); ld.setAttribute('x2', 2); ld.setAttribute('y2', (py[k] + 6.5).toFixed(1));
+          tx.setAttribute('y', (py[k] + 10).toFixed(1)); tx.textContent = `${k} ${v[k] >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(v[k])))}`; }
+      });
     };
     const over = (ev) => { const id = ev.target?.dataset?.id; focus = id && id.startsWith('KT:') ? id.slice(3) : null; draw(); };
     const leave = () => { focus = null; draw(); };
