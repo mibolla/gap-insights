@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125225600';
-import { reduced } from './map.js?v=20261125225600';
-import { esc, main } from './ui.js?v=20261125225600';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125225821';
+import { reduced } from './map.js?v=20261125225821';
+import { esc, main } from './ui.js?v=20261125225821';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -179,12 +179,12 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     // «Rennen der Kantone»: the chart starts as the bar chart of step 2 and morphs into the time series.
     // Phases: morph (bars turn vertical onto the latest year, Wappen fly to their balance) → hold → rewind (bars
     // fade, Wappen semi-transparent slide back to the first year, the map rewinds too) → race (lines grow to the
-    // latest year). The y axis is symmetric-logarithmic, so the crowded range around ±100 gets more room.
+    // latest year). Linear y axis.
     const RK = D.kts.filter((k) => NET[k]), RW = 380, RH = 330, L0 = 40, R0 = RW - 76, T0 = 12, B0 = RH - 22, WS = 11, GAP = 11.6;
-    const all = RK.flatMap((k) => NET[k]), lo = Math.min(...all) * 1.08, hi = Math.max(...all) * 1.08, SC = 40;
-    const sl = (v) => Math.sign(v) * Math.log1p(Math.abs(v) / SC);
+    const all = RK.flatMap((k) => NET[k]), lo = Math.min(...all) * 1.08, hi = Math.max(...all) * 1.08;
+    const sl = (v) => v;                                            // linear y axis
     const rx = (yy) => L0 + (yy - Y[0]) / (Y[last] - Y[0]) * (R0 - L0), ry = (v) => B0 - (sl(v) - sl(lo)) / (sl(hi) - sl(lo)) * (B0 - T0);
-    const TICKS = [-800, -500, -200, -100, -50, 0, 50, 100, 200, 500, 800].filter((v) => v >= lo && v <= hi);
+    const TICKS = Array.from({ length: 13 }, (_, i) => -1200 + i * 200).filter((v) => v >= lo && v <= hi);
     const order25 = [...RK].sort((a2, b2) => NET[b2][last] - NET[a2][last]);
     const rowH = (B0 - T0) / RK.length, xz = L0 + (R0 - L0) * 0.5, half = (R0 - L0) * 0.46, mx25 = Math.max(...RK.map((k) => Math.abs(NET[k][last])));
     if (mode === 'time' && rb0) rb0.innerHTML = `<span class="small muted">Rennen der Kantone: Saldo aufgenommen − abgegeben, ${Y[0]}–${Y[last]}</span>
