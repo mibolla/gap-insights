@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125224534';
-import { reduced } from './map.js?v=20261125224534';
-import { esc, main } from './ui.js?v=20261125224534';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125225600';
+import { reduced } from './map.js?v=20261125225600';
+import { esc, main } from './ui.js?v=20261125225600';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -18,7 +18,7 @@ const IBR = [60, 120, 200];
 const C_IN = '#e0605a', C_OUT = '#4a90d9';                     // hover: arriving (taken in) · leaving (sent out)
 const W_OF = (n) => 0.6 + Math.sqrt(n) * 0.45;        // arrow width in map units: 20 → 2.6, 100 → 5.1, 364 → 9.2
 const RN = (v) => Math.sqrt(Math.abs(v)) * 0.85;       // net circle: area ~ |taken in − sent out| (692 → 22)
-const FOCUS = new Set(['OW', 'BS', 'BE', 'ZH']);
+const FOCUS = new Set(['OW', 'BS', 'BE', 'ZH', 'LU']);     // Kantone of the story: coloured, thick, with value
 // line colour per Kanton, after the main colour of its coat of arms (black/white Kantone use the theme ink)
 const KCOL = { ZH: '#1f6fd1', BE: '#f2b705', LU: '#5aa9e6', UR: '#f6d000', SZ: '#e2231a', OW: '#d7263d', NW: '#b5172e',
   GL: '#a3192b', ZG: '#3b8fd9', FR: 'var(--muted)', SO: '#ef3340', BS: 'var(--ink)', BL: '#c8102e', SH: '#e0b100',
@@ -240,7 +240,7 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
         if (phase === 'race') {
           const pts = Y.filter((yy) => yy <= y).map((yy, i) => [rx(yy), ry(NET[k][i])]); pts.push([x, ry(v[k])]);
           LN[k].setAttribute('d', pts.map(([a2, b2], i) => `${i ? 'L' : 'M'}${a2.toFixed(1)} ${b2.toFixed(1)}`).join(''));
-          LN[k].style.stroke = KCOL[k] || 'var(--faint)';
+          LN[k].style.stroke = FOCUS.has(k) ? KCOL[k] : '';            // others: thin grey (CSS)
         } else LN[k].setAttribute('d', '');
         head(k, x, ry(v[k]), x + 8, py[k], op, `${k} ${fmtV(v[k])}`);
         HD[k].querySelector('circle').style.opacity = 1; HD[k].querySelector('.ld').style.opacity = 1;
