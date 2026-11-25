@@ -914,8 +914,10 @@ details.how p { margin-top: 6px; }
 .mob-race .gl { stroke: var(--line); stroke-width: .6; } .mob-race .z0 { stroke: var(--faint); stroke-width: 1; }
 .mob-race .tk { font-size: 9px; fill: var(--faint); }
 .mob-race .lab { font-size: 9px; font-weight: 700; } .mob-race .lab.in { fill: #e0605a; } .mob-race .lab.out { fill: #4a90d9; }
-.mob-race .ln { fill: none; stroke: var(--faint); stroke-width: 1; opacity: .55; stroke-linejoin: round; }
-.mob-race .ln.fk { stroke-width: 2.4; opacity: 1; } .mob-race .ln.fk.pos { stroke: #e0605a; } .mob-race .ln.fk.neg { stroke: #4a90d9; }
+.mob-race .ln { fill: none; stroke: var(--faint); stroke-width: 1.2; opacity: .6; stroke-linejoin: round; }
+.mob-race .ln.fk { stroke-width: 2.8; opacity: 1; }
+.mob-race .mbars rect.pos { fill: #e0605a; } .mob-race .mbars rect.neg { fill: #4a90d9; }
+.mob-race .yrl { font-size: 54px; font-weight: 700; fill: var(--ink); opacity: .12; }
 .mob-race .hd circle { fill: var(--faint); } .mob-race .hd.fk circle { fill: var(--ink); }
 .mob-race .hd .ld { stroke: var(--faint); stroke-width: .6; }
 .mob-race .hd .v { font-size: 9.5px; font-weight: 700; fill: var(--ink); }
