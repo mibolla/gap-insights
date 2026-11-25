@@ -4,9 +4,9 @@
 // (Bezirk values are complete; inside the Bezirk a Gemeinde is picked by its people 65+). The card counts the
 // people and shows an index chart (number vs share, first year = 100). At the end the map turns into the change
 // of the share in percentage points (diverging colours), then the time travel starts again.
-import { S, region, fmtInt, fmt, classOf, dataUrl } from './store.js?v=20261125191137';
-import { legendHTML, reduced } from './map.js?v=20261125191137';
-import { main } from './ui.js?v=20261125191137';
+import { S, region, fmtInt, fmt, classOf, dataUrl } from './store.js?v=20261125201421';
+import { legendHTML, reduced } from './map.js?v=20261125201421';
+import { main } from './ui.js?v=20261125201421';
 
 let AL = null;
 const load = () => (AL = AL || fetch(dataUrl('alleinleben.json')).then((r) => r.json()));

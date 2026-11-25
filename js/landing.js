@@ -1,5 +1,5 @@
 // Landing page: hero (search, rotating facts, map), scroll story, choice of entry, compact sources.
-import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125191137';
+import { S, val, region, detail, fmtInt, fmt, fmtUnit, quantiles, classOf, plusMinus, prefs, dataUrl, regionLabel, wappen } from './store.js?v=20261125201421';
 
 /** a clicked Gemeinde → the region of the preferred level («Ebene» in the top bar) */
 const toLevel = (id) => {
@@ -7,12 +7,14 @@ const toLevel = (id) => {
   if (!r || r.e !== 'GDE' || e === 'GDE') return id;
   return e === 'BEZ' ? r.bez : e === 'KT' ? `KT:${r.kt}` : 'CH';
 };
-import { createMap, legendHTML, reduced } from './map.js?v=20261125191137';
-import { omnibox } from './search.js?v=20261125191137';
-import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125191137';
-import { alleinChapter, alleinSteps } from './allein.js?v=20261125191137';
-import { esc, main } from './ui.js?v=20261125191137';
-import { loadProg, pval, roundProg } from './prog.js?v=20261125191137';
+import { createMap, legendHTML, reduced } from './map.js?v=20261125201421';
+import { omnibox } from './search.js?v=20261125201421';
+import { tagpflegeChapter, tagpflegeSteps } from './tagpflege.js?v=20261125201421';
+import { alleinChapter, alleinSteps } from './allein.js?v=20261125201421';
+import { besaChapter, besaSteps, besaExtra } from './besa.js?v=20261125201421';
+import { flowsChapter, flowsSteps, flowsExtra } from './flows.js?v=20261125201421';
+import { esc, main } from './ui.js?v=20261125201421';
+import { loadProg, pval, roundProg } from './prog.js?v=20261125201421';
 
 let cleanup = [];
 export function teardown() { cleanup.forEach((f) => f()); cleanup = []; }
@@ -72,6 +74,19 @@ export function render() {
     steps: alleinSteps(y0, y1), ctl: {} };
   alCh.map = (m, t, alive) => alleinChapter(m, t, alive, { ctl: alCh.ctl, initStep: () => alCh.s || 0, staticView: () => colourBy(m, 'al65', 'gde', t),
     scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
+  const besaCh = { id: 'besa', title: 'Wie viel Pflege brauchen Heimbewohnende?', big: `Stufe ${fmt(M.besa_ch || 6.4, { dec: 1 })}`,
+    text: `ist die mittlere Pflegestufe in den Schweizer Pflegeheimen (${M.jahr}). Jede Bewohnerin und jeder Bewohner erhält eine von 12 KVG-Pflegestufen – je 20 Minuten Pflege pro Tag eine Stufe. Die Karte zeigt die Bezirke: von gut 4 in Graubünden und der Ostschweiz bis über 9 im Jura und am Genfersee.`,
+    extra: besaExtra, src: `BAG Kennzahlen der Schweizer Pflegeheime ${M.jahr} · BFS Statistik der sozialmedizinischen Institutionen ${y0}–${y1}`,
+    thema: 'leistungen', q: 'plaetze', cap: `Mittlere Pflegestufe in Pflegeheimen nach Bezirk, ${M.jahr}`, steps: besaSteps(y0, M.besa_y1 || y1), ctl: {} };
+  besaCh.map = (m, t, alive) => besaChapter(m, t, alive, { ctl: besaCh.ctl, initStep: () => besaCh.s || 0,
+    scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
+  const MB = M.mob || { inter: 6544, share: 3.8, y0: 2006, y1: y1 };
+  const mobCh = { id: 'mob', title: 'Ins Heim in einen anderen Kanton', big: fmtInt(MB.inter),
+    text: `Menschen lebten ${MB.y1} in einem Alters- und Pflegeheim ausserhalb ihres Wohnkantons – ${fmt(MB.share, { dec: 1 })} % aller Heimbewohnenden. Jeder Lichtpunkt steht für 15 von ihnen, er wandert vom Wohnkanton zum Kanton des Heims. Die Farbe zeigt, wie viele Bewohnende eines Kantons von ausserhalb kommen.`,
+    extra: flowsExtra, src: `BFS, Statistik der sozialmedizinischen Institutionen: Klientenwanderung ${MB.y0}–${MB.y1}`,
+    thema: 'inanspruchnahme', q: 'plaetze', cap: `Heimbewohnende nach Wohnkanton und Kanton des Heims, ${MB.y1}`, steps: flowsSteps(MB.y0, MB.y1), ctl: {} };
+  mobCh.map = (m, t, alive) => flowsChapter(m, t, alive, { ctl: mobCh.ctl, initStep: () => mobCh.s || 0,
+    scope: document.getElementById('story'), legendEl: () => document.getElementById('storyLegend') });
   const chapters = [
     { n: 'Kapitel 1', title: 'Älter werden', big: `${plusMinus(ch('g80'))} %`, text: `So stark ist die Zahl der Menschen ab 80 Jahren in der Schweiz von ${y0} bis ${y1} gewachsen. Der Anteil der Menschen ab 65 beträgt heute ${fmt(ch('a65'), 'a65')} %. Die Karte zeigt den Anteil der über 80-Jährigen in jeder Gemeinde.`,
       src: `BFS STATPOP ${y0}–${y1}`, map: (m, t) => colourBy(m, 'a80', 'gde', t), thema: 'alter', q: 'entwicklung', cap: `Anteil der Menschen ab 80 Jahren, ${y1}` },
@@ -80,6 +95,8 @@ export function render() {
     alCh,
     { n: 'Kapitel 3', title: 'Pflege im Heim', big: fmt(ch('aph_pl80'), 'aph_pl80'), text: `Langzeitplätze in Alters- und Pflegeheimen gibt es in der Schweiz pro 1000 Menschen ab 80. Die Kantone unterscheiden sich stark. Die Punkte zeigen die Heime an ihrem Standort (Grösse = Plätze) – Heime versorgen auch die Nachbargemeinden.`,
       src: `BAG / SOMED ${M.jahr}`, map: (m, t, alive) => { const l = colourBy(m, 'aph_pl80', 'kt', t); heimPoints(m, alive); return l; }, thema: 'inanspruchnahme', q: 'plaetze', cap: 'Pflegeheimplätze pro 1000 Menschen ab 80, nach Kanton' },
+    besaCh,
+    mobCh,
     (() => { const H = M.heime; const far = region(H.max_gde);
       return { n: '', title: 'Heime in der Nähe', big: `${fmt(H.anteil_5km, { dec: 1 })} %`,
         text: `der Menschen ab 80 leben in einer Gemeinde, deren Mitte höchstens 5 km vom nächsten Alters- und Pflegeheim entfernt ist. Jeder Punkt ist eines der ${fmtInt(H.heime)} Heime – je grösser, desto mehr Plätze. In ${H.far_gde} Gemeinden sind es mehr als 10 km, am weitesten in ${esc(far ? far.n : '')} (${fmt(H.max_km, { dec: 0 })} km).`,
