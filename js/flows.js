@@ -5,9 +5,9 @@
 // Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125231132';
-import { reduced } from './map.js?v=20261125231132';
-import { esc, main } from './ui.js?v=20261125231132';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125231344';
+import { reduced } from './map.js?v=20261125231344';
+import { esc, main } from './ui.js?v=20261125231344';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
@@ -288,7 +288,7 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
             renderRace(op); draw();
             if (pt >= 1) { phase = 'race'; pt = 0; y = Y[0]; if (bars) bars.style.display = 'none'; }
           } else {
-            y = Math.min(Y[last], y + dt * 0.8);               // race speed: years per second
+            y = Math.min(Y[last], y + dt * 1.5);               // race speed: years per second
             op = Math.min(1, op + dt * 1.2);
             if (y >= Y[last] && op >= 1) finish();          // the race ends at the latest year and stays there
             const yi = Math.floor(y + 1e-9); if (yi !== shown) { shown = yi; paintKt(yi); }
