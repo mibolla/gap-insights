@@ -942,3 +942,9 @@ details.how p { margin-top: 6px; }
 .map.tip-side .map-tip .tr:first-of-type { margin-top: 4px; }
 .map.tip-side .map-tip .sal { border-top: 1px solid rgba(127, 127, 127, .4); margin-top: 3px; padding-top: 3px; }
 .map.tip-side .map-tip .sal.pos b { color: #ef8a62; } .map.tip-side .map-tip .sal.neg b { color: #67a9cf; }
+.mob-bars { margin-top: 8px; }
+.mob-bars svg { width: 100%; height: auto; }
+.mob-bars .z { stroke: var(--line); }
+.mob-bars text { font-size: 10.5px; fill: var(--ink); } .mob-bars .rk { fill: var(--faint); } .mob-bars .kt { font-weight: 600; }
+.mob-bars rect.pos { fill: #e0605a; } .mob-bars rect.neg { fill: #4a90d9; }
+.mob-bars .v.pos { fill: #e0605a; font-weight: 700; } .mob-bars .v.neg { fill: #4a90d9; font-weight: 700; }

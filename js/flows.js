@@ -2,18 +2,16 @@
 // Pflegeheime by home Kanton × Kanton of the Heim). Curved arrows from the home Kanton to the Kanton of the Heim;
 // the width is the number of people, moving dashes show the direction. A→B and B→A bend to different sides.
 // Step 1: the largest flows of the latest year (Kantone by share of residents from other Kantone).
-// Step 2: balance (taken in − sent out). Step 3: «Neue Wege» – the total hardly changes, but the routes do:
+// Step 2: balance (taken in − sent out) as sorted bars in the card, same map. Step 3: «Neue Wege» – the total hardly changes, but the routes do:
 //         arrows morph year by year, the card shows the «Rennen der Kantone» of the balances.
 // Arrows are coloured by intensity; hovering a Kanton colours its incoming arrows red and its outgoing ones blue.
-import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125222701';
-import { reduced } from './map.js?v=20261125222701';
-import { esc, main } from './ui.js?v=20261125222701';
+import { S, region, fmtInt, classOf, dataUrl, wappen } from './store.js?v=20261125223116';
+import { reduced } from './map.js?v=20261125223116';
+import { esc, main } from './ui.js?v=20261125223116';
 
 let MD = null;
 const load = () => (MD = MD || fetch(dataUrl('mobility.json')).then((r) => r.json()));
 const NS = 'http://www.w3.org/2000/svg';
-const DIV = ['#2166ac', '#67a9cf', '#c6dbef', '#fcbba1', '#ef8a62', '#b2182b'];
-const NBR = [-200, -50, 0, 50, 200];
 const MIN_PAIR = 30, MIN_SHOW = 30, NLAB = 6;
 const ICOL = ['#f3dca0', '#f5b649', '#ec8a24', '#c4591a'];   // intensity: 30–60 · 60–120 · 120–200 · 200+ people
 const IBR = [60, 120, 200];
@@ -26,7 +24,8 @@ export const flowsExtra = '<div class="mob-top" data-mob="top"></div>';
 
 export function flowsSteps(y0, y1) {
   return [
-    { title: 'Wer nimmt auf, wer gibt ab?', text: 'Rot: Kantone, deren Heime mehr Menschen aus anderen Kantonen aufnehmen, als eigene Einwohnerinnen und Einwohner in Heime anderer Kantone ziehen. Blau: umgekehrt. Die Pfeile bleiben: Ihre Breite ist die Zahl der Menschen.' },
+    { title: 'Wer nimmt auf, wer gibt ab?', text: `Rot: Kantone, deren Heime mehr Menschen aus anderen Kantonen aufnehmen, als eigene Einwohnerinnen und Einwohner in Heime anderer Kantone ziehen. Blau: umgekehrt. Saldo ${y1}:`,
+      extra: '<div class="mob-bars" data-mob="bars"></div>' },
     { title: `Neue Wege ${y0} → ${y1}`, text: `Insgesamt ziehen jedes Jahr ähnlich viele Menschen in ein Heim eines anderen Kantons – rund 4 % aller Heimbewohnenden. Aber die Wege haben sich verschoben: Obwalden wird zum Heimkanton der Zentralschweiz, Basel-Stadt nimmt Baselbieter auf, Bern verliert seine Rolle als grosser Aufnahmekanton.`,
       extra: `<div class="al-big"><b class="num" data-mob="year">${y0}</b><span data-mob="beat"></span></div>
         <div class="mob-race" data-mob="race"></div>
@@ -119,11 +118,7 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
     const inflow = (k, y) => D.flows.reduce((s, f) => s + (f[1] === k ? at(f[2], y) : 0), 0);
     const outflow = (k, y) => D.flows.reduce((s, f) => s + (f[0] === k ? at(f[2], y) : 0), 0);
     let focus = null, y = mode === 'time' && !reduced() ? Y[0] : Y[last], run = true, hold = 0, t0 = performance.now(), shown = null;
-    const paintKt = (yy) => {
-      if (mode !== 'net') { map.choropleth(new Map()); return; }          // neutral map: the arrows and circles carry the story
-      map.choropleth(new Map());
-      D.kts.forEach((k) => { const p = map.svg.querySelector(`.area-kt [data-id="KT:${k}"]`); if (p) p.style.fill = DIV[classOf(inflow(k, yy) - outflow(k, yy), NBR)]; });
-    };
+    const paintKt = () => map.choropleth(new Map());                   // neutral map: the arrows and circles carry the story
     const draw = () => {
       const cur = F.map((f) => at(f.ns, y));
       const topIdx = cur.map((n, i) => [n, i]).sort((a, b) => b[0] - a[0]).slice(0, NLAB).map((x) => x[1]);
@@ -157,6 +152,18 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       top.dataset.done = 1;
       const t = [...D.flows].sort((a, b) => b[2][last] - a[2][last]).slice(0, 6);
       top.innerHTML = `<span class="small muted">Grösste Ströme ${Y[last]} (Wohnkanton → Kanton des Heims)</span><ol>${t.map((f) => `<li><img src="${wappen(`KT:${f[0]}`)}" alt=""> ${f[0]} <span class="arr">→</span> <img src="${wappen(`KT:${f[1]}`)}" alt=""> ${f[1]}<b class="num">${fmtInt(f[2][last])}</b></li>`).join('')}</ol>`;
+    }
+    // step 2: balance of the latest year as sorted bars (red right: takes in, blue left: sends out)
+    const bars = q('bars');
+    if (mode === 'net' && bars && !bars.dataset.done) {
+      bars.dataset.done = 1;
+      const K = D.kts.filter((k) => NET[k]).sort((a2, b2) => NET[b2][last] - NET[a2][last]), bh = 16, BW = 380, bz = 205, bh2 = 115;
+      const mx = Math.max(...K.map((k) => Math.abs(NET[k][last])));
+      bars.innerHTML = `<svg viewBox="0 0 ${BW} ${K.length * bh + 4}" role="img" aria-label="Saldo der Kantone ${Y[last]}"><line class="z" x1="${bz}" x2="${bz}" y1="0" y2="${K.length * bh + 4}"/>
+        ${K.map((k, r) => { const v = NET[k][last], w = Math.max(0.5, Math.abs(v) / mx * bh2);
+          return `<g transform="translate(0,${r * bh + 2})"><text class="rk" x="14" y="${bh * 0.72}" text-anchor="end">${r + 1}</text><image href="${wappen(`KT:${k}`)}" x="19" y="1.5" width="${bh - 3}" height="${bh - 3}"/>
+            <text class="kt" x="${21 + bh}" y="${bh * 0.72}">${k}</text><rect class="${v >= 0 ? 'pos' : 'neg'}" x="${(v >= 0 ? bz : bz - w).toFixed(1)}" y="3" width="${w.toFixed(1)}" height="${bh - 6}" rx="2"/>
+            <text class="v num ${v >= 0 ? 'pos' : 'neg'}" x="${BW - 2}" y="${bh * 0.72}" text-anchor="end">${v >= 0 ? '+' : '−'}${fmtInt(Math.abs(Math.round(v)))}</text></g>`; }).join('')}</svg>`;
     }
     // time travel: beats and the «Rennen der Kantone» of the balances (taken in − sent out)
     const rb0 = q('race');
@@ -238,8 +245,7 @@ export function flowsChapter(map, setTip, alive, opts = {}) {
       watch();
     }
     const key = `<span class="mob-akey">Pfeile: Wohnkanton → Kanton des Heims, Breite und Farbe = Menschen (ab ${MIN_SHOW}): ${ICOL.map((c, i) => `<i style="background:${c}"></i>${['30', '60', '120', '200+'][i]}`).join(' ')}</span><span><i class="mob-bkey pos"></i><i class="mob-bkey neg"></i> Kreis = Saldo des Kantons (Fläche): rot nimmt mehr auf als er abgibt, Ringe ziehen nach innen · blau gibt mehr ab, Ringe ziehen nach aussen</span><span class="muted">Maus auf einen Kanton: <b style="color:${C_IN}">rot</b> was er aufnimmt, <b style="color:${C_OUT}">blau</b> was er abgibt</span>`;
-    if (mode !== 'net') return `<div class="legend mob-key">${key}</div>`;
-    return `<div class="legend"><span>Saldo: aufgenommen − abgegeben</span><span>gibt ab</span><span class="ramp">${DIV.map((c) => `<span style="background:${c}"></span>`).join('')}</span><span>nimmt auf</span><span class="muted">−200 · −50 · 0 · +50 · +200</span></div><div class="legend mob-key">${key}</div>`;
+    return `<div class="legend mob-key">${key}</div>`;
   };
 
   const go = (st) => {
